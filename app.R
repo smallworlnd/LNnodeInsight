@@ -1,0 +1,30 @@
+library(tidyverse)
+library(tidygraph)
+library(jsonlite)
+library(igraph)
+library(sna)
+library(lubridate)
+library(intergraph)
+library(networkD3)
+library(shiny)
+library(shinyWidgets)
+library(shinythemes)
+library(shinydashboard)
+library(shinycssloaders)
+library(shinyjs)
+library(htmlwidgets)
+library(htmltools)
+library(plotly)
+library(DT)
+
+# load data and functions for applications
+#source('inst/data.R')
+load('graph.Rdata')
+source('inst/functions.R', local=TRUE)
+
+# load in shiny parts
+source('inst/server.R', local=TRUE)
+source('inst/ui.R', local=TRUE)
+
+# put it all together
+shinyApp(ui, server)
