@@ -1,5 +1,5 @@
 # Lightning Network node insight
-An `R` Shiny application to interact with Lightning Network graph data, as shown at https://LNnodeInsight.com.
+An `R` Shiny application to interact with Lightning Network graph data.
 
 # Dependencies
 This application runs on `R` version 4.0.5 with the following package dependencies installed from CRAN:
@@ -21,6 +21,7 @@ shinycssloaders
 shinyjs
 htmlwidgets
 htmltools
+bsplus
 plotly
 DT
 ```
