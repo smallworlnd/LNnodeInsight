@@ -14,6 +14,7 @@ library(shinycssloaders)
 library(shinyjs)
 library(htmlwidgets)
 library(htmltools)
+library(bsplus)
 library(plotly)
 library(DT)
 

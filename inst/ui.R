@@ -90,22 +90,22 @@ dashboardbody <- dashboardBody(
 						background='yellow', width=NULL))),
 			fluidRow(
 				box(title="Node centrality ranks", solidHeader=TRUE, collapsible=TRUE,
-					valueBoxOutput('cent.between', width=4),
-					valueBoxOutput('cent.eigen', width=4),
-					valueBoxOutput('cent.close', width=4), width=NULL)),
+					valueBoxOutput('cent.between', width=4) %>% bs_embed_tooltip(title="Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.", placement='top'),
+					valueBoxOutput('cent.eigen', width=4) %>% bs_embed_tooltip(title="Eigenvector centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.", placement='top'),
+					valueBoxOutput('cent.close', width=4) %>% bs_embed_tooltip(title="Closeness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.", placement='top'), width=NULL)),
 			fluidRow(
 				box(title="Network centralization scores", solidHeader=TRUE, collapsible=TRUE,
-					valueBoxOutput('between.centralization', width=4),
-					valueBoxOutput('eigen.centralization', width=4),
-					valueBoxOutput('closeness.centralization', width=4), width=NULL))
+					valueBoxOutput('between.centralization', width=4) %>% bs_embed_tooltip(title="Network-wide index for betweenness.", placement='top'),
+					valueBoxOutput('eigen.centralization', width=4) %>% bs_embed_tooltip(title="Network-wide index for eigenvector centrality.", placement='top'),
+					valueBoxOutput('closeness.centralization', width=4) %>% bs_embed_tooltip(title="Network-wide index for closeness.", placement='top'), width=NULL))
 		),
 		tabItem(tabName='faq',
 			box(p("Send me an ", a("email", href="mailto:smallworlnd@protonmail.com"), "or join the community on ", a("Telegram", href="https://t.me/LNnodeInsight"), "or connect to my node, ", a("LNnodeInsight.com [smallworlnd]", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788")), title="Contact?", width=NULL, collapsible=TRUE),
 			box(p("See the code ", a("here", href="https://github.com/smallworlnd/LNnodeInsight"), "."), title="Open source?", width=NULL, collapsible=TRUE),
-			box(p("Betweeness centrality measures the number of shortest paths that pass through a node. A higher number of shortest paths a node has (higher rank) to any other node in the network, the more likely they will be included in a calculated path, and the more likely they will be included in a route/forward depending on the liquidity balance of each channel in the path. Betweenness centralization is a measure for the whole network."), title="Betweenness centrality?", width=NULL, collapsible=TRUE),
-			box(p("Closeness centrality is a measure of how many hops it takes to reach any node on the network from a given node. The better the rank, the fewer the hops required to reach any node. Closeness centralization is a measure for the whole network."), title="Closeness centrality?", width=NULL, collapsible=TRUE),
-			box(p("Eigenvector centrality measures influence of a given node in the network. Higher scores imply a well-connected node that is linked to other well-connected nodes. A lower eigenvector centrality could also imply a new and/or underserved node in the network. Eigenvector centralization is computed for the whole network."), title="Eigenvector centrality?", width=NULL, collapsible=TRUE),
-			box(p("The communities are inferred with the Louvain community detection algorithm. It detects clusters of nodes. It could be a useful metric to identify other nodes further away in the network."), title="Community?", width=NULL, collapsible=TRUE),
+			box(p("Betweeness centrality measures the number of shortest paths that pass through a node. A higher number of shortest paths a node has to any two other node in the network, the more likely they will be included in a route depending on the liquidity balance of each channel in the path."), title="Betweenness centrality?", width=NULL, collapsible=TRUE),
+			box(p("Closeness centrality is a measure of how many hops it takes to reach any node on the network from a given node. The better the rank, the fewer the hops required to reach any and all nodes."), title="Closeness centrality?", width=NULL, collapsible=TRUE),
+			box(p("Eigenvector centrality measures influence of a given node in the network. Higher ranks imply a well-connected node that is linked to other well-connected nodes. A lower eigenvector centrality could also imply a new and/or underserved node in the network."), title="Eigenvector centrality?", width=NULL, collapsible=TRUE),
+			box(p("The communities are inferred with the Louvain algorithm. It detects clusters of nodes. It could be a useful metric to identify groups of nodes further away from a given node in the network."), title="Community?", width=NULL, collapsible=TRUE),
 		)
 	))
 
