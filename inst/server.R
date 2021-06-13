@@ -108,9 +108,11 @@ server <- function(input, output, session) {
 				filter(name==chan_sim_parms$subject) %>%
 				select(cent.between.rank.delta) %>%
 				pull %>% as.vector
-			qualifier <- ifelse(delta>0, 'gain', 'lose')
-			color <- ifelse(delta>0, "green", "red")
-			val <- paste0(prettyNum(cent.between.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")")
+			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
+			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
+			val <- ifelse(delta==0,
+				paste0(prettyNum(cent.between.rank, big.mark=','), ' (', qualifier, ')'),
+				paste0(prettyNum(cent.between.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")"))
 		} else if (input$subject != '') {
 			subject <- fetch_pubkey(input$subject)
 			color <- 'blue'
@@ -131,9 +133,11 @@ server <- function(input, output, session) {
 				filter(name==chan_sim_parms$subject) %>%
 				select(cent.eigen.rank.delta) %>%
 				pull %>% as.vector
-			qualifier <- ifelse(delta>0, 'gain', 'lose')
-			color <- ifelse(delta>0, "green", "red")
-			val <- paste0(prettyNum(cent.eigen.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")")
+			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
+			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
+			val <- ifelse(delta==0,
+				paste0(prettyNum(cent.eigen.rank, big.mark=','), ' (', qualifier, ')'),
+				paste0(prettyNum(cent.eigen.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")"))
 		} else if (input$subject != '') {
 			subject <- fetch_pubkey(input$subject)
 			color <- 'blue'
@@ -154,9 +158,11 @@ server <- function(input, output, session) {
 				filter(name==chan_sim_parms$subject) %>%
 				select(cent.close.rank.delta) %>%
 				pull %>% as.vector
-			qualifier <- ifelse(delta>0, 'gain', 'lose')
-			color <- ifelse(delta>0, "green", "red")
-			val <- paste0(prettyNum(cent.close.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")")
+			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
+			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
+			val <- ifelse(delta==0,
+				paste0(prettyNum(cent.close.rank, big.mark=','), ' (', qualifier, ')'),
+				paste0(prettyNum(cent.close.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")"))
 		} else if (input$subject != '') {
 			subject <- fetch_pubkey(input$subject)
 			color <- 'blue'
@@ -171,7 +177,7 @@ server <- function(input, output, session) {
 	output$between.centralization <- renderValueBox({
 		if (status() == "latest") {
 			delta <- (chan_sim_parms$betw$centralization - g_betw$centralization) / g_betw$centralization * 100
-			qualifier <- ifelse(delta>0, '+', '-')
+			qualifier <- ifelse(delta>=0, '+', '-')
 			val <- paste0(signif(chan_sim_parms$betw$centralization, 4), " (", qualifier, " ", abs(signif(delta, 2)), "%)")
 		} else {
 			val <- signif(g_betw$centralization, 4)
@@ -182,7 +188,7 @@ server <- function(input, output, session) {
 	output$closeness.centralization <- renderValueBox({
 		if (status() == "latest") {
 			delta <- (chan_sim_parms$clo$centralization - g_clo$centralization) / g_clo$centralization * 100
-			qualifier <- ifelse(delta>0, '+', '-')
+			qualifier <- ifelse(delta>=0, '+', '-')
 			val <- paste0(signif(chan_sim_parms$clo$centralization, 4), " (", qualifier, " ", abs(signif(delta, 2)), "%)")
 		} else {
 			val <- signif(g_clo$centralization, 4)
@@ -193,7 +199,7 @@ server <- function(input, output, session) {
 	output$eigen.centralization <- renderValueBox({
 		if (status() == "latest") {
 			delta <- (chan_sim_parms$eigen$centralization - g_eigen$centralization) / g_eigen$centralization * 100
-			qualifier <- ifelse(delta>0, '+', '-')
+			qualifier <- ifelse(delta>=0, '+', '-')
 			val <- paste0(signif(chan_sim_parms$eigen$centralization, 4), " (", qualifier, " ", abs(signif(delta, 2)), "%)")
 		} else {
 			val <- signif(g_eigen$centralization, 4)
