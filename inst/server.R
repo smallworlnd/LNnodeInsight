@@ -73,10 +73,50 @@ server <- function(input, output, session) {
 					'Median fee rate (ppm)', 'BOS score', 'Terminal Web score')]))
 	})
 
+	filtered_node <- reactiveValues()
+	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt, input$pubkey.or.alias), {
+		if (is.null(input$community.filt)) {
+			community.filt <- g %>% as_tibble %>% select(community) %>% unique %>% pull
+		} else {
+			community.filt <- input$community.filt
+		}
+		filt.aliases <- g %>%
+			as_tibble %>%
+			filter(
+				!is.na(alias),
+				tot.capacity>=input$tot.capacity.filt[1]*1e8, tot.capacity<=input$tot.capacity.filt[2]*1e8,
+				avg.capacity>=input$avg.capacity.filt[1]*1e8, avg.capacity<=input$avg.capacity.filt[2]*1e8,
+				num.channels>=input$num.channels.filt[1], num.channels<=input$num.channels.filt[2],
+				median.rate.ppm>=input$fee.rate.filt[1], median.rate.ppm<=input$fee.rate.filt[2],
+				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
+				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
+				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
+			select(alias) %>%
+			pull
+		filt.pubkeys <- g %>%
+			as_tibble %>%
+			filter(
+				tot.capacity>=input$tot.capacity.filt[1]*1e8, tot.capacity<=input$tot.capacity.filt[2]*1e8,
+				avg.capacity>=input$avg.capacity.filt[1]*1e8, avg.capacity<=input$avg.capacity.filt[2]*1e8,
+				num.channels>=input$num.channels.filt[1], num.channels<=input$num.channels.filt[2],
+				median.rate.ppm>=input$fee.rate.filt[1], median.rate.ppm<=input$fee.rate.filt[2],
+				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
+				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
+				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
+			select(name) %>%
+			pull
+		if (input$pubkey.or.alias == 3) {
+			filtered_node$list <- c(filt.aliases, filt.pubkeys)
+		} else if (input$pubkey.or.alias == 1) {
+			filtered_node$list <- filt.pubkeys
+		} else {
+			filtered_node$list <- filt.aliases
+		}
+		updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", filtered_node$list), selected=NULL, server=TRUE)
+	})
 	# channel simulation
 	updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"="", node_ids), selected=NULL, server=TRUE)
 	updateSelectizeInput(session, "subject", choices=c("Pubkey or alias"="", node_ids), selected=NULL, server=TRUE)
-	updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", node_ids), selected=NULL, server=TRUE)
 	chan_sim_parms <- reactiveValues()
 	status <- reactiveVal()
 	observeEvent(input$launch_sim, {

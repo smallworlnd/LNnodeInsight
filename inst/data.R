@@ -188,15 +188,16 @@ g <- left_join(g, bos %>%
 # add terminal web scorse
 g <- left_join(g, nd.scores)
 
-node_ids <- c(g %>%
-	select(alias) %>%
-	as_tibble %>%
-	filter(!is.na(alias)) %>%
-	pull, g %>%
-	select(name) %>%
-	as_tibble %>%
-	pull)
-node_ids <- node_ids[sample(1:length(node_ids))]
+node_ids <- c(
+	g %>%
+		select(alias) %>%
+		as_tibble %>%
+		filter(!is.na(alias)) %>%
+		pull,
+	g %>%
+		select(name) %>%
+		as_tibble %>%
+		pull)
 
 chart_vars <- g %>%
 	as_tibble %>%
