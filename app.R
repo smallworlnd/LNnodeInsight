@@ -20,7 +20,7 @@ library(DT)
 
 # load data and functions for applications
 #source('inst/data.R')
-load('graph.Rdata')
+load('graph.Rda')
 source('inst/functions.R', local=TRUE)
 
 # load in shiny parts

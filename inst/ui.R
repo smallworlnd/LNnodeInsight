@@ -99,6 +99,8 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='fee.rate.filt', label='Filter by range of median channel fee rates (ppm)', min=1, max=6000, step=1, value=c(1, 6000), ticks=FALSE)),
 						column(12,
+							sliderInput(inputId='age.filt', label='Filter by range of approximate node age (in days)', min=0, max=1300, step=1, value=c(0, 1300), ticks=FALSE)),
+						column(12,
 							sliderInput(inputId='cent.between.rank.filt', label='Filter by range of betweenness centrality ranks', min=1, max=11000, step=1, value=c(1, 11000), ticks=FALSE)),
 						column(12,
 							sliderInput(inputId='cent.close.rank.filt', label='Filter by range of closeness centrality ranks', min=1, max=11000, step=1, value=c(1, 11000), ticks=FALSE)),

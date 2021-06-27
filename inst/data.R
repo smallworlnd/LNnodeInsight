@@ -50,8 +50,8 @@ bos <- bos.list$scores %>%
 	rename(c('name'='public_key', 'value'='score')) %>%
 	mutate(key='bos') %>%
 	as_tibble
-chan.confs <- read_tsv('data/chan-blockheights.tsv', col_names=FALSE) %>%
-	rename(c('chan_point'='X1', 'num.confirmations'='X2'))
+chan.blocktimes <- read_tsv('data/chan-blockheights.tsv', col_names=FALSE) %>%
+	rename(c('chan_point'='X1', 'blocktime'='X2'))
 self <- '0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788' # for testing
 
 # fetch nodes
@@ -70,20 +70,18 @@ nodes <- graph$nodes %>%
 edges <- graph$edges %>%
 	mutate(capacity=as.numeric(capacity), node1_policy.time_lock_delta=as.numeric(node1_policy.time_lock_delta), node1_policy.fee_base_msat=as.numeric(node1_policy.fee_base_msat), node1_policy.fee_rate_milli_msat=as.numeric(node1_policy.fee_rate_milli_msat), node2_policy.time_lock_delta=as.numeric(node2_policy.time_lock_delta), node2_policy.fee_base_msat=as.numeric(node2_policy.fee_base_msat), node2_policy.fee_rate_milli_msat=as.numeric(node2_policy.fee_rate_milli_msat))%>%
 	separate(chan_point, sep=':', into='chan_point', extra='drop') %>%
-	left_join(chan.confs, by='chan_point') %>%
-	mutate(age=num.confirmations*10/60/24)
+	left_join(chan.blocktimes, by='chan_point') %>%
+	mutate(age=as.numeric(ss.time - as_datetime(blocktime), unit='days'))
 n1 <- edges %>%
-	dplyr::group_by(node1_pub) %>%
-	summarise(tot=sum(capacity), num.channels=n()) %>%
+	select(node1_pub, capacity) %>%
 	rename(c('name'='node1_pub'))
 n2 <- edges %>%
-	dplyr::group_by(node2_pub) %>%
-	summarise(tot=sum(capacity), num.channels=n()) %>%
+	select(node2_pub, capacity) %>%
 	rename(c('name'='node2_pub'))
 # fetch total capacity per node
 capacity <- rbind(n1, n2) %>%
 	dplyr::group_by(name) %>%
-	summarise(tot.capacity=sum(tot), num.channels=sum(num.channels), avg.capacity=tot.capacity/num.channels)
+	summarise(tot.capacity=sum(capacity), num.channels=n(), avg.capacity=mean(capacity), med.capacity=median(capacity))
 # fetch number of dead channels, i.e., >14 days since last update
 u1 <- edges %>%
 	dplyr::group_by(node1_pub) %>%
@@ -206,12 +204,14 @@ chart_vars <- g %>%
 chart_vars <- c('Total capacity (BTC)'='tot.capacity',
 	'Number of channels'='num.channels',
 	'Average channel capacity (BTC)'='avg.capacity',
+	'Median channel capacity (BTC)'='med.capacity',
 	'Mean base fee (msat)'='mean.base.msat',
 	'Median base fee (msat)'='median.base.msat',
 	'Mean fee rate (ppm)'='mean.rate.ppm',
 	'Median fee rate (ppm)'='median.rate.ppm',
 	'Number of active channels'='act.channels',
 	'Number of inactive channels'='inact.channels',
+	'Approximate node age (days)'='age',
 	'Betweenness centrality'='cent.between',
 	'Eigenvector centrality'='cent.eigen',
 	'Closeness centrality'='cent.close',
@@ -227,10 +227,12 @@ table_vars <- c('Pubkey'='name',
 	'Total capacity (BTC)'='tot.capacity',
 	'Number of channels'='num.channels',
 	'Average channel capacity (BTC)'='avg.capacity',
+	'Median channel capacity (BTC)'='med.capacity',
 	'Mean base fee (msat)'='mean.base.msat',
 	'Median base fee (msat)'='median.base.msat',
 	'Mean fee rate (ppm)'='mean.rate.ppm',
 	'Median fee rate (ppm)'='median.rate.ppm',
+	'Approximate node age (days)'='age',
 	'Number of active channels'='act.channels',
 	'Number of inactive channels'='inact.channels',
 	'Betweenness centrality rank'='cent.between.rank',
@@ -240,4 +242,4 @@ table_vars <- c('Pubkey'='name',
 	'Terminal Web score'='tweb.score',
 	'BOS score'='bos')
 
-save(g, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, file='graph.Rdata')
+save(g, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, file='graph.Rda')

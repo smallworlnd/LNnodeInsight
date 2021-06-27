@@ -74,7 +74,7 @@ server <- function(input, output, session) {
 	})
 
 	filtered_node <- reactiveValues()
-	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt, input$pubkey.or.alias), {
+	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt, input$pubkey.or.alias), {
 		if (is.null(input$community.filt)) {
 			community.filt <- g %>% as_tibble %>% select(community) %>% unique %>% pull
 		} else {
@@ -88,6 +88,7 @@ server <- function(input, output, session) {
 				avg.capacity>=input$avg.capacity.filt[1]*1e8, avg.capacity<=input$avg.capacity.filt[2]*1e8,
 				num.channels>=input$num.channels.filt[1], num.channels<=input$num.channels.filt[2],
 				median.rate.ppm>=input$fee.rate.filt[1], median.rate.ppm<=input$fee.rate.filt[2],
+				age>=input$age.filt[1], age<=input$age.filt[2],
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
@@ -100,6 +101,7 @@ server <- function(input, output, session) {
 				avg.capacity>=input$avg.capacity.filt[1]*1e8, avg.capacity<=input$avg.capacity.filt[2]*1e8,
 				num.channels>=input$num.channels.filt[1], num.channels<=input$num.channels.filt[2],
 				median.rate.ppm>=input$fee.rate.filt[1], median.rate.ppm<=input$fee.rate.filt[2],
+				age>=input$age.filt[1], age<=input$age.filt[2],
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
