@@ -1,6 +1,15 @@
 customjs <- read_file("inst/custom.js")
 
 server <- function(input, output, session) {
+	observeEvent(session$clientData$url_search, {
+		query <- parseQueryString(session$clientData$url_search)
+		if (!is.null(query[['peer_network']])) {
+			pubkey <- query[['peer_network']]
+			updateTabItems(session, "sidebar", "peernet")
+			view_node(pubkey)
+			updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"="", node_ids), selected=view_node(), server=TRUE)
+		}
+	})
 	# dashboard rendering
 	output$chartlink <- renderInfoBox({
 		infoBox(a('Build your own chart', onclick="openTab('chart')", href="#"), subtitle='Explore network-wide node data and gather insight on trends', icon=icon('chart-bar'), color='yellow')
