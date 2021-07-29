@@ -123,11 +123,11 @@ server <- function(input, output, session) {
 		} else {
 			filtered_node$list <- filt.aliases
 		}
-		updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", filtered_node$list), selected=NULL, server=TRUE)
+		updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 	})
 	# channel simulation
-	updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"="", node_ids), selected=NULL, server=TRUE)
-	updateSelectizeInput(session, "subject", choices=c("Pubkey or alias"="", node_ids), selected=NULL, server=TRUE)
+	updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	chan_sim_parms <- reactiveValues()
 	status <- reactiveVal()
 	observeEvent(input$launch_sim, {
