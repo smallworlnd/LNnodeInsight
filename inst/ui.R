@@ -83,7 +83,13 @@ dashboardbody <- dashboardBody(
 						tabPanel('Summary table', dataTableOutput('nodetable'), value='tablenet', id='tablenet', width=NULL))))),
 		tabItem(tabName='chansim',
 			fluidRow(column(8,
-				box(selectizeInput(inputId="subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias')), background="yellow", width=NULL),
+				box(
+					fluidRow(column(10, selectizeInput(inputId="subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias'))),
+					column(2,
+						tags$br(),
+						tags$b("See node stats on"),
+						uiOutput('ambosslink')
+					)), background="yellow", width=NULL),
 				box(fluidRow(
 						column(10,
 							selectizeInput(inputId="target", label='Step 2: enter or select pubkey or alias of a node to simulate add/remove channel', choices=NULL, options=list(placeholder='Pubkey/alias'))),

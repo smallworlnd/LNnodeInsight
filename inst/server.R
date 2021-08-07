@@ -126,6 +126,21 @@ server <- function(input, output, session) {
 		updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 	})
 	# channel simulation
+	output$ambosslink<- renderUI({
+		if (input$subject != ""){
+			link <- paste0("https://amboss.space/node/", fetch_pubkey(input$subject))
+		} else {
+			link <- "https://amboss.space"
+		}
+
+		tags$a(
+			href=link, 
+			tags$img(src="www/AmbossLogo.png", 
+				width="100%",
+				height="100%"),
+			target="_blank")
+
+	})
 	updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	chan_sim_parms <- reactiveValues()
