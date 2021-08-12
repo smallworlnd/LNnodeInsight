@@ -27,39 +27,45 @@ peer_graph <- function(graph, s_node) {
 
 fetch_pubkey <- function(pubkey_or_alias) {
 	return(
-		ifelse(
-			grepl('^\\w{66}$', pubkey_or_alias), pubkey_or_alias, g %>%
+		ifelse(grepl('^\\w{66}$', pubkey_or_alias), pubkey_or_alias, 
+			ifelse(pubkey_or_alias == "", NA, g %>%
 				filter(alias==pubkey_or_alias) %>%
 				select(name) %>%
 				pull %>%
-				as.vector))
+				as.vector
+			)
+		)
+	)
 }
 
-sim_chan <- function(s_node, t_node, channel='add', amount=5e6) {
-	# find the rarget/s ids
+sim_chan <- function(s_node, t_node, indel, amount=5e6) {
+	t_node_req <- data.frame(t_node, indel)
 	s_id <- g %>%
-		filter(name==s_node) %>%
+		filter(name %in% s_node) %>%
 		select(id) %>%
 		pull %>%
 		as.vector
-	# conditionally add/remove channels
-	t_id <- g %>%
-		filter(name==t_node) %>%
-		select(id) %>%
-		pull %>%
-		as.vector
-	if (channel=='add') {
-		g_mod <- bind_edges(g, data.frame(from=s_id, to=t_id, capacity=amount))
-	} else {
-		del_edges <- g %>%
-			activate(edges) %>%
-			filter((from==s_id & to==t_id) | (from==t_id) & to==s_id) %>%
-			as_tibble %>%
-			select(from, to, capacity)
+	t_node_id <- g %>%
+		filter(name %in% t_node) %>%
+		select(name, id) %>%
+		as_tibble
+	t_node_id <- left_join(t_node_id, t_node_req, by=c('name'='t_node'))
+	add <- t_node_id %>% filter(indel=='add') %>% select(id) %>% pull
+	rem <- t_node_id %>% filter(indel=='remove') %>% select(id) %>% pull
+	if (length(add) > 0 && length(rem) == 0) {
+		g_mod <- bind_edges(g, data.frame(from=s_id, to=add, capacity=amount))
+	}
+	else if (length(add) > 0 && length(rem) > 0) {
+		g_mod <- bind_edges(g, data.frame(from=s_id, to=add, capacity=amount))
+		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
+		g_mod <- delete_edges(g_mod, E(g)[del_edges$from %--% del_edges$to]) %>%
+			as_tbl_graph
+	}
+	else {
+		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
 		g_mod <- delete_edges(g, E(g)[del_edges$from %--% del_edges$to]) %>%
 			as_tbl_graph
 	}
 	sim_g <- recompute_centralities(g, g_mod)
-	# make the reduced graph
 	return(sim_g)
 }

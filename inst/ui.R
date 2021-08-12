@@ -83,12 +83,34 @@ dashboardbody <- dashboardBody(
 						tabPanel('Summary table', dataTableOutput('nodetable'), value='tablenet', id='tablenet', width=NULL))))),
 		tabItem(tabName='chansim',
 			fluidRow(column(8,
-				box(selectizeInput(inputId="subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias')), background="yellow", width=NULL),
-				box(fluidRow(
+				box(
+					fluidRow(column(10, selectizeInput(inputId="subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias'))),
+					column(2,
+						tags$br(),
+						tags$b("See node stats on"),
+						uiOutput('ambosslink')
+					)), background="yellow", width="100%"),
+				box(
+					# first
+					h4(p(strong('Step 2: enter or select pubkey/alias of up to 3 nodes with which to simulate adding or removing channels'))),
+					fluidRow(
 						column(10,
-							selectizeInput(inputId="target", label='Step 2: enter or select pubkey or alias of a node to simulate add/remove channel', choices=NULL, options=list(placeholder='Pubkey/alias'))),
+							selectizeInput(inputId="target", label=NULL, choices=NULL, options=list(placeholder='Pubkey/alias'))),
 						column(2,
-							prettyRadioButtons(inputId='add_or_del', label='', selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
+							prettyRadioButtons(inputId='add_or_del', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
+					# second
+					fluidRow(
+						column(10,
+							selectizeInput(inputId="target2", label=NULL, choices=NULL, options=list(placeholder='Pubkey/alias'))),
+						column(2,
+							prettyRadioButtons(inputId='add_or_del2', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
+					# third
+					fluidRow(
+						column(10,
+							selectizeInput(inputId="target3", label=NULL, choices=NULL, options=list(placeholder='Pubkey/alias'))),
+						column(2,
+							prettyRadioButtons(inputId='add_or_del3', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
+
 						box(id="filt.box", title="Optional: apply filters to pubkey or alias menu choices", background="yellow", width=NULL, collapsible=TRUE, collapsed=TRUE, solidHeader=TRUE, status='primary',
 						column(12,
 							sliderInput(inputId='tot.capacity.filt', label='Filter by range of total capacity (in bitcoin)', min=0.1, max=200, step=0.1, value=c(0.1, 200), ticks=FALSE)),

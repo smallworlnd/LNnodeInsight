@@ -124,6 +124,20 @@ server <- function(input, output, session) {
 			filtered_node$list <- filt.aliases
 		}
 		updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
+		updateSelectizeInput(session, "target2", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
+		updateSelectizeInput(session, "target3", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
+	})
+	output$ambosslink<- renderUI({
+		if (input$subject != ""){
+				link <- paste0("https://amboss.space/node/", fetch_pubkey(input$subject))
+		} else {
+				link <- "https://amboss.space"
+		}
+		tags$a(
+			href=link,
+			tags$img(src="www/AmbossLogo.png",
+					width="100px"),
+			target="_blank")
 	})
 	# channel simulation
 	updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
@@ -134,17 +148,23 @@ server <- function(input, output, session) {
 		req(input$subject)
 		status('latest')
 		subject <- fetch_pubkey(input$subject)
-		target <- fetch_pubkey(input$target)
+		target <- sapply(
+			c(input$target, input$target2, input$target3),
+			function(x) fetch_pubkey(x))
+		target <- na.omit(target) %>% as.vector
+		indels <- c(input$add_or_del, input$add_or_del2, input$add_or_del3)
+		indels <- indels[1:length(target)]
 		showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
-		sim_graph <- sim_chan(subject, target, channel=input$add_or_del)
+		sim_graph <- sim_chan(subject, target, indels)
 		removeModal()
+		print(sim_graph$graph %>% filter(name==subject) %>% select(cent.between.rank))
 		chan_sim_parms$subject <- subject
 		chan_sim_parms$graph <- sim_graph$graph
 		chan_sim_parms$betw <- sim_graph$betw
 		chan_sim_parms$clo <- sim_graph$clo
 		chan_sim_parms$eigen <- sim_graph$eigen
 	})
-	observeEvent({list(input$subject, input$target)}, {
+	observeEvent({list(input$subject, input$target, input$target2, input$target3)}, {
 		status('changed')
 	})
 	# build value boxes with summary stats for the specified node
