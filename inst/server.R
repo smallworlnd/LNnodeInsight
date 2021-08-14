@@ -12,7 +12,7 @@ server <- function(input, output, session) {
 	})
 	# dashboard rendering
 	output$chartlink <- renderInfoBox({
-		infoBox(a('Build your own chart', onclick="openTab('chart')", href="#"), subtitle='Explore network-wide node data and gather insight on trends', icon=icon('chart-bar'), color='yellow')
+		infoBox(a('Build your own chart', onclick="openTab('chart')", href="#"), subtitle='Explore network-wide node data and gather insight on trends and correlations', icon=icon('chart-bar'), color='yellow')
 	})
 	output$peernetlink <- renderInfoBox({
 		infoBox(a('Peer network', onclick="openTab('peernet')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
@@ -292,30 +292,32 @@ server <- function(input, output, session) {
 		}
 		valueBox(val, "Eigenvector centralization", color='blue')
 	})
-	# node statistics rendering
-	output$userchart <- renderPlotly({
-		req(input$chart_x, input$chart_y)
-		if ('logx' %in% input$logscale) {
-			xscale <- 'log'
-		} else {
-			xscale <- 'linear'
-		}
-		if ('logy' %in% input$logscale) {
-			yscale <- 'log'
-		} else {
-			yscale <- 'linear'
-		}
+	# scatterplotting
+	output$scatter <- renderPlotly({
+		req(input$scatter_x, input$scatter_y)
 		plot_ly(g %>% as_tibble,
-			x=as.formula(paste0('~', chart_vars[input$chart_x])),
-			y=as.formula(paste0('~', chart_vars[input$chart_y])),
+			x=as.formula(paste0('~', chart_vars[input$scatter_x])),
+			y=as.formula(paste0('~', chart_vars[input$scatter_y])),
 			height='725') %>%
 				layout(
-					xaxis=list(title=input$chart_x,
-					type=xscale), yaxis=list(title=input$chart_y, type=yscale))
+					xaxis=list(title=input$scatter_x, type='log'),
+					yaxis=list(title=input$scatter_y, type='log'))
 	})
-	observeEvent(input$chartclear, {
-		updateAwesomeCheckboxGroup(session, inputId='logscale', label='log-scale', choices=c('X-axis'='logx', 'Y-axis'='logy'), inline=TRUE)
-		updateSelectizeInput(session, inputId='chart_x', label='Choose an X-axis variable', choices=c('', names(chart_vars)))
-		updateSelectizeInput(session, inputId='chart_y', label='Choose a Y-axis variable', choices=c('', names(chart_vars)))
+	observeEvent(input$scatterclear, {
+		updateSelectizeInput(session, inputId='scatter_x', label='Choose an X-axis variable', choices=c('', names(chart_vars)))
+		updateSelectizeInput(session, inputId='scatter_y', label='Choose a Y-axis variable', choices=c('', names(chart_vars)))
+	})
+	# histograms
+	output$histo <- renderPlotly({
+		req(input$histo_x)
+		plot_ly(g %>% as_tibble,
+			x=as.formula(paste0('~', chart_vars[input$histo_x])),
+			height='725') %>%
+				layout(
+					xaxis=list(title=input$histo_x,type='linear'),
+					yaxis=list(title="Number of nodes with", type='log'))
+	})
+	observeEvent(input$histoclear, {
+		updateSelectizeInput(session, inputId='histo_x', label='Choose a variable', choices=c('', names(chart_vars)))
 	})
 }

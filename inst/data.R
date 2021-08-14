@@ -201,10 +201,10 @@ chart_vars <- g %>%
 	as_tibble %>%
 	select(tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
 	names
-chart_vars <- c('Total capacity (BTC)'='tot.capacity',
+chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'Number of channels'='num.channels',
-	'Average channel capacity (BTC)'='avg.capacity',
-	'Median channel capacity (BTC)'='med.capacity',
+	'Average channel capacity (sat)'='avg.capacity',
+	'Median channel capacity (sat)'='med.capacity',
 	'Mean base fee (msat)'='mean.base.msat',
 	'Median base fee (msat)'='median.base.msat',
 	'Mean fee rate (ppm)'='mean.rate.ppm',
@@ -224,10 +224,10 @@ table_vars <- g %>%
 	names
 table_vars <- c('Pubkey'='name',
 	'Alias'='alias',
-	'Total capacity (BTC)'='tot.capacity',
+	'Total capacity (sat)'='tot.capacity',
 	'Number of channels'='num.channels',
-	'Average channel capacity (BTC)'='avg.capacity',
-	'Median channel capacity (BTC)'='med.capacity',
+	'Average channel capacity (sat)'='avg.capacity',
+	'Median channel capacity (sat)'='med.capacity',
 	'Mean base fee (msat)'='mean.base.msat',
 	'Median base fee (msat)'='median.base.msat',
 	'Mean fee rate (ppm)'='mean.rate.ppm',
