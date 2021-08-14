@@ -53,22 +53,39 @@ dashboardbody <- dashboardBody(
 				infoBoxOutput('chansimlink'),
 				)),
 		tabItem(tabName='chart',
+		tabBox(id='charting', side='left', selected='histo', width=NULL, height="805px",
+			tabPanel('Histogram', value='histo', id='histo', width=NULL,
+				column(2,
+					fluidRow(
+					box(width=NULL,
+							selectizeInput(inputId='histo_x', label='Choose a variable', choices=c('', names(chart_vars))),
+					column(12, offset=3,
+							actionBttn(inputId='histoclear', label='Clear', style='fill', color='danger', block=FALSE)),
+					)
+					),
+				),
+				column(10,
+					fluidRow(
+						box(withSpinner(plotlyOutput('histo')), width=NULL, height="750px"),
+					),
+				)
+			),
+			tabPanel('Scatterplot', value='scatter', id='scatter', width=NULL,
 			column(2,
 				fluidRow(
 					box(width=NULL,
-						selectizeInput(inputId='chart_x', label='Choose an X-axis variable', choices=c('', names(chart_vars))),
-						selectizeInput(inputId='chart_y', label='Choose a Y-axis variable', choices=c('', names(chart_vars))),
-						awesomeCheckboxGroup(inputId='logscale', label='log-scale', choices=c('X-axis'='logx', 'Y-axis'='logy'), inline=TRUE),
-						column(12, offset=4,
-							actionBttn(inputId='chartclear', label='Clear', style='fill', color='danger', block=FALSE)),
+						selectizeInput(inputId='scatter_x', label='Choose an X-axis variable', choices=c('', names(chart_vars))),
+						selectizeInput(inputId='scatter_y', label='Choose a Y-axis variable', choices=c('', names(chart_vars))),
+						column(12, offset=3,
+							actionBttn(inputId='scatterclear', label='Clear', style='fill', color='danger', block=FALSE)),
 					),
 				),
 			),
 			column(10,
 				fluidRow(
-					box(withSpinner(plotlyOutput('userchart')), width=NULL, height="750px"),
+					box(withSpinner(plotlyOutput('scatter')), width=NULL, height="750px"),
 				),
-			)
+			))),
 		),
 		tabItem(tabName='peernet',
 			fluidRow(
