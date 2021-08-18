@@ -161,11 +161,7 @@ server <- function(input, output, session) {
 	status <- reactiveVal()
 	observeEvent(input$launch_sim, {
 		req(input$subject)
-		validate(
-			need(input$target != "" && input$target2 != "" && input$target3 != "",
-				"Need at least one node to simulate with"
-			)
-		)
+		req(input$target != "" && input$target2 != "" && input$target3 != "")
 		status('latest')
 		subject <- fetch_pubkey(input$subject)
 		target <- sapply(
