@@ -14,13 +14,17 @@ server <- function(input, output, session) {
 	output$chartlink <- renderInfoBox({
 		infoBox(a('Build your own chart', onclick="openTab('chart')", href="#"), subtitle='Explore network-wide node data and gather insight on trends and correlations', icon=icon('chart-bar'), color='yellow')
 	})
+	output$nodestatslink <- renderInfoBox({
+		infoBox(a('Node stats', onclick="openTab('nodestats')", href="#"), subtitle="Explore your node's statistics and historical data and track growth", icon=icon('cog', lib='font-awesome'), color='yellow')
+	})
 	output$peernetlink <- renderInfoBox({
 		infoBox(a('Peer network', onclick="openTab('peernet')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
 	})
 	output$chansimlink <- renderInfoBox({
 		infoBox(a('Channel simulator', onclick="openTab('chansim')", href="#"), subtitle='Simulate opening or closing a channel on your node to measure influence in the network', icon=icon('edit'), color='yellow')
 	})
-
+	# node statistics/graph rendering
+	# 
 	# peer network rendering
 	view_node <- reactiveVal()
 	observeEvent(input$view_node, {
@@ -161,7 +165,7 @@ server <- function(input, output, session) {
 	status <- reactiveVal()
 	observeEvent(input$launch_sim, {
 		req(input$subject)
-		req(input$target != "" && input$target2 != "" && input$target3 != "")
+		req(input$target != "" || input$target2 != "" || input$target3 != "")
 		status('latest')
 		subject <- fetch_pubkey(input$subject)
 		target <- sapply(

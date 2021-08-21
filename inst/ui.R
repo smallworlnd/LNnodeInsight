@@ -15,6 +15,7 @@ sidebar <- dashboardSidebar(
 		menuItem("Dashboard", tabName="dashboard", icon=icon('globe', lib='font-awesome')),
 		menuItem("Applications", tabName="apps", icon=icon('th'),
 			menuItem("Build your own chart", tabName="chart", icon=NULL),
+			menuItem("Node statistics", tabName="nodestats", icon=NULL),
 			menuItem("Node peer network", tabName="peernet", icon=NULL),
 			menuItem("Channel simulator", tabName="chansim", icon=NULL)),
 		menuItem("FAQ", tabName="faq", icon=icon('question'))
@@ -49,6 +50,7 @@ dashboardbody <- dashboardBody(
 			hr(),
 			fluidRow(
 				infoBoxOutput('chartlink'),
+				infoBoxOutput('nodestatslink'),
 				infoBoxOutput('peernetlink'),
 				infoBoxOutput('chansimlink'),
 				)),
@@ -87,6 +89,18 @@ dashboardbody <- dashboardBody(
 				),
 			))),
 		),
+		tabItem(tabName='nodestats',
+			fluidRow(
+				column(6,
+					box(selectizeInput(inputId="view_node", label='Enter pubkey/alias to view local peer network', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=NULL)
+				),
+			),
+			fluidRow(
+				column(12,
+				h2("place holder"),
+				h3("another"),
+				actionBttn(inputId='view_node_stats', label='Send sats to view', style='fill', color='success', block=FALSE)),
+			)),
 		tabItem(tabName='peernet',
 			fluidRow(
 				column(6,
