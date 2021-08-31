@@ -15,14 +15,15 @@ sidebar <- dashboardSidebar(
 		menuItem("Dashboard", tabName="dashboard", icon=icon('globe', lib='font-awesome')),
 		menuItem("Applications", tabName="apps", icon=icon('th'),
 			menuItem("Build your own chart", tabName="chart", icon=NULL),
-			menuItem("Node statistics", tabName="nodestats", icon=NULL),
 			menuItem("Node peer network", tabName="peernet", icon=NULL),
+			menuItem("Rebalance simulator", tabName="rebalsim", icon=NULL),
 			menuItem("Channel simulator", tabName="chansim", icon=NULL)),
 		menuItem("FAQ", tabName="faq", icon=icon('question'))
 	))
 
 
 dashboardbody <- dashboardBody(
+	rclipboardSetup(),
 	useShinyjs(),
 	tags$head(
 		tags$style(HTML(".small-box {height: 80px}")),
@@ -50,8 +51,8 @@ dashboardbody <- dashboardBody(
 			hr(),
 			fluidRow(
 				infoBoxOutput('chartlink'),
-				infoBoxOutput('nodestatslink'),
 				infoBoxOutput('peernetlink'),
+				infoBoxOutput('rebalsimlink'),
 				infoBoxOutput('chansimlink'),
 				)),
 		tabItem(tabName='chart',
@@ -89,18 +90,30 @@ dashboardbody <- dashboardBody(
 				),
 			))),
 		),
-		tabItem(tabName='nodestats',
+		tabItem(tabName='rebalsim',
 			fluidRow(
-				column(6,
-					box(selectizeInput(inputId="view_node", label='Enter pubkey/alias to view local peer network', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=NULL)
+				column(8,
+					box(
+						selectizeInput(inputId="subject", label='Step 1: enter pubkey/alias to simulate a rebalance or leave blank to simulate a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
+						selectizeInput(inputId="rebal_out_node", label='Step 2: enter/choose a node either to rebalance outbound liquidity, or to use as first hop in a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
+						selectizeInput(inputId="rebal_in_node", label='Step 3: enter/select a node either to rebalance inbound liquidity, or to use as payment destination', choices=NULL, options=list(placeholder='Pubkey/alias')),
+						column(12, align='center',
+							actionBttn(inputId='launch_rebalsim', label='View rebalance cost for 150 sats', style='fill', color='success', block=FALSE)),
+						background='yellow', width=NULL,
+					)
+				),
+				column(4,
+					fluidRow(
+						box(title="Summary stats", solidHeader=TRUE, collapsible=TRUE,
+							valueBoxOutput('avg.cost', width=12),
+							valueBoxOutput('med.cost', width=12),
+							valueBoxOutput('sd.cost', width=12),
+							width=12
+						),
+					),
 				),
 			),
-			fluidRow(
-				column(12,
-				h2("place holder"),
-				h3("another"),
-				actionBttn(inputId='view_node_stats', label='Send sats to view', style='fill', color='success', block=FALSE)),
-			)),
+		),
 		tabItem(tabName='peernet',
 			fluidRow(
 				column(6,
@@ -120,8 +133,7 @@ dashboardbody <- dashboardBody(
 						tags$br(),
 						tags$b("See node stats on"),
 						uiOutput('ambosslink')
-					)), background="yellow", width="100%"),
-				box(
+					)),
 					# first
 					h4(p(strong('Step 2: enter or select pubkey/alias of up to 3 nodes with which to simulate adding or removing channels'))),
 					fluidRow(
@@ -163,7 +175,7 @@ dashboardbody <- dashboardBody(
 							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
 						column(12,
 							prettyRadioButtons(inputId='pubkey.or.alias', label='Show pubkey or alias or both in the drop-down menu', selected=3, choiceNames=c('Pubkey', 'Alias', 'Both'), choiceValues=c(1, 2, 3), inline=TRUE))),
-						column(12, offset=5,
+						column(12, align='center',
 							actionBttn(inputId='launch_sim', label='Start', style='fill', color='success', block=FALSE)),
 					background='yellow', width=NULL)),
 			column(4,

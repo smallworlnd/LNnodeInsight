@@ -69,3 +69,69 @@ sim_chan <- function(s_node, t_node, indel, amount=5e6) {
 	sim_g <- recompute_centralities(g, g_mod)
 	return(sim_g)
 }
+
+path_cost <- function(in_graph, subject=NULL, out_node, in_node, max_samp=500) {
+	graph <- in_graph
+	fs <- c()
+	in_node_id <- graph %>% filter(name==fetch_pubkey(in_node)) %>% pull(id)
+	out_node_id <- graph %>% filter(name==fetch_pubkey(out_node)) %>% pull(id)
+	in_node <- fetch_pubkey(in_node)
+	out_node <- fetch_pubkey(out_node)
+	# figure out if in_node has channel to subject
+	if (!is.null(subject) && are_adjacent(graph, fetch_pubkey(subject), in_node)) {
+		subject_id <- graph %>% filter(name==fetch_pubkey(subject)) %>% pull(id)
+		return_fee <- E(graph, path=data.frame(from=in_node_id, to=subject_id))$from_fee_rate
+	} else {
+		# otherwise use median in_node fee
+		return_fee <- graph %>% filter(name==in_node) %>% pull(median.rate.ppm)
+	}
+	# find a single shortest path
+	while (TRUE) {
+		w <- graph %>% activate(edges) %>% pull(from_fee_rate)
+		sps <- all_shortest_paths(graph, from=out_node, to=in_node, mode='out', weights=w)$res
+		if (length(sps) == 0 || length(fs) >= max_samp) { break }
+		# compute the mean fee of all shortest paths
+		path_fee <- lapply(sps, function(x) return_fee + E(graph, path=x)$from_fee_rate %>% sum) %>% unlist
+		fs <- c(fs, path_fee)
+		# delete a random internal node edge/channel
+		mid_nodes <- sapply(sps, function(x) fetch_rand_mid_edge(x) %>% as_ids) %>% t %>% as.data.frame %>% rename(c('from'='V1', 'to'='V2'))
+		del_edges <- data.frame(from=sapply(mid_nodes$from, function(x) fetch_id(graph, x)) %>% as.vector, to=sapply(mid_nodes$to, function(x) fetch_id(graph, x)) %>% as.vector)
+		graph <- delete_edges(graph, E(graph)[del_edges$from %--% del_edges$to]) %>% as_tbl_graph
+	}
+	return(fs)
+}
+
+fetch_rand_mid_edge <- function(short_path) {
+	mid_nodes <- short_path[-c(1, length(short_path))]
+	if (length(mid_nodes) == 0) {
+		chan <- c(short_path[1], short_path[2])
+	} else {
+		samp <- mid_nodes[sample(1:length(mid_nodes), 1)]
+		rand <- sample(c(-1, 1), 1)
+		if (rand == 1) {
+			chan <- c(samp, short_path[match(samp, short_path)+1])
+		} else {
+			chan <- c(short_path[match(samp, short_path)-1], samp)
+		}
+	}
+	return(chan)
+}
+
+fetch_id <- function(in_graph, pubkey) {
+	return(in_graph %>% filter(name==pubkey) %>% pull(id))
+}
+
+ggqrcode <- function(text, color="black", alpha=1) {
+	x <- qrcode_gen(text, plotQRcode=FALSE, dataOutput=TRUE, softLimitFlag=FALSE)
+	x <- as.data.frame(x)
+	y <- x
+	y$id <- rownames(y)
+	y <- gather(y, "key", "value", colnames(y)[-ncol(y)])
+	y$key = factor(y$key, levels=rev(colnames(x)))
+	y$id = factor(y$id, levels=rev(rownames(x)))
+	ggplot(y, aes_(x=~id, y=~key)) +
+		geom_tile(aes_(fill=~value), alpha=alpha) +
+		scale_fill_gradient(low="white", high=color) +
+		theme_void() +
+		theme(legend.position='none')
+}

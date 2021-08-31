@@ -242,4 +242,20 @@ table_vars <- c('Pubkey'='name',
 	'Terminal Web score'='tweb.score',
 	'BOS score'='bos')
 
+rev_edges <- g %>%
+	activate(edges) %>%
+	as_tibble %>%
+	mutate(f=to, t=from, fbf=to_base_fee, tbf=from_base_fee, ff=to_fee_rate, tf=from_fee_rate) %>%
+	select(f, t, capacity, age, last_update, fbf, ff, tbf, tf) %>%
+	rename(c('from'='f', 'to'='t', 'from_base_fee'='fbf', 'from_fee_rate'='ff', 'to_base_fee'='tbf', 'to_fee_rate'='tf'))
+forw_edges <- g %>% activate(edges) %>% as_tibble
+all_edges <- rbind(forw_edges, rev_edges)
+nodes <- g %>% as_tibble
+g_dir <- tbl_graph(nodes, all_edges, directed=TRUE) %>%
+	filter(act.channels!=0) %>%
+	activate(edges) %>%
+	filter(!is.na(from_fee_rate), from_fee_rate<15e3, from_fee_rate>1) %>%
+	activate(nodes) %>%
+	mutate(id=row_number())
+
 save(g, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, file='graph.Rda')

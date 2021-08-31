@@ -1,5 +1,13 @@
 customjs <- read_file("inst/custom.js")
 
+modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
+	value <- restoreInput(id = inputId, default = NULL)
+	tags$button(id = inputId, type = "button", style = if (!is.null(width)) 
+	paste0("width: ", validateCssUnit(width), ";"), type = "button", 
+	class = "btn btn-default action-button", `data-dismiss` = "modal", `data-val` = value, 
+	list(shiny:::validateIcon(icon), label), ...)
+}
+
 server <- function(input, output, session) {
 	observeEvent(session$clientData$url_search, {
 		query <- parseQueryString(session$clientData$url_search)
@@ -14,11 +22,11 @@ server <- function(input, output, session) {
 	output$chartlink <- renderInfoBox({
 		infoBox(a('Build your own chart', onclick="openTab('chart')", href="#"), subtitle='Explore network-wide node data and gather insight on trends and correlations', icon=icon('chart-bar'), color='yellow')
 	})
-	output$nodestatslink <- renderInfoBox({
-		infoBox(a('Node stats', onclick="openTab('nodestats')", href="#"), subtitle="Explore your node's statistics and historical data and track growth", icon=icon('cog', lib='font-awesome'), color='yellow')
-	})
 	output$peernetlink <- renderInfoBox({
 		infoBox(a('Peer network', onclick="openTab('peernet')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
+	})
+	output$rebalsimlink <- renderInfoBox({
+		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment/rebalance on an existing or simulated channel to better allocate your liquidity", icon=icon('calculator', lib='font-awesome'), color='yellow')
 	})
 	output$chansimlink <- renderInfoBox({
 		infoBox(a('Channel simulator', onclick="openTab('chansim')", href="#"), subtitle='Simulate opening or closing a channel on your node to measure influence in the network', icon=icon('edit'), color='yellow')
@@ -139,8 +147,7 @@ server <- function(input, output, session) {
 		}
 		tags$a(
 			href=link,
-			tags$img(src="www/AmbossLogo.png",
-					width="100px"),
+			tags$img(src="www/AmbossLogo.png", width="10%", height="10%"),
 			target="_blank")
 	})
 	# channel simulation
@@ -161,6 +168,61 @@ server <- function(input, output, session) {
 	})
 	updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebal_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebal_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	rebal_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
+	observeEvent(input$launch_rebalsim, {
+		req(input$rebal_out_node)
+		req(input$rebal_in_node)
+		rebal_inv$cancel <- FALSE
+		showModal(
+			modalDialog(
+				"Running simulation, please wait...",
+				size='s', footer='An invoice will be displayed when the results are ready'))
+		#costs <- path_cost(in_graph=g_dir, subject=input$subject, out_node=input$rebal_out_node, in_node=input$rebal_in_node)
+		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
+		rebal_inv$status <- "Unpaid"
+		removeModal()
+		showModal(
+			modalDialog(
+				plotOutput("rebal_qr", height='400px', width='400px'),
+				title="Done! Please pay 150 sats to view results.",
+				size='s',
+				footer=tagList(
+					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
+					modalActionButton("rebalsim_cancel", "Cancel")
+				)
+			)
+		)
+	})
+	observeEvent(rebal_inv$status, {		
+		if (rebal_inv$cancel == TRUE ) {
+			rebal_inv$status <- NULL
+			removeModal()
+		}
+		else if (rebal_inv$status == "Unpaid") {
+			delay(2000, rebal_inv$status <- 'Try again')
+		}
+		else if (rebal_inv$status == "Try again") {
+			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
+		}
+		else if (rebal_inv$status == "Paid") {
+			rebal_inv$settled <- TRUE
+			removeModal()
+		}
+		else if (rebal_inv$status == "Expired") {
+			removeModal()
+		}
+	})
+	observeEvent(input$rebalsim_cancel, {
+		rebal_inv$cancel <- TRUE
+	})
+
+	output$rebal_qr <- renderPlot({
+		bolt11 <- rebal_inv$invoice$BOLT11
+		ggqrcode(bolt11)
+	})
+
 	chan_sim_parms <- reactiveValues()
 	status <- reactiveVal()
 	observeEvent(input$launch_sim, {

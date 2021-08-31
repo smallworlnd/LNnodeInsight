@@ -15,6 +15,7 @@ library(shinyjs)
 library(htmlwidgets)
 library(htmltools)
 library(bsplus)
+library(rclipboard)
 library(plotly)
 library(DT)
 
@@ -22,6 +23,9 @@ library(DT)
 #source('inst/data.R')
 load('graph.Rda')
 source('inst/functions.R', local=TRUE)
+
+# load in invoice management
+source('store/api.R')
 
 # load in shiny parts
 source('inst/server.R', local=TRUE)
