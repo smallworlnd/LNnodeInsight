@@ -171,6 +171,7 @@ server <- function(input, output, session) {
 	updateSelectizeInput(session, "rebal_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "rebal_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	rebal_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
+	rebal_sim <- reactiveValues()
 	observeEvent(input$launch_rebalsim, {
 		req(input$rebal_out_node)
 		req(input$rebal_in_node)
@@ -179,43 +180,100 @@ server <- function(input, output, session) {
 			modalDialog(
 				"Running simulation, please wait...",
 				size='s', footer='An invoice will be displayed when the results are ready'))
-		#costs <- path_cost(in_graph=g_dir, subject=input$subject, out_node=input$rebal_out_node, in_node=input$rebal_in_node)
+		rebal_sim$values <- path_cost(in_graph=g_dir, subject=input$subject, out_node=input$rebal_out_node, in_node=input$rebal_in_node)
 		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()
-		showModal(
-			modalDialog(
-				plotOutput("rebal_qr", height='400px', width='400px'),
-				title="Done! Please pay 150 sats to view results.",
-				size='s',
-				footer=tagList(
-					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
-					modalActionButton("rebalsim_cancel", "Cancel")
-				)
-			)
-		)
+#		showModal(
+#			modalDialog(
+#				plotOutput("rebal_qr", height='400px', width='400px'),
+#				title="Done! Please pay 150 sats to view results.",
+#				size='s',
+#				footer=tagList(
+#					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
+#					modalActionButton("rebalsim_cancel", "Cancel")
+#				)
+#			)
+#		)
 	})
 	observeEvent(rebal_inv$status, {		
-		if (rebal_inv$cancel == TRUE ) {
-			rebal_inv$status <- NULL
-			removeModal()
-		}
-		else if (rebal_inv$status == "Unpaid") {
-			delay(2000, rebal_inv$status <- 'Try again')
-		}
-		else if (rebal_inv$status == "Try again") {
-			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
-		}
-		else if (rebal_inv$status == "Paid") {
+#		if (rebal_inv$cancel == TRUE ) {
+#			rebal_inv$status <- NULL
+#			removeModal()
+#		}
+#		else if (rebal_inv$status == "Unpaid") {
+#			delay(2000, rebal_inv$status <- 'Try again')
+#		}
+#		else if (rebal_inv$status == "Try again") {
+#			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
+#		}
+#		else if (rebal_inv$status == "Paid") {
 			rebal_inv$settled <- TRUE
 			removeModal()
-		}
-		else if (rebal_inv$status == "Expired") {
-			removeModal()
-		}
+#		}
+#		else if (rebal_inv$status == "Expired") {
+#			removeModal()
+#		}
 	})
 	observeEvent(input$rebalsim_cancel, {
 		rebal_inv$cancel <- TRUE
+	})
+	output$rebal_dist <- renderPlotly({
+		if (rebal_inv$settled == TRUE) {
+			plot_ly(rebal_sim$values %>% as_tibble,
+				x=~value, nbinsx=50) %>%
+					layout(
+						xaxis=list(title="Total path cost (ppm)"),
+						yaxis=list(title="Number of paths with"))
+		}
+	})
+	output$rebal.samples <- renderValueBox({
+		if (rebal_inv$settled == TRUE) {
+			val <- rebal_sim$values %>% length
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Number of paths sampled", color="blue")
+	})
+	output$min.cost <- renderValueBox({
+		if (rebal_inv$settled == TRUE) {
+			val <- rebal_sim$values %>% min
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Lowest sampled path cost (ppm)", color="blue")
+	})
+	output$max.cost <- renderValueBox({
+		if (rebal_inv$settled == TRUE) {
+			val <- rebal_sim$values %>% max
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Highest sampled path cost (ppm)", color="blue")
+	})
+	output$avg.cost <- renderValueBox({
+		if (rebal_inv$settled == TRUE) {
+			val <- rebal_sim$values %>% mean %>% round(0)
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Expected path cost (ppm)", color="blue")
+	})
+	output$med.cost <- renderValueBox({
+		if (rebal_inv$settled == TRUE) {
+			val <- rebal_sim$values %>% median %>% round(0)
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Median path cost (ppm)", color="blue")
+	})
+	output$sd.cost <- renderValueBox({
+		if (rebal_inv$settled == TRUE) {
+			val <- rebal_sim$values %>% sd %>% round(0)
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Spread in path cost (ppm)", color="blue")
 	})
 
 	output$rebal_qr <- renderPlot({

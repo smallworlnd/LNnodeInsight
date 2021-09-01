@@ -93,18 +93,30 @@ dashboardbody <- dashboardBody(
 		tabItem(tabName='rebalsim',
 			fluidRow(
 				column(8,
-					box(
-						selectizeInput(inputId="subject", label='Step 1: enter pubkey/alias to simulate a rebalance or leave blank to simulate a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
-						selectizeInput(inputId="rebal_out_node", label='Step 2: enter/choose a node either to rebalance outbound liquidity, or to use as first hop in a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
-						selectizeInput(inputId="rebal_in_node", label='Step 3: enter/select a node either to rebalance inbound liquidity, or to use as payment destination', choices=NULL, options=list(placeholder='Pubkey/alias')),
-						column(12, align='center',
-							actionBttn(inputId='launch_rebalsim', label='View rebalance cost for 150 sats', style='fill', color='success', block=FALSE)),
-						background='yellow', width=NULL,
+					fluidRow(
+						box(
+							selectizeInput(inputId="subject", label='Step 1: enter pubkey/alias to simulate a rebalance or leave blank to simulate a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
+							selectizeInput(inputId="rebal_out_node", label='Step 2: enter/choose a node either to rebalance outbound liquidity, or to use as first hop in a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
+							selectizeInput(inputId="rebal_in_node", label='Step 3: enter/select a node either to rebalance inbound liquidity, or to use as payment destination', choices=NULL, options=list(placeholder='Pubkey/alias')),
+							column(12, align='center',
+								actionBttn(inputId='launch_rebalsim', label='View rebalance cost for 150 sats', style='fill', color='success', block=FALSE)),
+							background='yellow', width=12,
+						),
+						tabBox(id='rebal_sim_res', side='left', width=12, selected='rebal_sim_dist',
+							tabPanel(
+								'Path cost distribution',
+								withSpinner(plotlyOutput('rebal_dist')), value='rebal_sim_dist',
+								id='rebal_sim_dist', width=NULL
+							)
+						)
 					)
 				),
 				column(4,
 					fluidRow(
 						box(title="Summary stats", solidHeader=TRUE, collapsible=TRUE,
+							valueBoxOutput('rebal.samples', width=12),
+							valueBoxOutput('min.cost', width=12),
+							valueBoxOutput('max.cost', width=12),
 							valueBoxOutput('avg.cost', width=12),
 							valueBoxOutput('med.cost', width=12),
 							valueBoxOutput('sd.cost', width=12),

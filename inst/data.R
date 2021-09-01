@@ -254,7 +254,7 @@ nodes <- g %>% as_tibble
 g_dir <- tbl_graph(nodes, all_edges, directed=TRUE) %>%
 	filter(act.channels!=0) %>%
 	activate(edges) %>%
-	filter(!is.na(from_fee_rate), from_fee_rate<15e3, from_fee_rate>1) %>%
+	filter(!is.na(from_fee_rate), from_fee_rate<20e3, from_fee_rate>1) %>%
 	activate(nodes) %>%
 	mutate(id=row_number())
 
