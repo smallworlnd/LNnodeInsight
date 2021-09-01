@@ -284,15 +284,11 @@ server <- function(input, output, session) {
 		target <- na.omit(target) %>% as.vector
 		indels <- c(input$add_or_del, input$add_or_del2, input$add_or_del3)
 		indels <- indels[1:length(target)]
-		print(subject)
-		print(target)
-		print(indels)
 		showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
 		sim_graph <- sim_chan(subject, target, indels)
 		removeModal()
 		chan_sim_parms$subject <- subject
 		chan_sim_parms$graph <- sim_graph$graph
-		print(chan_sim_parms$graph %>% filter(name==self) %>% select(-c(ipv4:onion_v2,amboss,oneml)) %>% select(id, cent.between.rank:cent.eigen.rank.delta))
 		chan_sim_parms$betw <- sim_graph$betw
 		chan_sim_parms$clo <- sim_graph$clo
 		chan_sim_parms$eigen <- sim_graph$eigen
@@ -337,7 +333,6 @@ server <- function(input, output, session) {
 				filter(name==chan_sim_parms$subject) %>%
 				select(cent.eigen.rank.delta) %>%
 				pull %>% as.vector
-			print(delta)
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
 			val <- ifelse(delta==0,
