@@ -14,8 +14,8 @@ server <- function(input, output, session) {
 		if (!is.null(query[['peer_network']])) {
 			pubkey <- query[['peer_network']]
 			updateTabItems(session, "sidebar", "peernet")
-			view_node(pubkey)
-			updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"="", node_ids), selected=view_node(), server=TRUE)
+			peernet_subject(pubkey)
+			updateSelectizeInput(session, "peernet_subject", choices=c("Pubkey or alias"="", node_ids), selected=peernet_subject(), server=TRUE)
 		}
 	})
 	# dashboard rendering
@@ -34,13 +34,13 @@ server <- function(input, output, session) {
 	# node statistics/graph rendering
 	# 
 	# peer network rendering
-	view_node <- reactiveVal()
-	observeEvent(input$view_node, {
-		view_node(input$view_node)
+	peernet_subject <- reactiveVal()
+	observeEvent(input$peernet_subject, {
+		peernet_subject(input$peernet_subject)
 	})
 	output$net <- renderForceNetwork({
-		req(view_node())
-		subject <- fetch_pubkey(view_node())
+		req(peernet_subject())
+		subject <- fetch_pubkey(peernet_subject())
 		reduced_g <- peer_graph(g, subject)
 		node <- reduced_g %>%
 			mutate(id=row_number()-1) %>%
@@ -64,9 +64,9 @@ server <- function(input, output, session) {
 	})
 	# summarise peer info in a table
 	output$nodetable <- renderDataTable({
-		req(view_node())
+		req(peernet_subject())
 		req(input$show_columns)
-		subject <- fetch_pubkey(view_node())
+		subject <- fetch_pubkey(peernet_subject())
 		peer_table <- peer_graph(g, subject) %>%
 			mutate(id=row_number()-1) %>%
 			as_tibble %>%
@@ -85,7 +85,7 @@ server <- function(input, output, session) {
 	})
 
 	output$table_vars <- renderUI({
-		req(view_node())
+		req(peernet_subject())
 		req(input$peerinfotab == "tablenet")
 		box(width=NULL,
 			checkboxGroupInput("show_columns", "Select columns to show", choices=table_vars, inline=TRUE,
@@ -139,21 +139,10 @@ server <- function(input, output, session) {
 		updateSelectizeInput(session, "target2", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 		updateSelectizeInput(session, "target3", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 	})
-	output$ambosslink<- renderUI({
-		if (input$subject != ""){
-				link <- paste0("https://amboss.space/node/", fetch_pubkey(input$subject))
-		} else {
-				link <- "https://amboss.space"
-		}
-		tags$a(
-			href=link,
-			tags$img(src="www/AmbossLogo.png", width="10%", height="10%"),
-			target="_blank")
-	})
 	# channel simulation
 	output$ambosslink<- renderUI({
-		if (input$subject != ""){
-			link <- paste0("https://amboss.space/node/", fetch_pubkey(input$subject))
+		if (input$chansim_subject != ""){
+			link <- paste0("https://amboss.space/node/", fetch_pubkey(input$chansim_subject))
 		} else {
 			link <- "https://amboss.space"
 		}
@@ -166,8 +155,9 @@ server <- function(input, output, session) {
 			target="_blank")
 
 	})
-	updateSelectizeInput(session, "view_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "peernet_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "chansim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebalsim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "rebal_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "rebal_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	rebal_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
@@ -180,7 +170,7 @@ server <- function(input, output, session) {
 			modalDialog(
 				"Running simulation, please wait...",
 				size='s', footer='An invoice will be displayed when the results are ready'))
-		rebal_sim$values <- path_cost(in_graph=g_dir, subject=input$subject, out_node=input$rebal_out_node, in_node=input$rebal_in_node)
+		rebal_sim$values <- path_cost(in_graph=g_dir, subject=input$rebalsim_subject, out_node=input$rebal_out_node, in_node=input$rebal_in_node)
 		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()
@@ -224,7 +214,7 @@ server <- function(input, output, session) {
 				x=~value, nbinsx=50) %>%
 					layout(
 						xaxis=list(title="Total path cost (ppm)"),
-						yaxis=list(title="Number of paths with"))
+						yaxis=list(title="Number of paths"))
 		}
 	})
 	output$rebal.samples <- renderValueBox({
@@ -284,27 +274,30 @@ server <- function(input, output, session) {
 	chan_sim_parms <- reactiveValues()
 	status <- reactiveVal()
 	observeEvent(input$launch_sim, {
-		req(input$subject)
+		req(input$chansim_subject)
 		req(input$target != "" || input$target2 != "" || input$target3 != "")
 		status('latest')
-		subject <- fetch_pubkey(input$subject)
+		subject <- fetch_pubkey(input$chansim_subject)
 		target <- sapply(
 			c(input$target, input$target2, input$target3),
 			function(x) fetch_pubkey(x))
 		target <- na.omit(target) %>% as.vector
 		indels <- c(input$add_or_del, input$add_or_del2, input$add_or_del3)
 		indels <- indels[1:length(target)]
+		print(subject)
+		print(target)
+		print(indels)
 		showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
 		sim_graph <- sim_chan(subject, target, indels)
 		removeModal()
-		print(sim_graph$graph %>% filter(name==subject) %>% select(cent.between.rank))
 		chan_sim_parms$subject <- subject
 		chan_sim_parms$graph <- sim_graph$graph
+		print(chan_sim_parms$graph %>% filter(name==self) %>% select(-c(ipv4:onion_v2,amboss,oneml)) %>% select(id, cent.between.rank:cent.eigen.rank.delta))
 		chan_sim_parms$betw <- sim_graph$betw
 		chan_sim_parms$clo <- sim_graph$clo
 		chan_sim_parms$eigen <- sim_graph$eigen
 	})
-	observeEvent({list(input$subject, input$target, input$target2, input$target3)}, {
+	observeEvent({list(input$chansim_subject, input$target, input$target2, input$target3)}, {
 		status('changed')
 	})
 	# build value boxes with summary stats for the specified node
@@ -324,8 +317,8 @@ server <- function(input, output, session) {
 			val <- ifelse(delta==0,
 				paste0(prettyNum(cent.between.rank, big.mark=','), ' (', qualifier, ')'),
 				paste0(prettyNum(cent.between.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")"))
-		} else if (input$subject != '') {
-			subject <- fetch_pubkey(input$subject)
+		} else if (input$chansim_subject != '') {
+			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
 			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.between.rank) %>% pull, big.mark=',')
 		} else {
@@ -344,13 +337,14 @@ server <- function(input, output, session) {
 				filter(name==chan_sim_parms$subject) %>%
 				select(cent.eigen.rank.delta) %>%
 				pull %>% as.vector
+			print(delta)
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
 			val <- ifelse(delta==0,
 				paste0(prettyNum(cent.eigen.rank, big.mark=','), ' (', qualifier, ')'),
 				paste0(prettyNum(cent.eigen.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")"))
-		} else if (input$subject != '') {
-			subject <- fetch_pubkey(input$subject)
+		} else if (input$chansim_subject != '') {
+			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
 			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.eigen.rank) %>% pull, big.mark=',')
 		} else {
@@ -374,8 +368,8 @@ server <- function(input, output, session) {
 			val <- ifelse(delta==0,
 				paste0(prettyNum(cent.close.rank, big.mark=','), ' (', qualifier, ')'),
 				paste0(prettyNum(cent.close.rank, big.mark=','), " (", qualifier, " ", abs(delta), ")"))
-		} else if (input$subject != '') {
-			subject <- fetch_pubkey(input$subject)
+		} else if (input$chansim_subject != '') {
+			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
 			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.close.rank) %>% pull, big.mark=',')
 		} else {

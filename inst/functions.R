@@ -1,11 +1,11 @@
 recompute_centralities <- function(prev_g, new_g) {
 	new_g_filt <- new_g %>%
 		filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
+		mutate(id=row_number()) %>%
 		select(-c(cent.between, cent.close, cent.eigen))
-		ids <- new_g_filt %>%
+	ids <- new_g_filt %>%
 		as_tibble %>%
-		select(id) %>%
-		pull
+		pull(id)
 	cent.betw <- centr_betw(new_g_filt, directed=FALSE)
 	cent.clo <- centr_clo(new_g_filt, mode='all')
 	cent.eigen <- centr_eigen(new_g_filt, directed=FALSE)
@@ -30,8 +30,7 @@ fetch_pubkey <- function(pubkey_or_alias) {
 		ifelse(grepl('^\\w{66}$', pubkey_or_alias), pubkey_or_alias, 
 			ifelse(pubkey_or_alias == "", NA, g %>%
 				filter(alias==pubkey_or_alias) %>%
-				select(name) %>%
-				pull %>%
+				pull(name) %>%
 				as.vector
 			)
 		)
@@ -42,16 +41,14 @@ sim_chan <- function(s_node, t_node, indel, amount=5e6) {
 	t_node_req <- data.frame(t_node, indel)
 	s_id <- g %>%
 		filter(name %in% s_node) %>%
-		select(id) %>%
-		pull %>%
-		as.vector
+		pull(id)
 	t_node_id <- g %>%
 		filter(name %in% t_node) %>%
 		select(name, id) %>%
 		as_tibble
 	t_node_id <- left_join(t_node_id, t_node_req, by=c('name'='t_node'))
-	add <- t_node_id %>% filter(indel=='add') %>% select(id) %>% pull
-	rem <- t_node_id %>% filter(indel=='remove') %>% select(id) %>% pull
+	add <- t_node_id %>% filter(indel=='add') %>% pull(id)
+	rem <- t_node_id %>% filter(indel=='del') %>% pull(id)
 	if (length(add) > 0 && length(rem) == 0) {
 		g_mod <- bind_edges(g, data.frame(from=s_id, to=add, capacity=amount))
 	}

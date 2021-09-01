@@ -159,8 +159,7 @@ g_heur <- g %>%
 	filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels)
 g_heur_ids <- g_heur %>%
 	as_tibble %>%
-	select(id) %>%
-	pull
+	pull(id)
 g_betw <- centr_betw(g_heur, directed=FALSE)
 g_clo <- centr_clo(g_heur, mode='all')
 g_eigen <- centr_eigen(g_heur)

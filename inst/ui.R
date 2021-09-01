@@ -95,7 +95,7 @@ dashboardbody <- dashboardBody(
 				column(8,
 					fluidRow(
 						box(
-							selectizeInput(inputId="subject", label='Step 1: enter pubkey/alias to simulate a rebalance or leave blank to simulate a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
+							selectizeInput(inputId="rebalsim_subject", label='Step 1: enter pubkey/alias to simulate a rebalance or leave blank to simulate a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
 							selectizeInput(inputId="rebal_out_node", label='Step 2: enter/choose a node either to rebalance outbound liquidity, or to use as first hop in a payment', choices=NULL, options=list(placeholder='Pubkey/alias')),
 							selectizeInput(inputId="rebal_in_node", label='Step 3: enter/select a node either to rebalance inbound liquidity, or to use as payment destination', choices=NULL, options=list(placeholder='Pubkey/alias')),
 							column(12, align='center',
@@ -129,7 +129,7 @@ dashboardbody <- dashboardBody(
 		tabItem(tabName='peernet',
 			fluidRow(
 				column(6,
-					box(selectizeInput(inputId="view_node", label='Enter pubkey/alias to view local peer network', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=NULL)),
+					box(selectizeInput(inputId="peernet_subject", label='Enter pubkey/alias to view local peer network', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=NULL)),
 				column(6,
 					uiOutput('table_vars'))),
 			fluidRow(
@@ -140,7 +140,7 @@ dashboardbody <- dashboardBody(
 		tabItem(tabName='chansim',
 			fluidRow(column(8,
 				box(
-					fluidRow(column(10, selectizeInput(inputId="subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias'))),
+					fluidRow(column(10, selectizeInput(inputId="chansim_subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias'))),
 					column(2,
 						tags$br(),
 						tags$b("See node stats on"),
