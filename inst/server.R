@@ -26,7 +26,7 @@ server <- function(input, output, session) {
 		infoBox(a('Peer network', onclick="openTab('peernet')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
 	})
 	output$rebalsimlink <- renderInfoBox({
-		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment/rebalance on an existing or simulated channel to better allocate your liquidity", icon=icon('calculator', lib='font-awesome'), color='yellow')
+		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment or of a rebalance to gain insight on liquidity demand and efficient channel management", icon=icon('calculator', lib='font-awesome'), color='yellow')
 	})
 	output$chansimlink <- renderInfoBox({
 		infoBox(a('Channel simulator', onclick="openTab('chansim')", href="#"), subtitle='Simulate opening or closing a channel on your node to measure influence in the network', icon=icon('edit'), color='yellow')
@@ -158,59 +158,74 @@ server <- function(input, output, session) {
 	updateSelectizeInput(session, "peernet_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "chansim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "rebalsim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "rebal_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "rebal_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebalsim_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebalsim_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "paysim_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "paysim_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	rebal_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
-	rebal_sim <- reactiveValues()
-	observeEvent(input$launch_rebalsim, {
-		req(input$rebal_out_node)
-		req(input$rebal_in_node)
+	payrebal_sim <- reactiveValues()
+	observeEvent(c(input$launch_payrebalsim, input$pay_or_rebal), {
+		if (input$pay_or_rebal == 1) {
+			req(input$rebalsim_subject)
+			req(input$rebalsim_in_node)
+			req(input$rebalsim_out_node)
+			subject <- input$rebalsim_subject
+			out_node <- input$rebalsim_out_node
+			in_node <- input$rebalsim_in_node
+		} else {
+			req(input$paysim_in_node)
+			req(input$paysim_out_node)
+			subject <- ''
+			out_node <- input$paysim_out_node
+			in_node <- input$paysim_in_node
+		}
 		rebal_inv$cancel <- FALSE
+		rebal_inv$settled <- FALSE
 		showModal(
 			modalDialog(
 				"Running simulation, please wait...",
-				size='s', footer='An invoice will be displayed when the results are ready'))
-		rebal_sim$values <- path_cost(in_graph=g_dir, subject=input$rebalsim_subject, out_node=input$rebal_out_node, in_node=input$rebal_in_node)
+				size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'))
+		payrebal_sim$values <- path_cost(in_graph=g_dir, subject=subject, out_node=out_node, in_node=in_node)
 		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()
-#		showModal(
-#			modalDialog(
-#				plotOutput("rebal_qr", height='400px', width='400px'),
-#				title="Done! Please pay 150 sats to view results.",
-#				size='s',
-#				footer=tagList(
-#					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
-#					modalActionButton("rebalsim_cancel", "Cancel")
-#				)
-#			)
-#		)
+		showModal(
+			modalDialog(
+				plotOutput("rebal_qr", height='400px', width='400px'),
+				title=paste("Done! Please pay", as.numeric(rebalsim_msat)/1e3, "sats to view results."),
+				size='s',
+				footer=tagList(
+					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
+					modalActionButton("rebalsim_cancel", "Cancel")
+				)
+			)
+		)
 	})
 	observeEvent(rebal_inv$status, {		
-#		if (rebal_inv$cancel == TRUE ) {
-#			rebal_inv$status <- NULL
-#			removeModal()
-#		}
-#		else if (rebal_inv$status == "Unpaid") {
-#			delay(2000, rebal_inv$status <- 'Try again')
-#		}
-#		else if (rebal_inv$status == "Try again") {
-#			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
-#		}
-#		else if (rebal_inv$status == "Paid") {
+		if (rebal_inv$cancel == TRUE ) {
+			rebal_inv$status <- NULL
+			removeModal()
+		}
+		else if (rebal_inv$status == "Unpaid") {
+			delay(2000, rebal_inv$status <- 'Try again')
+		}
+		else if (rebal_inv$status == "Try again") {
+			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
+		}
+		else if (rebal_inv$status == "Paid") {
 			rebal_inv$settled <- TRUE
 			removeModal()
-#		}
-#		else if (rebal_inv$status == "Expired") {
-#			removeModal()
-#		}
+		}
+		else if (rebal_inv$status == "Expired") {
+			removeModal()
+		}
 	})
 	observeEvent(input$rebalsim_cancel, {
 		rebal_inv$cancel <- TRUE
 	})
 	output$rebal_dist <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
-			plot_ly(rebal_sim$values %>% as_tibble,
+			plot_ly(payrebal_sim$values %>% as_tibble,
 				x=~value, nbinsx=50) %>%
 					layout(
 						xaxis=list(title="Total path cost (ppm)"),
@@ -219,7 +234,7 @@ server <- function(input, output, session) {
 	})
 	output$rebal.samples <- renderValueBox({
 		if (rebal_inv$settled == TRUE) {
-			val <- rebal_sim$values %>% length
+			val <- payrebal_sim$values %>% length
 		} else {
 			val <- ''
 		}
@@ -227,7 +242,7 @@ server <- function(input, output, session) {
 	})
 	output$min.cost <- renderValueBox({
 		if (rebal_inv$settled == TRUE) {
-			val <- rebal_sim$values %>% min
+			val <- payrebal_sim$values %>% min
 		} else {
 			val <- ''
 		}
@@ -235,7 +250,7 @@ server <- function(input, output, session) {
 	})
 	output$max.cost <- renderValueBox({
 		if (rebal_inv$settled == TRUE) {
-			val <- rebal_sim$values %>% max
+			val <- payrebal_sim$values %>% max
 		} else {
 			val <- ''
 		}
@@ -243,7 +258,7 @@ server <- function(input, output, session) {
 	})
 	output$avg.cost <- renderValueBox({
 		if (rebal_inv$settled == TRUE) {
-			val <- rebal_sim$values %>% mean %>% round(0)
+			val <- payrebal_sim$values %>% mean %>% round(0)
 		} else {
 			val <- ''
 		}
@@ -251,7 +266,7 @@ server <- function(input, output, session) {
 	})
 	output$med.cost <- renderValueBox({
 		if (rebal_inv$settled == TRUE) {
-			val <- rebal_sim$values %>% median %>% round(0)
+			val <- payrebal_sim$values %>% median %>% round(0)
 		} else {
 			val <- ''
 		}
@@ -259,7 +274,7 @@ server <- function(input, output, session) {
 	})
 	output$sd.cost <- renderValueBox({
 		if (rebal_inv$settled == TRUE) {
-			val <- rebal_sim$values %>% sd %>% round(0)
+			val <- payrebal_sim$values %>% sd %>% round(0)
 		} else {
 			val <- ''
 		}

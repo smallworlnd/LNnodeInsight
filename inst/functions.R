@@ -54,20 +54,18 @@ sim_chan <- function(s_node, t_node, indel, amount=5e6) {
 	}
 	else if (length(add) > 0 && length(rem) > 0) {
 		g_mod <- bind_edges(g, data.frame(from=s_id, to=add, capacity=amount))
-		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
-		g_mod <- delete_edges(g_mod, E(g)[del_edges$from %--% del_edges$to]) %>%
-			as_tbl_graph
+		del_edges <- g_mod %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
+		g_mod <- delete_edges(g_mod, E(g_mod)[del_edges$from %--% del_edges$to]) %>% as_tbl_graph
 	}
 	else {
 		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
-		g_mod <- delete_edges(g, E(g)[del_edges$from %--% del_edges$to]) %>%
-			as_tbl_graph
+		g_mod <- delete_edges(g, E(g)[del_edges$from %--% del_edges$to]) %>% as_tbl_graph
 	}
 	sim_g <- recompute_centralities(g, g_mod)
 	return(sim_g)
 }
 
-path_cost <- function(in_graph, subject=NULL, out_node, in_node, max_samp=500) {
+path_cost <- function(in_graph, subject, out_node, in_node, max_samp=500) {
 	graph <- in_graph
 	fs <- c()
 	in_node_id <- graph %>% filter(name==fetch_pubkey(in_node)) %>% pull(id)
@@ -75,7 +73,7 @@ path_cost <- function(in_graph, subject=NULL, out_node, in_node, max_samp=500) {
 	in_node <- fetch_pubkey(in_node)
 	out_node <- fetch_pubkey(out_node)
 	# figure out if in_node has channel to subject
-	if (!is.null(subject) && are_adjacent(graph, fetch_pubkey(subject), in_node)) {
+	if (subject != "" && are_adjacent(graph, fetch_pubkey(subject), in_node)) {
 		subject_id <- graph %>% filter(name==fetch_pubkey(subject)) %>% pull(id)
 		return_fee <- E(graph, path=data.frame(from=in_node_id, to=subject_id))$from_fee_rate
 	} else {

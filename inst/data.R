@@ -196,6 +196,17 @@ node_ids <- c(
 		as_tibble %>%
 		pull)
 
+chansim_filter_parms <- g %>%
+	as_tibble %>%
+	summarise(
+		max.cap=round(max(tot.capacity)/1e8+1, 0),
+		max.avg.capacity=max(avg.capacity)/1e8,
+		max.num.channels=max(num.channels)+1,
+		max.age=round(max(age)+1, 0),
+		max.between=max(cent.between.rank, na.rm=TRUE),
+		max.close=max(cent.close.rank, na.rm=TRUE),
+		max.eigen=max(cent.eigen.rank, na.rm=TRUE))
+
 chart_vars <- g %>%
 	as_tibble %>%
 	select(tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
@@ -257,4 +268,4 @@ g_dir <- tbl_graph(nodes, all_edges, directed=TRUE) %>%
 	activate(nodes) %>%
 	mutate(id=row_number())
 
-save(g, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, file='graph.Rda')
+save(g, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, chansim_filter_parms, file='graph.Rda')
