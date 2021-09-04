@@ -26,7 +26,7 @@ server <- function(input, output, session) {
 		infoBox(a('Peer network', onclick="openTab('peernet')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
 	})
 	output$rebalsimlink <- renderInfoBox({
-		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment or of a rebalance to gain insight on liquidity demand and efficient channel management", icon=icon('calculator', lib='font-awesome'), color='yellow')
+		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment or rebalance to gain insight on liquidity demand and efficient channel management", icon=icon('calculator', lib='font-awesome'), color='yellow')
 	})
 	output$chansimlink <- renderInfoBox({
 		infoBox(a('Channel simulator', onclick="openTab('chansim')", href="#"), subtitle='Simulate opening or closing a channel on your node to measure influence in the network', icon=icon('edit'), color='yellow')
