@@ -119,19 +119,19 @@ dashboardbody <- dashboardBody(
 								'Path cost distribution',
 								withSpinner(plotlyOutput('rebal_dist')), value='rebal_sim_dist',
 								id='rebal_sim_dist', width=NULL
-							)
+							) 
 						)
 					)
 				),
 				column(4,
 					fluidRow(
 						box(title="Summary stats", solidHeader=TRUE, collapsible=TRUE,
-							valueBoxOutput('rebal.samples', width=12) %>% bs_embed_tooltip(title="Up to a maximum of 500 paths will be sampled to estimate the cost of either rebalancing or sending a payment between any two nodes"),
-							valueBoxOutput('min.cost', width=12) %>% bs_embed_tooltip(title="The cheapest path found in the simulation"),
-							valueBoxOutput('max.cost', width=12) %>% bs_embed_tooltip(title="The most expensive path found in the simulation"),
-							valueBoxOutput('avg.cost', width=12) %>% bs_embed_tooltip(title="The expected cost of rebalancing or sending a payment between the outgoing and incoming nodes"),
-							valueBoxOutput('med.cost', width=12) %>% bs_embed_tooltip(title="The median cost of rebalancing or sending a payment between the outgoing and incoming nodes"),
-							valueBoxOutput('sd.cost', width=12) %>% bs_embed_tooltip(title="The expected cost plus or minus this value gives you an idea of variation in path costs"),
+							valueBoxOutput('rebal.samples', width=12) %>% bs_embed_tooltip(title="Up to a maximum of 500 paths will be sampled to estimate the cost of either rebalancing or sending a payment between any two nodes. This number can vary considerably since it's dependent on the available paths between the two nodes."),
+							valueBoxOutput('min.cost', width=12) %>% bs_embed_tooltip(title="The cheapest path found in the simulation."),
+							valueBoxOutput('max.cost', width=12) %>% bs_embed_tooltip(title="The most expensive path found in the simulation."),
+							valueBoxOutput('avg.cost', width=12) %>% bs_embed_tooltip(title="The expected cost of rebalancing or sending a payment between the outgoing and incoming nodes."),
+							valueBoxOutput('med.cost', width=12) %>% bs_embed_tooltip(title="The median cost of rebalancing or sending a payment between the outgoing and incoming nodes."),
+							valueBoxOutput('sd.cost', width=12) %>% bs_embed_tooltip(title="The expected cost plus or minus this value gives you an idea of variation in path costs."),
 							width=12
 						),
 					),

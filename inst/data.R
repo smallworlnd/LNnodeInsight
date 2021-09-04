@@ -268,4 +268,4 @@ g_dir <- tbl_graph(nodes, all_edges, directed=TRUE) %>%
 	activate(nodes) %>%
 	mutate(id=row_number())
 
-save(g, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, chansim_filter_parms, file='graph.Rda')
+save(g, g_dir, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, chansim_filter_parms, file='graph.Rda')
