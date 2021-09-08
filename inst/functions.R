@@ -37,6 +37,16 @@ fetch_pubkey <- function(pubkey_or_alias) {
 	)
 }
 
+fetch_alias <- function(pubkey) {
+	return(g %>% filter(name==pubkey) %>% pull(alias))
+}
+
+fetch_peer_aliases <- function(pubkey) {
+	peers <- adjacent_vertices(g, pubkey, mode='all') %>% unlist %>% as.vector
+	peer_aliases <- g %>% filter(id %in% peers) %>% select(alias) %>% as_tibble %>% pull(alias)
+	return(peer_aliases)
+}
+
 sim_chan <- function(s_node, t_node, indel, amount=5e6) {
 	t_node_req <- data.frame(t_node, indel)
 	s_id <- g %>%

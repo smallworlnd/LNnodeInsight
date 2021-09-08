@@ -201,7 +201,15 @@ dashboardbody <- dashboardBody(
 							prettyRadioButtons(inputId='pubkey.or.alias', label='Show pubkey or alias or both in the drop-down menu', selected=3, choiceNames=c('Pubkey', 'Alias', 'Both'), choiceValues=c(1, 2, 3), inline=TRUE))),
 						column(12, align='center',
 							actionBttn(inputId='launch_sim', label='Start', style='fill', color='success', block=FALSE)),
-					background='yellow', width=NULL)),
+					background='yellow', width=NULL),
+					tabBox(id='chansim_peer_stats', side='left', selected='chansim_venn_tab', width=NULL,
+						tabPanel(
+							'Peer overlap',
+							plotlyOutput('chansim_venn'), value='chansim_venn_tab',
+							id='chansim_venn_tab', width=NULL
+						) 
+					),
+				),
 			column(4,
 				fluidRow(box(title="Node centrality ranks", solidHeader=TRUE, collapsible=TRUE,
 					valueBoxOutput('cent.between', width=12) %>% bs_embed_tooltip(title="Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.", placement='top'),

@@ -162,6 +162,7 @@ server <- function(input, output, session) {
 	updateSelectizeInput(session, "rebalsim_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "paysim_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "paysim_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+
 	rebal_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
 	payrebal_sim <- reactiveValues()
 	observeEvent(c(input$launch_payrebalsim, input$pay_or_rebal), {
@@ -388,6 +389,43 @@ server <- function(input, output, session) {
 		}
 		valueBox(val, "Closeness centrality rank", color=color)
 	})
+	# peer overlap for selected nodes
+	output$chansim_venn <- renderPlotly({
+		req(input$chansim_subject)
+		req(input$target != "" || input$target2 != "" || input$target3 != "")
+		subject <- fetch_pubkey(input$chansim_subject)
+		subject_alias <- fetch_alias(subject)
+		target <- sapply(
+			c(input$target, input$target2, input$target3),
+			function(x) fetch_pubkey(x))
+		target <- na.omit(target) %>% as.vector
+		target_aliases <- sapply(target, function(x) fetch_alias(x))
+		peers <- lapply(c(subject, target), function(x) fetch_peer_aliases(x))
+		names(peers) <- c(subject_alias, target_aliases)
+		#ggVennDiagram(peers, show_intersect=TRUE)
+		venn <- Venn(peers)
+		data <- process_data(venn)
+		items <- venn_region(data) %>%
+			dplyr::rowwise() %>%
+			dplyr::mutate(text = stringr::str_wrap(paste0(.data$item, collapse = " "), width = 40)) %>%
+			sf::st_as_sf()
+		label_coord = sf::st_centroid(items$geometry) %>% sf::st_coordinates()
+		p <- ggplot(items) +
+			geom_sf(aes_string(fill="count")) +
+			geom_sf_text(aes_string(label = "name"),
+				data = data@setLabel,
+				inherit.aes = F) +
+			geom_text(aes_string(label = "count", text = "text"),
+				x = label_coord[,1],
+				y = label_coord[,2],
+				show.legend = FALSE) +
+			theme_void() +
+			scale_fill_distiller(palette = "RdYlBu")
+		ax <- list(showline = FALSE)
+		plotly::ggplotly(p, tooltip = c("text")) %>%
+			plotly::layout(xaxis = ax, yaxis = ax)
+	})
+
 	# network-wide centralizations
 	output$between.centralization <- renderValueBox({
 		if (status() == "latest") {
