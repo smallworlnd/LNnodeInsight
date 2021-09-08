@@ -205,7 +205,7 @@ dashboardbody <- dashboardBody(
 					tabBox(id='chansim_peer_stats', side='left', selected='chansim_venn_tab', width=NULL,
 						tabPanel(
 							'Peer overlap',
-							plotlyOutput('chansim_venn'), value='chansim_venn_tab',
+							withSpinner(plotlyOutput('chansim_venn')), value='chansim_venn_tab',
 							id='chansim_venn_tab', width=NULL
 						) 
 					),
