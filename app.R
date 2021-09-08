@@ -17,6 +17,7 @@ library(htmltools)
 library(bsplus)
 library(rclipboard)
 library(plotly)
+library(ggVennDiagram)
 library(DT)
 
 # load data and functions for applications
