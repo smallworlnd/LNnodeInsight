@@ -2,6 +2,7 @@ title <- tags$p(tags$img(src='www/LNnodeinsight-tinylogonobkgrnd-white.svg', hei
 
 header <- dashboardHeader(title=title,
 	tags$li(class="dropdown",tags$a("Telegram", href="https://t.me/LNnodeInsight", icon("telegram"), target="_blank")),
+	tags$li(class="dropdown",tags$a("Twitter", href="https://twitter.com/smallworlnd", icon("twitter"), target="_blank")),
 	tags$li(class="dropdown",tags$a("Email", href="mailto:smallworlnd@protonmail.com", icon("envelope"), target="_blank")),
 	tags$li(class="dropdown",tags$a("Node", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788", icon("bolt"), target="_blank")),
 	tags$li(class="dropdown",tags$a("Source", href="https://github.com/smallworlnd/LNnodeInsight", icon("github"), target="_blank"))
@@ -114,27 +115,40 @@ dashboardbody <- dashboardBody(
 								actionBttn(inputId='launch_payrebalsim', label=paste('View simulation results for', as.numeric(rebalsim_msat)/1e3, 'sats'), style='fill', color='success', block=FALSE)),
 							background='yellow', width=12,
 						),
-						tabBox(id='rebal_sim_res', side='left', width=12, selected='rebal_sim_dist',
+						tabBox(id='rebalsim_res_histo', side='left', width=12, selected='rebalsim_cost_histo',
 							tabPanel(
-								'Path cost distribution',
-								withSpinner(plotlyOutput('rebal_dist')), value='rebal_sim_dist',
-								id='rebal_sim_dist', width=NULL
-							) 
+								'Path cost histogram',
+								withSpinner(plotlyOutput('rebal_cost_histo')), value='rebalsim_cost_histo',
+								id='rebalsim_cost_histo_tab', width=NULL
+							),
+							tabPanel(
+								'Path maximum liquidity flow histogram',
+								withSpinner(plotlyOutput('rebal_flow_histo')), value='rebalsim_flow_histo',
+								id='rebalsim_flow_histo_tab', width=NULL
+							)
+						),
+						tabBox(id='rebalsim_res_scatter', side='left', width=12, selected='rebalsim_flowcost_scatter',
+							tabPanel(
+								'Maximum liquidity flow vs cost',
+								withSpinner(plotlyOutput('rebal_flowcost_scatter')), value='rebalsim_flowcost_scatter',
+								id='rebalsim_flowcost_scatter_tab', width=NULL
+							)
 						)
 					)
 				),
 				column(4,
 					fluidRow(
 						box(title="Summary stats", solidHeader=TRUE, collapsible=TRUE,
-							valueBoxOutput('rebal.samples', width=12) %>% bs_embed_tooltip(title="Up to a maximum of 500 paths will be sampled to estimate the cost of either rebalancing or sending a payment between any two nodes. This number can vary considerably since it's dependent on the available paths between the two nodes."),
-							valueBoxOutput('min.cost', width=12) %>% bs_embed_tooltip(title="The cheapest path found in the simulation."),
-							valueBoxOutput('max.cost', width=12) %>% bs_embed_tooltip(title="The most expensive path found in the simulation."),
-							valueBoxOutput('avg.cost', width=12) %>% bs_embed_tooltip(title="The expected cost of rebalancing or sending a payment between the outgoing and incoming nodes."),
-							valueBoxOutput('med.cost', width=12) %>% bs_embed_tooltip(title="The median cost of rebalancing or sending a payment between the outgoing and incoming nodes."),
-							valueBoxOutput('sd.cost', width=12) %>% bs_embed_tooltip(title="The expected cost plus or minus this value gives you an idea of variation in path costs."),
-							width=12
+							valueBoxOutput('rebalsim.samples', width=12),
+							valueBoxOutput('rebalsim.min', width=12),
+							valueBoxOutput('rebalsim.max', width=12),
+							valueBoxOutput('rebalsim.avg', width=12),
+							valueBoxOutput('rebalsim.med', width=12),
+							valueBoxOutput('rebalsim.sd', width=12),
+							width=NULL
 						),
 					),
+					infoBoxOutput('maxflowinfo', width=NULL),
 				),
 			),
 		),
@@ -213,8 +227,8 @@ dashboardbody <- dashboardBody(
 			column(4,
 				fluidRow(box(title="Node centrality ranks", solidHeader=TRUE, collapsible=TRUE,
 					valueBoxOutput('cent.between', width=12) %>% bs_embed_tooltip(title="Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.", placement='top'),
-					valueBoxOutput('cent.eigen', width=12) %>% bs_embed_tooltip(title="Eigenvector centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.", placement='top'),
-					valueBoxOutput('cent.close', width=12) %>% bs_embed_tooltip(title="Closeness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.", placement='top'), width=NULL)),
+					valueBoxOutput('cent.eigen', width=12) %>% bs_embed_tooltip(title="Eigenvector/hubness centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.", placement='top'),
+					valueBoxOutput('cent.close', width=12) %>% bs_embed_tooltip(title="Closeness/hopness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.", placement='top'), width=NULL)),
 				fluidRow(box(title="Network centralization scores", solidHeader=TRUE, collapsible=TRUE,
 					valueBoxOutput('between.centralization', width=12) %>% bs_embed_tooltip(title="Network-wide index for betweenness.", placement='top'),
 					valueBoxOutput('eigen.centralization', width=12) %>% bs_embed_tooltip(title="Network-wide index for eigenvector centrality.", placement='top'),
@@ -224,8 +238,8 @@ dashboardbody <- dashboardBody(
 			box(p(a("Email", href="mailto:smallworlnd@protonmail.com"), "/", a("Telegram", href="https://t.me/LNnodeInsight"), "/", a("Lightning node", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788")), title="Contact", width=NULL, collapsible=TRUE),
 			box(p("See the code ", a("here", href="https://github.com/smallworlnd/LNnodeInsight"), "."), title="Source code", width=NULL, collapsible=TRUE),
 			box(p("Betweeness centrality measures the number of shortest paths that pass through a node. A higher number of shortest paths a node has to any two other node in the network, the more likely they will be included in a route depending on the liquidity balance of each channel in the path."), title="Betweenness centrality", width=NULL, collapsible=TRUE),
-			box(p("Closeness centrality is a measure of how many hops it takes to reach any node on the network from a given node. The better the rank, the fewer the hops required to reach any and all nodes."), title="Closeness centrality", width=NULL, collapsible=TRUE),
-			box(p("Eigenvector centrality measures influence of a given node in the network. Higher ranks imply a well-connected node that is linked to other well-connected nodes. A lower eigenvector centrality could also imply a new and/or underserved node in the network."), title="Eigenvector centrality", width=NULL, collapsible=TRUE),
+			box(p("Closeness/hopness centrality is a measure of how many hops it takes to reach any node on the network from a given node. The better the rank, the fewer the hops required to reach any and all nodes."), title="Closeness/hopness centrality", width=NULL, collapsible=TRUE),
+			box(p("Eigenvector/hubness centrality measures influence of a given node in the network. Higher ranks imply a well-connected node that is linked to other well-connected nodes. A lower eigenvector centrality could also imply a new and/or underserved node in the network."), title="Eigenvector/hubness centrality", width=NULL, collapsible=TRUE),
 			box(p("The communities are inferred with the Louvain algorithm. It detects clusters of nodes. It could be a useful metric to identify groups of nodes further away from a given node in the network."), title="Community", width=NULL, collapsible=TRUE),
 		)
 	))

@@ -186,7 +186,7 @@ server <- function(input, output, session) {
 			modalDialog(
 				"Running simulation, please wait...",
 				size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'))
-		payrebal_sim$values <- path_cost(in_graph=g_dir, subject=subject, out_node=out_node, in_node=in_node)
+		payrebal_sim$values <- path_flow_cost(in_graph=g_dir, subject=subject, out_node=out_node, in_node=in_node)
 		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()
@@ -224,64 +224,155 @@ server <- function(input, output, session) {
 	observeEvent(input$rebalsim_cancel, {
 		rebal_inv$cancel <- TRUE
 	})
-	output$rebal_dist <- renderPlotly({
+	rebalsim_res_histo_tab <- reactiveVal()
+	observeEvent(input$rebalsim_res_histo, {
+		if (input$rebalsim_res_histo == 'rebalsim_cost_histo') {
+			rebalsim_res_histo_tab('cost')
+		}
+		else if (input$rebalsim_res_histo == 'rebalsim_flow_histo') {
+			rebalsim_res_histo_tab('flow')
+		}
+	})
+	output$rebal_cost_histo <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
-			plot_ly(payrebal_sim$values %>% as_tibble,
+			plot_ly(payrebal_sim$values$path_fee %>% as_tibble,
 				x=~value, nbinsx=50) %>%
 					layout(
 						xaxis=list(title="Total path cost (ppm)"),
 						yaxis=list(title="Number of paths"))
 		}
 	})
-	output$rebal.samples <- renderValueBox({
+	output$rebal_flow_histo <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
-			val <- payrebal_sim$values %>% length
+			plot_ly(payrebal_sim$values$max_path_flow %>% as_tibble,
+				x=~value, nbinsx=50) %>%
+					layout(
+						xaxis=list(title="Path maximum liquidity flow (sat)"),
+						yaxis=list(title="Number of paths"))
+		}
+	})
+	output$rebal_flowcost_scatter <- renderPlotly({
+		if (rebal_inv$settled == TRUE) {
+			plot_ly(payrebal_sim$values %>% as_tibble,
+				x=~max_path_flow, y=~path_fee, showlegend=TRUE,
+				marker=list(
+					color=~path_hops,
+					size=15,
+					colorscale="RdBu",
+					colorbar=list(title='# of hops'),
+					opacity=0.4)) %>%
+					layout(
+						xaxis=list(title="Path maximum liquidity flow (sat)"),
+						yaxis=list(title="Path cost (ppm)"))
+		}
+	})
+	output$rebalsim.samples <- renderValueBox({
+		if (rebal_inv$settled == TRUE) {
+			val <- payrebal_sim$values$path_fee %>% length
 		} else {
 			val <- ''
 		}
 		valueBox(val, "Number of paths sampled", color="blue")
 	})
-	output$min.cost <- renderValueBox({
-		if (rebal_inv$settled == TRUE) {
-			val <- payrebal_sim$values %>% min
-		} else {
-			val <- ''
+	output$rebalsim.min <- renderValueBox({
+		if (rebalsim_res_histo_tab() == 'cost') {
+			desc <- "Lowest path cost (ppm)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$path_fee %>% min %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
 		}
-		valueBox(val, "Lowest sampled path cost (ppm)", color="blue")
+		else if (rebalsim_res_histo_tab() == 'flow') {
+			desc <- "Lowest maximum liquidity flow (sat)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$max_path_flow %>% min %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
+		valueBox(val, desc, color="blue")
 	})
-	output$max.cost <- renderValueBox({
-		if (rebal_inv$settled == TRUE) {
-			val <- payrebal_sim$values %>% max
-		} else {
-			val <- ''
+	output$rebalsim.max <- renderValueBox({
+		if (rebalsim_res_histo_tab() == 'cost') {
+			desc <- "Highest path cost (ppm)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$path_fee %>% max %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
 		}
-		valueBox(val, "Highest sampled path cost (ppm)", color="blue")
+		else if (rebalsim_res_histo_tab() == 'flow') {
+			desc <- "Highest maximum liquidity flow (sat)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$max_path_flow %>% max %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
+		valueBox(val, desc, color="blue")
 	})
-	output$avg.cost <- renderValueBox({
-		if (rebal_inv$settled == TRUE) {
-			val <- payrebal_sim$values %>% mean %>% round(0)
-		} else {
-			val <- ''
+	output$rebalsim.avg <- renderValueBox({
+		if (rebalsim_res_histo_tab() == 'cost') {
+			desc <- "Expected path cost (ppm)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$path_fee %>% mean %>% round(0) %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
 		}
-		valueBox(val, "Expected path cost (ppm)", color="blue")
+		else if (rebalsim_res_histo_tab() == 'flow') {
+			desc <- "Expected maximum liquidity flow (sat)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$max_path_flow %>% mean %>% round(0) %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
+		valueBox(val, desc, color="blue")
 	})
-	output$med.cost <- renderValueBox({
-		if (rebal_inv$settled == TRUE) {
-			val <- payrebal_sim$values %>% median %>% round(0)
-		} else {
-			val <- ''
+	output$rebalsim.med <- renderValueBox({
+		if (rebalsim_res_histo_tab() == 'cost') {
+			desc <- "Median path cost (ppm)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$path_fee %>% median %>% round(0) %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
 		}
-		valueBox(val, "Median path cost (ppm)", color="blue")
+		else if (rebalsim_res_histo_tab() == 'flow') {
+			desc <- "Median path maximum liquidity flow (sat)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$max_path_flow %>% median %>% round(0) %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
+		valueBox(val, desc, color="blue")
 	})
-	output$sd.cost <- renderValueBox({
-		if (rebal_inv$settled == TRUE) {
-			val <- payrebal_sim$values %>% sd %>% round(0)
-		} else {
-			val <- ''
+	output$rebalsim.sd <- renderValueBox({
+		if (rebalsim_res_histo_tab() == 'cost') {
+			desc <- "Spread in path cost (ppm)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$path_fee %>% sd %>% round(0) %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
 		}
-		valueBox(val, "Spread in path cost (ppm)", color="blue")
+		else if (rebalsim_res_histo_tab() == 'flow') {
+			desc <- "Spread in path maximum liquidity flow (sat)"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$max_path_flow %>% sd %>% round(0) %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
+		valueBox(val, desc, color="blue")
 	})
 
+	output$maxflowinfo <- renderInfoBox({
+		infoBox(title=NULL, subtitle='Maximum flow is the highest amount of sats that can theoretically be pushed through a path if liquidity were 100% outbound. In reality, outbound across a path is likely 50% or less.', icon=icon('question', lib='font-awesome'), color='yellow')
+	})
 	output$rebal_qr <- renderPlot({
 		bolt11 <- rebal_inv$invoice$BOLT11
 		ggqrcode(bolt11)
@@ -362,7 +453,7 @@ server <- function(input, output, session) {
 			val <- ''
 			color <- 'blue'
 		}
-		valueBox(val, "Eigenvector centrality rank", color=color)
+		valueBox(val, "Eigenvector/hubness centrality rank", color=color)
 	})
 	output$cent.close <- renderValueBox({
 		if (status() == "latest") {
@@ -387,7 +478,7 @@ server <- function(input, output, session) {
 			val <- ''
 			color <- 'blue'
 		}
-		valueBox(val, "Closeness centrality rank", color=color)
+		valueBox(val, "Closeness/hopness centrality rank", color=color)
 	})
 	# peer overlap for selected nodes
 	output$chansim_venn <- renderPlotly({

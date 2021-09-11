@@ -1,21 +1,21 @@
-recompute_centralities <- function(prev_g, new_g) {
-	new_g_filt <- new_g %>%
+recompute_centralities <- function(graph) {
+	graph_filt <- graph %>%
 		filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
 		mutate(id=row_number()) %>%
 		select(-c(cent.between, cent.close, cent.eigen))
-	ids <- new_g_filt %>%
+	ids <- graph_filt %>%
 		as_tibble %>%
 		pull(id)
-	cent.betw <- centr_betw(new_g_filt, directed=FALSE)
-	cent.clo <- centr_clo(new_g_filt, mode='all')
-	cent.eigen <- centr_eigen(new_g_filt, directed=FALSE)
+	cent.betw <- centr_betw(graph_filt, directed=FALSE)
+	cent.clo <- centr_clo(graph_filt, mode='all')
+	cent.eigen <- centr_eigen(graph_filt, directed=FALSE)
 	cent_summ <- cbind(ids, cent.betw$res, cent.clo$res, cent.eigen$vector) %>%
 		as_tibble %>%
 		rename(c('id'='ids', 'cent.between'='V2', 'cent.close'='V3', 'cent.eigen'='V4')) %>%
 		mutate(sim.cent.between.rank=rank(-cent.between, ties.method='first'), sim.cent.eigen.rank=rank(-cent.eigen, ties.method='first'), sim.cent.close.rank=rank(-cent.close, ties.method='first'))
-	new_g_filt <- left_join(new_g_filt, cent_summ, by='id') %>%
+	graph_filt <- left_join(graph_filt, cent_summ, by='id') %>%
 		mutate(cent.between.rank.delta=cent.between.rank-sim.cent.between.rank, cent.close.rank.delta=cent.close.rank-sim.cent.close.rank, cent.eigen.rank.delta=cent.eigen.rank-sim.cent.eigen.rank)
-	centralities <- list(new_g_filt, cent.betw, cent.clo, cent.eigen)
+	centralities <- list(graph_filt, cent.betw, cent.clo, cent.eigen)
 	names(centralities) <- c('graph', 'betw', 'clo', 'eigen')
 	return(centralities)
 }
@@ -71,13 +71,13 @@ sim_chan <- function(s_node, t_node, indel, amount=5e6) {
 		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
 		g_mod <- delete_edges(g, E(g)[del_edges$from %--% del_edges$to]) %>% as_tbl_graph
 	}
-	sim_g <- recompute_centralities(g, g_mod)
+	sim_g <- recompute_centralities(g_mod)
 	return(sim_g)
 }
 
-path_cost <- function(in_graph, subject, out_node, in_node, max_samp=500) {
+path_flow_cost <- function(in_graph, subject, out_node, in_node, max_samp=500) {
 	graph <- in_graph
-	fs <- c()
+	fs <- data.frame()
 	in_node_id <- graph %>% filter(name==fetch_pubkey(in_node)) %>% pull(id)
 	out_node_id <- graph %>% filter(name==fetch_pubkey(out_node)) %>% pull(id)
 	in_node <- fetch_pubkey(in_node)
@@ -94,10 +94,12 @@ path_cost <- function(in_graph, subject, out_node, in_node, max_samp=500) {
 	while (TRUE) {
 		w <- graph %>% activate(edges) %>% pull(from_fee_rate)
 		sps <- all_shortest_paths(graph, from=out_node, to=in_node, mode='out', weights=w)$res
-		if (length(sps) == 0 || length(fs) >= max_samp) { break }
+		if (length(sps) == 0 || nrow(fs) >= max_samp) { break }
 		# compute the mean fee of all shortest paths
 		path_fee <- lapply(sps, function(x) return_fee + E(graph, path=x)$from_fee_rate %>% sum) %>% unlist
-		fs <- c(fs, path_fee)
+		max_path_flow <- lapply(sps, function(x) E(graph, path=x)$capacity %>% min) %>% unlist
+		path_hops <- lapply(sps, function(x) ifelse((length(x) - 2) == 0, 1, length(x) - 2)) %>% unlist
+		fs <- rbind(fs, data.frame(path_fee, max_path_flow, path_hops))
 		# delete a random internal node edge/channel
 		mid_nodes <- sapply(sps, function(x) fetch_rand_mid_edge(x) %>% as_ids) %>% t %>% as.data.frame %>% rename(c('from'='V1', 'to'='V2'))
 		del_edges <- data.frame(from=sapply(mid_nodes$from, function(x) fetch_id(graph, x)) %>% as.vector, to=sapply(mid_nodes$to, function(x) fetch_id(graph, x)) %>% as.vector)
@@ -140,3 +142,5 @@ ggqrcode <- function(text, color="black", alpha=1) {
 		theme_void() +
 		theme(legend.position='none')
 }
+
+umbrel <- '0297a77f4d1ccc55d7a10a9b137119b1103d9a9d38a5a97ffa1d0152c818fcdd0a'
