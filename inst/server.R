@@ -71,7 +71,7 @@ server <- function(input, output, session) {
 			mutate(id=row_number()-1) %>%
 			as_tibble %>%
 			mutate(group=ifelse(name==subject, 1, 2)) %>%
-			select(-c(ipv4:onion_v2), -c(amboss, oneml), -mean.delta, -c(id:cent.close)) %>%
+			dplyr::select(-c(ipv4:onion_v2), -c(amboss, oneml), -mean.delta, -c(id:cent.close)) %>%
 			mutate(tot.capacity=round(tot.capacity/1e8, 2),
 				avg.capacity=round(avg.capacity/1e8, 3),
 				age=round(age, 0),
@@ -97,7 +97,7 @@ server <- function(input, output, session) {
 	filtered_node <- reactiveValues()
 	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt, input$pubkey.or.alias), {
 		if (is.null(input$community.filt)) {
-			community.filt <- g %>% as_tibble %>% select(community) %>% unique %>% pull
+			community.filt <- g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull
 		} else {
 			community.filt <- input$community.filt
 		}
@@ -113,7 +113,7 @@ server <- function(input, output, session) {
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			select(alias) %>%
+			dplyr::select(alias) %>%
 			pull
 		filt.pubkeys <- g %>%
 			as_tibble %>%
@@ -126,7 +126,7 @@ server <- function(input, output, session) {
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			select(name) %>%
+			dplyr::select(name) %>%
 			pull
 		if (input$pubkey.or.alias == 3) {
 			filtered_node$list <- c(filt.aliases, filt.pubkeys)
@@ -408,12 +408,12 @@ server <- function(input, output, session) {
 		if (status() == "latest") {
 			cent.between.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(sim.cent.between.rank) %>%
+				dplyr::select(sim.cent.between.rank) %>%
 				pull %>%
 				as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(cent.between.rank.delta) %>%
+				dplyr::select(cent.between.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -423,7 +423,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.between.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.between.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
@@ -434,11 +434,11 @@ server <- function(input, output, session) {
 		if (status() == "latest") {
 			cent.eigen.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(sim.cent.eigen.rank) %>%
+				dplyr::select(sim.cent.eigen.rank) %>%
 				pull %>% as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(cent.eigen.rank.delta) %>%
+				dplyr::select(cent.eigen.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -448,7 +448,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.eigen.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.eigen.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
@@ -459,11 +459,11 @@ server <- function(input, output, session) {
 		if (status() == "latest") {
 			cent.close.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(sim.cent.close.rank) %>%
+				dplyr::select(sim.cent.close.rank) %>%
 				pull %>% as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(cent.close.rank.delta) %>%
+				dplyr::select(cent.close.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -473,7 +473,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.close.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.close.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'

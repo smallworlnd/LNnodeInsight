@@ -2,7 +2,7 @@ recompute_centralities <- function(graph) {
 	graph_filt <- graph %>%
 		filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
 		mutate(id=row_number()) %>%
-		select(-c(cent.between, cent.close, cent.eigen))
+		dplyr::select(-c(cent.between, cent.close, cent.eigen))
 	ids <- graph_filt %>%
 		as_tibble %>%
 		pull(id)
@@ -43,7 +43,7 @@ fetch_alias <- function(pubkey) {
 
 fetch_peer_aliases <- function(pubkey) {
 	peers <- adjacent_vertices(g, pubkey, mode='all') %>% unlist %>% as.vector
-	peer_aliases <- g %>% filter(id %in% peers) %>% select(alias) %>% as_tibble %>% pull(alias)
+	peer_aliases <- g %>% filter(id %in% peers) %>% dplyr::select(alias) %>% as_tibble %>% pull(alias)
 	return(peer_aliases)
 }
 
@@ -54,7 +54,7 @@ sim_chan <- function(s_node, t_node, indel, amount=5e6) {
 		pull(id)
 	t_node_id <- g %>%
 		filter(name %in% t_node) %>%
-		select(name, id) %>%
+		dplyr::select(name, id) %>%
 		as_tibble
 	t_node_id <- left_join(t_node_id, t_node_req, by=c('name'='t_node'))
 	add <- t_node_id %>% filter(indel=='add') %>% pull(id)
@@ -64,11 +64,11 @@ sim_chan <- function(s_node, t_node, indel, amount=5e6) {
 	}
 	else if (length(add) > 0 && length(rem) > 0) {
 		g_mod <- bind_edges(g, data.frame(from=s_id, to=add, capacity=amount))
-		del_edges <- g_mod %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
+		del_edges <- g_mod %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% dplyr::select(to, from, capacity)
 		g_mod <- delete_edges(g_mod, E(g_mod)[del_edges$from %--% del_edges$to]) %>% as_tbl_graph
 	}
 	else {
-		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% select(to, from, capacity)
+		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% dplyr::select(to, from, capacity)
 		g_mod <- delete_edges(g, E(g)[del_edges$from %--% del_edges$to]) %>% as_tbl_graph
 	}
 	sim_g <- recompute_centralities(g_mod)
@@ -129,8 +129,7 @@ fetch_id <- function(in_graph, pubkey) {
 }
 
 ggqrcode <- function(text, color="black", alpha=1) {
-	x <- qrcode_gen(text, plotQRcode=FALSE, dataOutput=TRUE, softLimitFlag=FALSE)
-	x <- as.data.frame(x)
+	x <- qrencode(text) %>% as.data.frame
 	y <- x
 	y$id <- rownames(y)
 	y <- gather(y, "key", "value", colnames(y)[-ncol(y)])

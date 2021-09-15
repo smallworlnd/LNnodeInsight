@@ -210,7 +210,7 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
 						column(12,
-							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
+							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
 						column(12,
 							prettyRadioButtons(inputId='pubkey.or.alias', label='Show pubkey or alias or both in the drop-down menu', selected=3, choiceNames=c('Pubkey', 'Alias', 'Both'), choiceValues=c(1, 2, 3), inline=TRUE))),
 						column(12, align='center',

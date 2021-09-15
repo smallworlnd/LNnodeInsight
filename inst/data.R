@@ -38,7 +38,7 @@ nd.stable <- nd$stable %>%
 	rename('value'='.')
 nd.scores <- rbind(nd.scored, nd.stable) %>%
 	filter(key=='score') %>%
-	select(name, value) %>%
+	dplyr::select(name, value) %>%
 	mutate(value=as.numeric(value)) %>%
 	rename('tweb.score'='value')
 
@@ -46,7 +46,7 @@ bos_fn <- list.files(path="data", pattern="^bos-[0-9]+.json")
 bos_fn <- paste0('data/', bos_fn[length(bos_fn)])
 bos.list <- fromJSON(bos_fn, flatten=TRUE)
 bos <- bos.list$scores %>%
-	select(public_key, score) %>%
+	dplyr::select(public_key, score) %>%
 	rename(c('name'='public_key', 'value'='score')) %>%
 	mutate(key='bos') %>%
 	as_tibble
@@ -57,7 +57,7 @@ self <- '0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788' # f
 # fetch nodes
 nodes <- graph$nodes %>%
 	unnest(addresses) %>%
-	select(pub_key, alias, addr) %>%
+	dplyr::select(pub_key, alias, addr) %>%
 	mutate(net=ifelse(grepl("::", addr), "ipv6", ifelse(!grepl("onion", addr), "ipv4", ifelse(str_length(addr)>30, "onion_v3", "onion_v2")))) %>%
 	complete(pub_key, nesting(net)) %>%
 	dplyr::group_by(pub_key) %>%
@@ -73,10 +73,10 @@ edges <- graph$edges %>%
 	left_join(chan.blocktimes, by='chan_point') %>%
 	mutate(age=as.numeric(ss.time - as_datetime(blocktime), unit='days'))
 n1 <- edges %>%
-	select(node1_pub, capacity) %>%
+	dplyr::select(node1_pub, capacity) %>%
 	rename(c('name'='node1_pub'))
 n2 <- edges %>%
-	select(node2_pub, capacity) %>%
+	dplyr::select(node2_pub, capacity) %>%
 	rename(c('name'='node2_pub'))
 # fetch total capacity per node
 capacity <- rbind(n1, n2) %>%
@@ -99,10 +99,10 @@ chanstates <- rbind(u1, u2) %>%
 	pivot_wider(names_from=state, values_from=count, values_fill=0)
 # compute node approximate age
 age1 <- edges %>%
-	select(node1_pub, age) %>%
+	dplyr::select(node1_pub, age) %>%
 	rename(c('name'='node1_pub'))
 age2 <- edges %>%
-	select(node2_pub, age) %>%
+	dplyr::select(node2_pub, age) %>%
 	rename(c('name'='node2_pub'))
 node.age <- rbind(age1, age2) %>%
 	group_by(name) %>%
@@ -113,13 +113,13 @@ node.age <- rbind(age1, age2) %>%
 f1 <- edges %>%
 	group_by(node1_pub) %>%
 	mutate(node1.mean.basefee=mean(node1_policy.fee_base_msat, na.rm=TRUE)) %>%
-	select(node1_pub, node1_policy.time_lock_delta, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat) %>%
+	dplyr::select(node1_pub, node1_policy.time_lock_delta, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat) %>%
 	mutate(node1_policy.time_lock_delta=ifelse(is.finite(node1_policy.time_lock_delta), node1_policy.time_lock_delta, NA), node1_policy.fee_base_msat=ifelse(is.finite(node1_policy.fee_base_msat), node1_policy.fee_base_msat, NA), node1_policy.fee_rate_milli_msat=ifelse(is.finite(node1_policy.fee_rate_milli_msat), node1_policy.fee_rate_milli_msat, NA))
 names(f1) <- c('name', 'delta', 'base.msat', 'rate.ppm')
 f2 <- edges %>%
 	group_by(node2_pub) %>%
 	mutate(node2.mean.basefee=mean(node2_policy.fee_base_msat, na.rm=TRUE)) %>%
-	select(node2_pub, node2_policy.time_lock_delta, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
+	dplyr::select(node2_pub, node2_policy.time_lock_delta, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
 	mutate(node2_policy.time_lock_delta=ifelse(is.finite(node2_policy.time_lock_delta), node2_policy.time_lock_delta, NA), node2_policy.fee_base_msat=ifelse(is.finite(node2_policy.fee_base_msat), node2_policy.fee_base_msat, NA), node2_policy.fee_rate_milli_msat=ifelse(is.finite(node2_policy.fee_rate_milli_msat), node2_policy.fee_rate_milli_msat, NA))
 names(f2) <- c('name', 'delta', 'base.msat', 'rate.ppm')
 fees <- rbind(f1, f2) %>%
@@ -127,7 +127,7 @@ fees <- rbind(f1, f2) %>%
 	summarise(mean.delta=mean(as.numeric(delta), na.rm=TRUE), mean.base.msat=mean(base.msat, na.rm=TRUE), mean.rate.ppm=mean(rate.ppm, na.rm=TRUE), median.base.msat=median(base.msat, na.rm=TRUE), median.rate.ppm=median(rate.ppm, na.rm=TRUE))
 # build graph
 g <- edges %>%
-	select(node1_pub, node2_pub, capacity, age, last_update, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
+	dplyr::select(node1_pub, node2_pub, capacity, age, last_update, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
 	mutate(last_update=as.numeric(as_datetime(max(last_update, na.rm=TRUE)) - as_datetime(last_update), units='days')) %>%
 	rename(c('from_base_fee'='node1_policy.fee_base_msat', 'from_fee_rate'='node1_policy.fee_rate_milli_msat', 'to_base_fee'='node2_policy.fee_base_msat', 'to_fee_rate'='node2_policy.fee_rate_milli_msat')) %>%
 	graph.data.frame(directed=FALSE) %>%
@@ -153,7 +153,7 @@ g <- delete_vertices(g, which(all.subgraphs$membership>1)) %>%
 # ignore nodes with >50% inactive channels, total capacity <1e5 (q1) and only 1 channel (q1)
 heuristics <- g %>%
 	as_tibble %>%
-	select(tot.capacity, num.channels) %>%
+	dplyr::select(tot.capacity, num.channels) %>%
 	summarise(q1capacity=quantile(tot.capacity, 0.25), q1num.channels=quantile(num.channels, 0.25))
 g_heur <- g %>%
 	filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels)
@@ -180,19 +180,19 @@ g <- g %>%
 
 # add bos scores
 g <- left_join(g, bos %>%
-	select(name:value) %>%
+	dplyr::select(name:value) %>%
 	rename('bos'='value'), by='name')
 # add terminal web scorse
 g <- left_join(g, nd.scores)
 
 node_ids <- c(
 	g %>%
-		select(alias) %>%
+		dplyr::select(alias) %>%
 		as_tibble %>%
 		filter(!is.na(alias)) %>%
 		pull,
 	g %>%
-		select(name) %>%
+		dplyr::select(name) %>%
 		as_tibble %>%
 		pull)
 
@@ -209,7 +209,7 @@ chansim_filter_parms <- g %>%
 
 chart_vars <- g %>%
 	as_tibble %>%
-	select(tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
+	dplyr::select(tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
 	names
 chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'Number of channels'='num.channels',
@@ -230,7 +230,7 @@ chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'BOS score'='bos')
 table_vars <- g %>%
 	as_tibble %>%
-	select(name, alias, tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
+	dplyr::select(name, alias, tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
 	names
 table_vars <- c('Pubkey'='name',
 	'Alias'='alias',
@@ -256,7 +256,7 @@ rev_edges <- g %>%
 	activate(edges) %>%
 	as_tibble %>%
 	mutate(f=to, t=from, fbf=to_base_fee, tbf=from_base_fee, ff=to_fee_rate, tf=from_fee_rate) %>%
-	select(f, t, capacity, age, last_update, fbf, ff, tbf, tf) %>%
+	dplyr::select(f, t, capacity, age, last_update, fbf, ff, tbf, tf) %>%
 	rename(c('from'='f', 'to'='t', 'from_base_fee'='fbf', 'from_fee_rate'='ff', 'to_base_fee'='tbf', 'to_fee_rate'='tf'))
 forw_edges <- g %>% activate(edges) %>% as_tibble
 all_edges <- rbind(forw_edges, rev_edges)
