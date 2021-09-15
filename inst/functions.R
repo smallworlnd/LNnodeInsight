@@ -142,5 +142,3 @@ ggqrcode <- function(text, color="black", alpha=1) {
 		theme_void() +
 		theme(legend.position='none')
 }
-
-umbrel <- '0297a77f4d1ccc55d7a10a9b137119b1103d9a9d38a5a97ffa1d0152c818fcdd0a'
