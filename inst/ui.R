@@ -52,10 +52,10 @@ dashboardbody <- dashboardBody(
 			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network", align='center'),
 			hr(),
 			fluidRow(
-				infoBoxOutput('chartlink', width=6),
-				infoBoxOutput('peernetlink', width=6),
-				infoBoxOutput('chansimlink', width=6),
-				infoBoxOutput('rebalsimlink', width=6),
+				infoBoxOutput('chartlink'),
+				infoBoxOutput('peernetlink'),
+				infoBoxOutput('chansimlink'),
+				infoBoxOutput('rebalsimlink'),
 				)),
 		tabItem(tabName='chart',
 		tabBox(id='charting', side='left', selected='histo', width=NULL, height="805px",
@@ -125,6 +125,11 @@ dashboardbody <- dashboardBody(
 								'Path maximum liquidity flow histogram',
 								withSpinner(plotlyOutput('rebal_flow_histo')), value='rebalsim_flow_histo',
 								id='rebalsim_flow_histo_tab', width=NULL
+							),
+							tabPanel(
+								'Path liquidity availability histogram',
+								withSpinner(plotlyOutput('rebal_bal_histo')), value='rebalsim_bal_histo',
+								id='rebalsim_bal_histo_tab', width=NULL
 							)
 						),
 						tabBox(id='rebalsim_res_scatter', side='left', width=12, selected='rebalsim_flowcost_scatter',
@@ -132,6 +137,16 @@ dashboardbody <- dashboardBody(
 								'Maximum liquidity flow vs cost',
 								withSpinner(plotlyOutput('rebal_flowcost_scatter')), value='rebalsim_flowcost_scatter',
 								id='rebalsim_flowcost_scatter_tab', width=NULL
+							),
+							tabPanel(
+								'Maximum liquidity flow vs path liquidity availability',
+								withSpinner(plotlyOutput('rebal_flowbal_scatter')), value='rebalsim_flowbal_scatter',
+								id='rebalsim_flowbal_scatter_tab', width=NULL
+							),
+							tabPanel(
+								'Path liquidity availability vs cost',
+								withSpinner(plotlyOutput('rebal_balcost_scatter')), value='rebalsim_balcost_scatter',
+								id='rebalsim_balcost_scatter_tab', width=NULL
 							)
 						)
 					)
@@ -210,7 +225,7 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
 						column(12,
-							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
+							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
 						column(12,
 							prettyRadioButtons(inputId='pubkey.or.alias', label='Show pubkey or alias or both in the drop-down menu', selected=3, choiceNames=c('Pubkey', 'Alias', 'Both'), choiceValues=c(1, 2, 3), inline=TRUE))),
 						column(12, align='center',

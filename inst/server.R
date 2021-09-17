@@ -71,7 +71,7 @@ server <- function(input, output, session) {
 			mutate(id=row_number()-1) %>%
 			as_tibble %>%
 			mutate(group=ifelse(name==subject, 1, 2)) %>%
-			dplyr::select(-c(ipv4:onion_v2), -c(amboss, oneml), -mean.delta, -c(id:cent.close)) %>%
+			select(-c(ipv4:onion_v2), -c(amboss, oneml), -mean.delta, -c(id:cent.close)) %>%
 			mutate(tot.capacity=round(tot.capacity/1e8, 2),
 				avg.capacity=round(avg.capacity/1e8, 3),
 				age=round(age, 0),
@@ -97,7 +97,7 @@ server <- function(input, output, session) {
 	filtered_node <- reactiveValues()
 	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt, input$pubkey.or.alias), {
 		if (is.null(input$community.filt)) {
-			community.filt <- g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull
+			community.filt <- g %>% as_tibble %>% select(community) %>% unique %>% pull
 		} else {
 			community.filt <- input$community.filt
 		}
@@ -113,7 +113,7 @@ server <- function(input, output, session) {
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			dplyr::select(alias) %>%
+			select(alias) %>%
 			pull
 		filt.pubkeys <- g %>%
 			as_tibble %>%
@@ -126,7 +126,7 @@ server <- function(input, output, session) {
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			dplyr::select(name) %>%
+			select(name) %>%
 			pull
 		if (input$pubkey.or.alias == 3) {
 			filtered_node$list <- c(filt.aliases, filt.pubkeys)
@@ -190,36 +190,36 @@ server <- function(input, output, session) {
 		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()
-		showModal(
-			modalDialog(
-				plotOutput("rebal_qr", height='400px', width='400px'),
-				title=paste("Done! Please pay", as.numeric(rebalsim_msat)/1e3, "sats to view results."),
-				size='s',
-				footer=tagList(
-					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
-					modalActionButton("rebalsim_cancel", "Cancel")
-				)
-			)
-		)
+#?		showModal(
+#?			modalDialog(
+#?				plotOutput("rebal_qr", height='400px', width='400px'),
+#?				title=paste("Done! Please pay", as.numeric(rebalsim_msat)/1e3, "sats to view results."),
+#?				size='s',
+#?				footer=tagList(
+#?					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
+#?					modalActionButton("rebalsim_cancel", "Cancel")
+#?				)
+#?			)
+#?		)
 	})
 	observeEvent(rebal_inv$status, {		
-		if (rebal_inv$cancel == TRUE ) {
-			rebal_inv$status <- NULL
-			removeModal()
-		}
-		else if (rebal_inv$status == "Unpaid") {
-			delay(2000, rebal_inv$status <- 'Try again')
-		}
-		else if (rebal_inv$status == "Try again") {
-			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
-		}
-		else if (rebal_inv$status == "Paid") {
+#		if (rebal_inv$cancel == TRUE ) {
+#			rebal_inv$status <- NULL
+#			removeModal()
+#		}
+#		else if (rebal_inv$status == "Unpaid") {
+#			delay(2000, rebal_inv$status <- 'Try again')
+#		}
+#		else if (rebal_inv$status == "Try again") {
+#			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
+#		}
+#		else if (rebal_inv$status == "Paid") {
 			rebal_inv$settled <- TRUE
 			removeModal()
-		}
-		else if (rebal_inv$status == "Expired") {
-			removeModal()
-		}
+#		}
+#		else if (rebal_inv$status == "Expired") {
+#			removeModal()
+#		}
 	})
 	observeEvent(input$rebalsim_cancel, {
 		rebal_inv$cancel <- TRUE
@@ -251,6 +251,15 @@ server <- function(input, output, session) {
 						yaxis=list(title="Number of paths"))
 		}
 	})
+	output$rebal_bal_histo <- renderPlotly({
+		if (rebal_inv$settled == TRUE) {
+			plot_ly(payrebal_sim$values$known_1Mmin %>% as_tibble,
+				x=~value*100, nbinsx=50) %>%
+					layout(
+						xaxis=list(title="Percentage of channels in path with at least 1M routable sats"),
+						yaxis=list(title="Number of paths"))
+		}
+	})
 	output$rebal_flowcost_scatter <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
 			plot_ly(payrebal_sim$values %>% as_tibble,
@@ -264,6 +273,36 @@ server <- function(input, output, session) {
 					layout(
 						xaxis=list(title="Path maximum liquidity flow (sat)"),
 						yaxis=list(title="Path cost (ppm)"))
+		}
+	})
+	output$rebal_flowbal_scatter <- renderPlotly({
+		if (rebal_inv$settled == TRUE) {
+			plot_ly(payrebal_sim$values %>% as_tibble,
+				x=~max_path_flow, y=~known_1Mmin*100, showlegend=TRUE,
+				marker=list(
+					color=~path_hops,
+					size=15,
+					colorscale="RdBu",
+					colorbar=list(title='# of hops'),
+					opacity=0.4)) %>%
+					layout(
+						xaxis=list(title="Path maximum liquidity flow (sat)"),
+						yaxis=list(title="% of path with known minimum of 1M routable sats"))
+		}
+	})
+	output$rebal_balcost_scatter <- renderPlotly({
+		if (rebal_inv$settled == TRUE) {
+			plot_ly(payrebal_sim$values %>% as_tibble,
+				x=~path_fee, y=~known_1Mmin*100, showlegend=TRUE,
+				marker=list(
+					color=~path_hops,
+					size=15,
+					colorscale="RdBu",
+					colorbar=list(title='# of hops'),
+					opacity=0.4)) %>%
+					layout(
+						xaxis=list(title="Path cost (ppm)"),
+						yaxis=list(title="% of path with known minimum of 1M routable sats"))
 		}
 	})
 	output$rebalsim.samples <- renderValueBox({
@@ -408,12 +447,12 @@ server <- function(input, output, session) {
 		if (status() == "latest") {
 			cent.between.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				dplyr::select(sim.cent.between.rank) %>%
+				select(sim.cent.between.rank) %>%
 				pull %>%
 				as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				dplyr::select(cent.between.rank.delta) %>%
+				select(cent.between.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -423,7 +462,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.between.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.between.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
@@ -434,11 +473,11 @@ server <- function(input, output, session) {
 		if (status() == "latest") {
 			cent.eigen.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				dplyr::select(sim.cent.eigen.rank) %>%
+				select(sim.cent.eigen.rank) %>%
 				pull %>% as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				dplyr::select(cent.eigen.rank.delta) %>%
+				select(cent.eigen.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -448,7 +487,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.eigen.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.eigen.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
@@ -459,11 +498,11 @@ server <- function(input, output, session) {
 		if (status() == "latest") {
 			cent.close.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				dplyr::select(sim.cent.close.rank) %>%
+				select(sim.cent.close.rank) %>%
 				pull %>% as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				dplyr::select(cent.close.rank.delta) %>%
+				select(cent.close.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -473,7 +512,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.close.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.close.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
