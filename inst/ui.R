@@ -52,10 +52,10 @@ dashboardbody <- dashboardBody(
 			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network", align='center'),
 			hr(),
 			fluidRow(
-				infoBoxOutput('chartlink'),
-				infoBoxOutput('peernetlink'),
-				infoBoxOutput('chansimlink'),
-				infoBoxOutput('rebalsimlink'),
+				infoBoxOutput('chartlink', width=6),
+				infoBoxOutput('peernetlink', width=6),
+				infoBoxOutput('chansimlink', width=6),
+				infoBoxOutput('rebalsimlink', width=6),
 				)),
 		tabItem(tabName='chart',
 		tabBox(id='charting', side='left', selected='histo', width=NULL, height="805px",
@@ -127,7 +127,7 @@ dashboardbody <- dashboardBody(
 								id='rebalsim_flow_histo_tab', width=NULL
 							),
 							tabPanel(
-								'Path liquidity availability histogram',
+								'High liquidity availability histogram',
 								withSpinner(plotlyOutput('rebal_bal_histo')), value='rebalsim_bal_histo',
 								id='rebalsim_bal_histo_tab', width=NULL
 							)
@@ -139,12 +139,12 @@ dashboardbody <- dashboardBody(
 								id='rebalsim_flowcost_scatter_tab', width=NULL
 							),
 							tabPanel(
-								'Maximum liquidity flow vs path liquidity availability',
+								'Maximum liquidity flow vs high liquidity availability',
 								withSpinner(plotlyOutput('rebal_flowbal_scatter')), value='rebalsim_flowbal_scatter',
 								id='rebalsim_flowbal_scatter_tab', width=NULL
 							),
 							tabPanel(
-								'Path liquidity availability vs cost',
+								'High liquidity availability vs cost',
 								withSpinner(plotlyOutput('rebal_balcost_scatter')), value='rebalsim_balcost_scatter',
 								id='rebalsim_balcost_scatter_tab', width=NULL
 							)
@@ -162,8 +162,7 @@ dashboardbody <- dashboardBody(
 							valueBoxOutput('rebalsim.sd', width=12),
 							width=NULL
 						),
-					),
-					infoBoxOutput('maxflowinfo', width=NULL),
+					)
 				),
 			),
 		),
@@ -225,7 +224,7 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
 						column(12,
-							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
+							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
 						column(12,
 							prettyRadioButtons(inputId='pubkey.or.alias', label='Show pubkey or alias or both in the drop-down menu', selected=3, choiceNames=c('Pubkey', 'Alias', 'Both'), choiceValues=c(1, 2, 3), inline=TRUE))),
 						column(12, align='center',
@@ -255,6 +254,7 @@ dashboardbody <- dashboardBody(
 			box(p("Betweeness centrality measures the number of shortest paths that pass through a node. A higher number of shortest paths a node has to any two other node in the network, the more likely they will be included in a route depending on the liquidity balance of each channel in the path."), title="Betweenness centrality", width=NULL, collapsible=TRUE),
 			box(p("Closeness/hopness centrality is a measure of how many hops it takes to reach any node on the network from a given node. The better the rank, the fewer the hops required to reach any and all nodes."), title="Closeness/hopness centrality", width=NULL, collapsible=TRUE),
 			box(p("Eigenvector/hubness centrality measures influence of a given node in the network. Higher ranks imply a well-connected node that is linked to other well-connected nodes. A lower eigenvector centrality could also imply a new and/or underserved node in the network."), title="Eigenvector/hubness centrality", width=NULL, collapsible=TRUE),
+			box(p("Maximum flow is the highest amount of sats that can theoretically be pushed through a path if liquidity were 100% outbound. In reality, outbound across a path is likely 50% or less."), title="Maximum liquidity flow", width=NULL, collapsible=TRUE),
 			box(p("The communities are inferred with the Louvain algorithm. It detects clusters of nodes. It could be a useful metric to identify groups of nodes further away from a given node in the network."), title="Community", width=NULL, collapsible=TRUE),
 		)
 	))

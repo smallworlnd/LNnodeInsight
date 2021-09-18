@@ -26,7 +26,7 @@ server <- function(input, output, session) {
 		infoBox(a('Peer network', onclick="openTab('peernet')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
 	})
 	output$rebalsimlink <- renderInfoBox({
-		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment or rebalance to gain insight on liquidity demand and efficient channel management", icon=icon('calculator', lib='font-awesome'), color='yellow')
+		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment or rebalance to gain insight on liquidity demand and bottlenecks", icon=icon('calculator', lib='font-awesome'), color='yellow')
 	})
 	output$chansimlink <- renderInfoBox({
 		infoBox(a('Channel simulator', onclick="openTab('chansim')", href="#"), subtitle='Simulate opening or closing a channel on your node to measure influence in the network', icon=icon('edit'), color='yellow')
@@ -71,7 +71,7 @@ server <- function(input, output, session) {
 			mutate(id=row_number()-1) %>%
 			as_tibble %>%
 			mutate(group=ifelse(name==subject, 1, 2)) %>%
-			select(-c(ipv4:onion_v2), -c(amboss, oneml), -mean.delta, -c(id:cent.close)) %>%
+			dplyr::select(-c(ipv4:onion_v2), -c(amboss, oneml), -mean.delta, -c(id:cent.close)) %>%
 			mutate(tot.capacity=round(tot.capacity/1e8, 2),
 				avg.capacity=round(avg.capacity/1e8, 3),
 				age=round(age, 0),
@@ -97,7 +97,7 @@ server <- function(input, output, session) {
 	filtered_node <- reactiveValues()
 	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt, input$pubkey.or.alias), {
 		if (is.null(input$community.filt)) {
-			community.filt <- g %>% as_tibble %>% select(community) %>% unique %>% pull
+			community.filt <- g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull
 		} else {
 			community.filt <- input$community.filt
 		}
@@ -113,7 +113,7 @@ server <- function(input, output, session) {
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			select(alias) %>%
+			dplyr::select(alias) %>%
 			pull
 		filt.pubkeys <- g %>%
 			as_tibble %>%
@@ -126,7 +126,7 @@ server <- function(input, output, session) {
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			select(name) %>%
+			dplyr::select(name) %>%
 			pull
 		if (input$pubkey.or.alias == 3) {
 			filtered_node$list <- c(filt.aliases, filt.pubkeys)
@@ -157,15 +157,16 @@ server <- function(input, output, session) {
 	})
 	updateSelectizeInput(session, "peernet_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "chansim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "rebalsim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "rebalsim_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "rebalsim_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "paysim_in_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
-	updateSelectizeInput(session, "paysim_out_node", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebalsim_subject", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebalsim_out_node", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "rebalsim_in_node", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "paysim_in_node", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "paysim_out_node", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)
 
 	rebal_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
 	payrebal_sim <- reactiveValues()
 	observeEvent(c(input$launch_payrebalsim, input$pay_or_rebal), {
+		req(input$launch_payrebalsim)
 		if (input$pay_or_rebal == 1) {
 			req(input$rebalsim_subject)
 			req(input$rebalsim_in_node)
@@ -190,36 +191,39 @@ server <- function(input, output, session) {
 		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()
-#?		showModal(
-#?			modalDialog(
-#?				plotOutput("rebal_qr", height='400px', width='400px'),
-#?				title=paste("Done! Please pay", as.numeric(rebalsim_msat)/1e3, "sats to view results."),
-#?				size='s',
-#?				footer=tagList(
-#?					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
-#?					modalActionButton("rebalsim_cancel", "Cancel")
-#?				)
-#?			)
-#?		)
+		showModal(
+			modalDialog(
+				plotOutput("rebal_qr", height='400px', width='400px'),
+				title=paste("Done! Please pay", as.numeric(rebalsim_msat)/1e3, "sats to view results."),
+				size='s',
+				footer=tagList(
+					rclipButton("clipbtn", "Copy", rebal_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
+					modalActionButton("rebalsim_cancel", "Cancel")
+				)
+			)
+		)
+	})
+	observeEvent({list(input$rebalsim_subject, input$rebalsim_in_node, input$rebalsim_out_node)}, {
+		rebal_inv$settled <- FALSE
 	})
 	observeEvent(rebal_inv$status, {		
-#		if (rebal_inv$cancel == TRUE ) {
-#			rebal_inv$status <- NULL
-#			removeModal()
-#		}
-#		else if (rebal_inv$status == "Unpaid") {
-#			delay(2000, rebal_inv$status <- 'Try again')
-#		}
-#		else if (rebal_inv$status == "Try again") {
-#			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
-#		}
-#		else if (rebal_inv$status == "Paid") {
+		if (rebal_inv$cancel == TRUE ) {
+			rebal_inv$status <- NULL
+			removeModal()
+		}
+		else if (rebal_inv$status == "Unpaid") {
+			delay(2000, rebal_inv$status <- 'Try again')
+		}
+		else if (rebal_inv$status == "Try again") {
+			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
+		}
+		else if (rebal_inv$status == "Paid") {
 			rebal_inv$settled <- TRUE
 			removeModal()
-#		}
-#		else if (rebal_inv$status == "Expired") {
-#			removeModal()
-#		}
+		}
+		else if (rebal_inv$status == "Expired") {
+			removeModal()
+		}
 	})
 	observeEvent(input$rebalsim_cancel, {
 		rebal_inv$cancel <- TRUE
@@ -231,6 +235,9 @@ server <- function(input, output, session) {
 		}
 		else if (input$rebalsim_res_histo == 'rebalsim_flow_histo') {
 			rebalsim_res_histo_tab('flow')
+		}
+		else if (input$rebalsim_res_histo == 'rebalsim_bal_histo') {
+			rebalsim_res_histo_tab('bal')
 		}
 	})
 	output$rebal_cost_histo <- renderPlotly({
@@ -254,7 +261,7 @@ server <- function(input, output, session) {
 	output$rebal_bal_histo <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
 			plot_ly(payrebal_sim$values$known_1Mmin %>% as_tibble,
-				x=~value*100, nbinsx=50) %>%
+				x=~value, nbinsx=50) %>%
 					layout(
 						xaxis=list(title="Percentage of channels in path with at least 1M routable sats"),
 						yaxis=list(title="Number of paths"))
@@ -263,7 +270,7 @@ server <- function(input, output, session) {
 	output$rebal_flowcost_scatter <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
 			plot_ly(payrebal_sim$values %>% as_tibble,
-				x=~max_path_flow, y=~path_fee, showlegend=TRUE,
+				x=~max_path_flow, y=~path_fee, showlegend=TRUE, type='scatter',
 				marker=list(
 					color=~path_hops,
 					size=15,
@@ -278,7 +285,7 @@ server <- function(input, output, session) {
 	output$rebal_flowbal_scatter <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
 			plot_ly(payrebal_sim$values %>% as_tibble,
-				x=~max_path_flow, y=~known_1Mmin*100, showlegend=TRUE,
+				x=~max_path_flow, y=~known_1Mmin, showlegend=TRUE, type='scatter',
 				marker=list(
 					color=~path_hops,
 					size=15,
@@ -293,7 +300,7 @@ server <- function(input, output, session) {
 	output$rebal_balcost_scatter <- renderPlotly({
 		if (rebal_inv$settled == TRUE) {
 			plot_ly(payrebal_sim$values %>% as_tibble,
-				x=~path_fee, y=~known_1Mmin*100, showlegend=TRUE,
+				x=~path_fee, y=~known_1Mmin, showlegend=TRUE, type='scatter',
 				marker=list(
 					color=~path_hops,
 					size=15,
@@ -330,6 +337,14 @@ server <- function(input, output, session) {
 				val <- ''
 			}
 		}
+		else if (rebalsim_res_histo_tab() == 'bal') {
+			desc <- "Lowest percentage of channels with high liquidity availability"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$known_1Mmin %>% min %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
 		valueBox(val, desc, color="blue")
 	})
 	output$rebalsim.max <- renderValueBox({
@@ -345,6 +360,14 @@ server <- function(input, output, session) {
 			desc <- "Highest maximum liquidity flow (sat)"
 			if (rebal_inv$settled == TRUE) {
 				val <- payrebal_sim$values$max_path_flow %>% max %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
+		else if (rebalsim_res_histo_tab() == 'bal') {
+			desc <- "Highest percentage of channels with high liquidity availability"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$known_1Mmin %>% max %>% round(0) %>% prettyNum(big.mark=',')
 			} else {
 				val <- ''
 			}
@@ -368,6 +391,14 @@ server <- function(input, output, session) {
 				val <- ''
 			}
 		}
+		else if (rebalsim_res_histo_tab() == 'bal') {
+			desc <- "Expected percentage of channels with high liquidity availability"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$known_1Mmin %>% mean %>% round(0) %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
 		valueBox(val, desc, color="blue")
 	})
 	output$rebalsim.med <- renderValueBox({
@@ -383,6 +414,14 @@ server <- function(input, output, session) {
 			desc <- "Median path maximum liquidity flow (sat)"
 			if (rebal_inv$settled == TRUE) {
 				val <- payrebal_sim$values$max_path_flow %>% median %>% round(0) %>% as.integer %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
+		else if (rebalsim_res_histo_tab() == 'bal') {
+			desc <- "Median percentage of channels with high liquidity availability"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$known_1Mmin %>% median %>% round(0) %>% prettyNum(big.mark=',')
 			} else {
 				val <- ''
 			}
@@ -406,11 +445,15 @@ server <- function(input, output, session) {
 				val <- ''
 			}
 		}
+		else if (rebalsim_res_histo_tab() == 'bal') {
+			desc <- "Spread in percentage of channels with high liquidity availability"
+			if (rebal_inv$settled == TRUE) {
+				val <- payrebal_sim$values$known_1Mmin %>% sd %>% round(0) %>% prettyNum(big.mark=',')
+			} else {
+				val <- ''
+			}
+		}
 		valueBox(val, desc, color="blue")
-	})
-
-	output$maxflowinfo <- renderInfoBox({
-		infoBox(title=NULL, subtitle='Maximum flow is the highest amount of sats that can theoretically be pushed through a path if liquidity were 100% outbound. In reality, outbound across a path is likely 50% or less.', icon=icon('question', lib='font-awesome'), color='yellow')
 	})
 	output$rebal_qr <- renderPlot({
 		bolt11 <- rebal_inv$invoice$BOLT11
@@ -418,11 +461,11 @@ server <- function(input, output, session) {
 	})
 
 	chan_sim_parms <- reactiveValues()
-	status <- reactiveVal()
+	chansim_status <- reactiveVal()
 	observeEvent(input$launch_sim, {
 		req(input$chansim_subject)
 		req(input$target != "" || input$target2 != "" || input$target3 != "")
-		status('latest')
+		chansim_status('latest')
 		subject <- fetch_pubkey(input$chansim_subject)
 		target <- sapply(
 			c(input$target, input$target2, input$target3),
@@ -440,19 +483,19 @@ server <- function(input, output, session) {
 		chan_sim_parms$eigen <- sim_graph$eigen
 	})
 	observeEvent({list(input$chansim_subject, input$target, input$target2, input$target3)}, {
-		status('changed')
+		chansim_status('changed')
 	})
 	# build value boxes with summary stats for the specified node
 	output$cent.between <- renderValueBox({
-		if (status() == "latest") {
+		if (chansim_status() == "latest") {
 			cent.between.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(sim.cent.between.rank) %>%
+				dplyr::select(sim.cent.between.rank) %>%
 				pull %>%
 				as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(cent.between.rank.delta) %>%
+				dplyr::select(cent.between.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -462,7 +505,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.between.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.between.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
@@ -470,14 +513,14 @@ server <- function(input, output, session) {
 		valueBox(val, "Betweenness centrality rank", color=color)
 	})
 	output$cent.eigen <- renderValueBox({
-		if (status() == "latest") {
+		if (chansim_status() == "latest") {
 			cent.eigen.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(sim.cent.eigen.rank) %>%
+				dplyr::select(sim.cent.eigen.rank) %>%
 				pull %>% as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(cent.eigen.rank.delta) %>%
+				dplyr::select(cent.eigen.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -487,7 +530,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.eigen.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.eigen.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
@@ -495,14 +538,14 @@ server <- function(input, output, session) {
 		valueBox(val, "Eigenvector/hubness centrality rank", color=color)
 	})
 	output$cent.close <- renderValueBox({
-		if (status() == "latest") {
+		if (chansim_status() == "latest") {
 			cent.close.rank <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(sim.cent.close.rank) %>%
+				dplyr::select(sim.cent.close.rank) %>%
 				pull %>% as.vector
 			delta <- chan_sim_parms$graph %>%
 				filter(name==chan_sim_parms$subject) %>%
-				select(cent.close.rank.delta) %>%
+				dplyr::select(cent.close.rank.delta) %>%
 				pull %>% as.vector
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
 			color <- ifelse(delta>0, "green", ifelse(delta==0, "blue", "red"))
@@ -512,7 +555,7 @@ server <- function(input, output, session) {
 		} else if (input$chansim_subject != '') {
 			subject <- fetch_pubkey(input$chansim_subject)
 			color <- 'blue'
-			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% select(cent.close.rank) %>% pull, big.mark=',')
+			val <- prettyNum(g %>% as_tibble %>% filter(name==subject) %>% dplyr::select(cent.close.rank) %>% pull, big.mark=',')
 		} else {
 			val <- ''
 			color <- 'blue'
@@ -558,7 +601,7 @@ server <- function(input, output, session) {
 
 	# network-wide centralizations
 	output$between.centralization <- renderValueBox({
-		if (status() == "latest") {
+		if (chansim_status() == "latest") {
 			delta <- (chan_sim_parms$betw$centralization - g_betw$centralization) / g_betw$centralization * 100
 			qualifier <- ifelse(delta>=0, '+', '-')
 			val <- paste0(signif(chan_sim_parms$betw$centralization, 4), " (", qualifier, " ", abs(signif(delta, 2)), "%)")
@@ -569,7 +612,7 @@ server <- function(input, output, session) {
 	})
 	# network-wide centralizations
 	output$closeness.centralization <- renderValueBox({
-		if (status() == "latest") {
+		if (chansim_status() == "latest") {
 			delta <- (chan_sim_parms$clo$centralization - g_clo$centralization) / g_clo$centralization * 100
 			qualifier <- ifelse(delta>=0, '+', '-')
 			val <- paste0(signif(chan_sim_parms$clo$centralization, 4), " (", qualifier, " ", abs(signif(delta, 2)), "%)")
@@ -580,7 +623,7 @@ server <- function(input, output, session) {
 	})
 	# network-wide centralizations
 	output$eigen.centralization <- renderValueBox({
-		if (status() == "latest") {
+		if (chansim_status() == "latest") {
 			delta <- (chan_sim_parms$eigen$centralization - g_eigen$centralization) / g_eigen$centralization * 100
 			qualifier <- ifelse(delta>=0, '+', '-')
 			val <- paste0(signif(chan_sim_parms$eigen$centralization, 4), " (", qualifier, " ", abs(signif(delta, 2)), "%)")
@@ -593,6 +636,7 @@ server <- function(input, output, session) {
 	output$scatter <- renderPlotly({
 		req(input$scatter_x, input$scatter_y)
 		plot_ly(g %>% as_tibble,
+			type='scatter',
 			x=as.formula(paste0('~', chart_vars[input$scatter_x])),
 			y=as.formula(paste0('~', chart_vars[input$scatter_y])),
 			height='725') %>%
