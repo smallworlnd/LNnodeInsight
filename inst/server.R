@@ -596,7 +596,7 @@ server <- function(input, output, session) {
 			scale_fill_distiller(palette = "RdYlBu")
 		ax <- list(showline = FALSE)
 		plotly::ggplotly(p, tooltip = c("text")) %>%
-			plotly::layout(xaxis = ax, yaxis = ax)
+			plotly::layout(xaxis = ax, yaxis = ax, hovermode='compare')
 	})
 
 	# network-wide centralizations
