@@ -25,16 +25,8 @@ peer_graph <- function(graph, s_node) {
 		as_tbl_graph)
 }
 
-fetch_pubkey <- function(pubkey_or_alias) {
-	return(
-		ifelse(grepl('^\\w{66}$', pubkey_or_alias), pubkey_or_alias, 
-			ifelse(pubkey_or_alias == "", NA, g %>%
-				filter(alias==pubkey_or_alias) %>%
-				pull(name) %>%
-				as.vector
-			)
-		)
-	)
+fetch_pubkey <- function(alias_pubkey) {
+	return(str_split(alias_pubkey, " - ")[[1]][-1])
 }
 
 fetch_alias <- function(pubkey) {

@@ -95,27 +95,13 @@ server <- function(input, output, session) {
 	})
 
 	filtered_node <- reactiveValues()
-	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt, input$pubkey.or.alias), {
+	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt), {
 		if (is.null(input$community.filt)) {
 			community.filt <- g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull
 		} else {
 			community.filt <- input$community.filt
 		}
-		filt.aliases <- g %>%
-			as_tibble %>%
-			filter(
-				!is.na(alias),
-				tot.capacity>=input$tot.capacity.filt[1]*1e8, tot.capacity<=input$tot.capacity.filt[2]*1e8,
-				avg.capacity>=input$avg.capacity.filt[1]*1e8, avg.capacity<=input$avg.capacity.filt[2]*1e8,
-				num.channels>=input$num.channels.filt[1], num.channels<=input$num.channels.filt[2],
-				median.rate.ppm>=input$fee.rate.filt[1], median.rate.ppm<=input$fee.rate.filt[2],
-				age>=input$age.filt[1], age<=input$age.filt[2],
-				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
-				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
-				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			dplyr::select(alias) %>%
-			pull
-		filt.pubkeys <- g %>%
+		filtered_node$list <- g %>%
 			as_tibble %>%
 			filter(
 				tot.capacity>=input$tot.capacity.filt[1]*1e8, tot.capacity<=input$tot.capacity.filt[2]*1e8,
@@ -126,15 +112,8 @@ server <- function(input, output, session) {
 				cent.between.rank>=input$cent.between.rank.filt[1], cent.between.rank<=input$cent.between.rank.filt[2],
 				cent.close.rank>=input$cent.close.rank.filt[1], cent.close.rank<=input$cent.close.rank.filt[2],
 				cent.eigen.rank>=input$cent.eigen.rank.filt[1], cent.eigen.rank<=input$cent.eigen.rank.filt[2]) %>%
-			dplyr::select(name) %>%
-			pull
-		if (input$pubkey.or.alias == 3) {
-			filtered_node$list <- c(filt.aliases, filt.pubkeys)
-		} else if (input$pubkey.or.alias == 1) {
-			filtered_node$list <- filt.pubkeys
-		} else {
-			filtered_node$list <- filt.aliases
-		}
+			mutate(alias_pubkey=paste(alias, "-", name)) %>%
+			pull(alias_pubkey)
 		updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 		updateSelectizeInput(session, "target2", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 		updateSelectizeInput(session, "target3", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
@@ -467,10 +446,9 @@ server <- function(input, output, session) {
 		req(input$target != "" || input$target2 != "" || input$target3 != "")
 		chansim_status('latest')
 		subject <- fetch_pubkey(input$chansim_subject)
-		target <- sapply(
-			c(input$target, input$target2, input$target3),
-			function(x) fetch_pubkey(x))
-		target <- na.omit(target) %>% as.vector
+		targets <- c(input$target, input$target2, input$target3) %>% na.omit
+		targets <- targets[targets != ""]
+		target <- sapply(targets, function(x) fetch_pubkey(x))
 		indels <- c(input$add_or_del, input$add_or_del2, input$add_or_del3)
 		indels <- indels[1:length(target)]
 		showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
@@ -568,11 +546,10 @@ server <- function(input, output, session) {
 		req(input$target != "" || input$target2 != "" || input$target3 != "")
 		subject <- fetch_pubkey(input$chansim_subject)
 		subject_alias <- fetch_alias(subject)
-		target <- sapply(
-			c(input$target, input$target2, input$target3),
-			function(x) fetch_pubkey(x))
-		target <- na.omit(target) %>% as.vector
-		target_aliases <- sapply(target, function(x) fetch_alias(x))
+		targets <- c(input$target, input$target2, input$target3) %>% na.omit
+		targets <- targets[targets != ""]
+		target <- sapply(targets, function(x) fetch_pubkey(x)) %>% as.vector
+		target_aliases <- sapply(target, function(x) fetch_alias(x)) %>% as.vector
 		peers <- lapply(c(subject, target), function(x) fetch_peer_aliases(x))
 		names(peers) <- c(subject_alias, target_aliases)
 		#ggVennDiagram(peers, show_intersect=TRUE)

@@ -198,16 +198,7 @@ g <- left_join(g, bos %>%
 # add terminal web scorse
 g <- left_join(g, nd.scores)
 
-node_ids <- c(
-	g %>%
-		dplyr::select(alias) %>%
-		as_tibble %>%
-		filter(!is.na(alias)) %>%
-		pull,
-	g %>%
-		dplyr::select(name) %>%
-		as_tibble %>%
-		pull)
+node_ids <- paste(g %>% pull(alias), "-", g %>% pull(name))
 
 chansim_filter_parms <- g %>%
 	as_tibble %>%
@@ -286,15 +277,6 @@ g_dir <- tbl_graph(nodes, all_edges, directed=TRUE) %>%
 	filter(!is.na(from_fee_rate), from_fee_rate<20e3, from_fee_rate>1) %>%
 	activate(nodes) %>%
 	mutate(id=row_number())
-g_dir_node_ids <- c(
-	g_dir %>%
-		dplyr::select(alias) %>%
-		as_tibble %>%
-		filter(!is.na(alias)) %>%
-		pull,
-	g_dir %>%
-		dplyr::select(name) %>%
-		as_tibble %>%
-		pull)
+g_dir_node_ids <- paste(g_dir %>% pull(alias), "-", g_dir %>% pull(name))
 
 save(g, g_dir, g_clo, g_betw, g_eigen, heuristics, table_vars, chart_vars, node_ids, g_dir_node_ids, chansim_filter_parms, file='graph.Rda')
