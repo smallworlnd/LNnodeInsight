@@ -243,10 +243,10 @@ dashboardbody <- dashboardBody(
 					valueBoxOutput('cent.between', width=12) %>% bs_embed_tooltip(title="Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.", placement='top'),
 					valueBoxOutput('cent.eigen', width=12) %>% bs_embed_tooltip(title="Eigenvector/hubness centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.", placement='top'),
 					valueBoxOutput('cent.close', width=12) %>% bs_embed_tooltip(title="Closeness/hopness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.", placement='top'), width=NULL)),
-				fluidRow(box(title="Network centralization scores", solidHeader=TRUE, collapsible=TRUE,
-					valueBoxOutput('between.centralization', width=12) %>% bs_embed_tooltip(title="Network-wide index for betweenness.", placement='top'),
-					valueBoxOutput('eigen.centralization', width=12) %>% bs_embed_tooltip(title="Network-wide index for eigenvector centrality.", placement='top'),
-					valueBoxOutput('closeness.centralization', width=12) %>% bs_embed_tooltip(title="Network-wide index for closeness.", placement='top'), width=NULL))))
+				fluidRow(box(title="Centralization scores of the network", solidHeader=TRUE, collapsible=TRUE,
+					valueBoxOutput('between.centralization', width=12) %>% bs_embed_tooltip(title="Total betweenness score for the whole Lightning Network. Increase in your node's betweenness doesn't always mean increase in the network's betweenness.", placement='top'),
+					valueBoxOutput('eigen.centralization', width=12) %>% bs_embed_tooltip(title="Total eigenvector/hubness score for the whole Lightning Network. Increase in your node's eigenvector centrality doesn't always mean increase in the network's eigenvector centrality.", placement='top'),
+					valueBoxOutput('closeness.centralization', width=12) %>% bs_embed_tooltip(title="Total closeness/hopness score for the whole Lightning Network. Increase in your node's closeness doesn't always mean increase in the network's closeness centrality.", placement='top'), width=NULL))))
 		),
 		tabItem(tabName='faq',
 			box(p(a("Email", href="mailto:smallworlnd@protonmail.com"), "/", a("Telegram", href="https://t.me/LNnodeInsight"), "/", a("Lightning node", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788")), title="Contact", width=NULL, collapsible=TRUE),
