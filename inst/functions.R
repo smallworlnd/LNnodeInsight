@@ -26,7 +26,7 @@ peer_graph <- function(graph, s_node) {
 }
 
 fetch_pubkey <- function(alias_pubkey) {
-	return(str_split(alias_pubkey, " - ")[[1]][-1])
+	return(tail(str_split(alias_pubkey, " - ")[[1]], 1))
 }
 
 fetch_alias <- function(pubkey) {
