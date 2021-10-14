@@ -619,7 +619,13 @@ server <- function(input, output, session) {
 			height='725') %>%
 				layout(
 					xaxis=list(title=input$scatter_x, type='log'),
-					yaxis=list(title=input$scatter_y, type='log'))
+					yaxis=list(title=input$scatter_y, type='log')) %>%
+				add_annotations(
+					xref="paper", yref="paper",
+					x=1, y=1, text="LNnodeinsight.com",
+					font=list(size=16),
+					showarrow=FALSE
+				)
 	})
 	observeEvent(input$scatterclear, {
 		updateSelectizeInput(session, inputId='scatter_x', label='Choose an X-axis variable', choices=c('', names(chart_vars)))
@@ -633,7 +639,13 @@ server <- function(input, output, session) {
 			height='725') %>%
 				layout(
 					xaxis=list(title=input$histo_x,type='linear'),
-					yaxis=list(title="Number of nodes with", type='log'))
+					yaxis=list(title="Number of nodes with", type='log')) %>%
+				add_annotations(
+					xref="paper", yref="paper",
+					x=1, y=1, text="LNnodeinsight.com",
+					font=list(size=16),
+					showarrow=FALSE
+				)
 	})
 	observeEvent(input$histoclear, {
 		updateSelectizeInput(session, inputId='histo_x', label='Choose a variable', choices=c('', names(chart_vars)))
