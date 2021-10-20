@@ -176,13 +176,21 @@ g_heur_ids <- g_heur %>%
 g_betw <- centr_betw(g_heur, directed=FALSE)
 g_clo <- centr_clo(g_heur, mode='all')
 g_eigen <- centr_eigen(g_heur)
+# capacity weighted betweenness
+w <- g_heur %>% activate(edges) %>% pull(capacity)
+w <- 1/(w/1e8)
+g_betw_w <- igraph::betweenness(g_heur, directed=FALSE, weights=w) %>% enframe %>% rename('cent.between.weight'='value')
+g_clo_w <- igraph::closeness(g_heur, weights=w) %>% enframe %>% rename('cent.close.weight'='value')
+g_eigen_w <- igraph::eigen_centrality(g_heur, directed=FALSE, weights=1/w)$vector %>% enframe %>% rename('cent.eigen.weight'='value')
+
 g_cent_summ <- cbind(g_heur_ids, g_betw$res, g_clo$res, g_eigen$vector) %>%
 	as_tibble %>%
 	rename(c('id'='g_heur_ids', 'cent.between'='V2', 'cent.close'='V3', 'cent.eigen'='V4'))
 g <- left_join(g, g_cent_summ, by='id')
+g <- left_join(g, g_betw_w) %>% left_join(., g_clo_w) %>% left_join(., g_eigen_w)
 # compute ranks for centrality scores
 g <- g %>%
-	mutate(cent.between.rank=rank(-cent.between, ties.method='first'), cent.eigen.rank=rank(-cent.eigen, ties.method='first'), cent.close.rank=rank(-cent.close, ties.method='first'))
+	mutate(cent.between.rank=rank(-cent.between, ties.method='first'), cent.eigen.rank=rank(-cent.eigen, ties.method='first'), cent.close.rank=rank(-cent.close, ties.method='first'), cent.between.weight.rank=rank(-cent.between.weight, ties.method='first'), cent.close.weight.rank=rank(-cent.close.weight, ties.method='first'), cent.eigen.weight.rank=rank(-cent.eigen.weight, ties.method='first'))
 # infer communities of nodes
 g <- g %>%
 	mutate(community=group_louvain())
