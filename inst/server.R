@@ -15,15 +15,15 @@ server <- function(input, output, session) {
 			pubkey <- query[['peer_network']]
 			updateTabItems(session, "sidebar", "peernet")
 			peernet_subject(pubkey)
-			updateSelectizeInput(session, "peernet_subject", choices=c("Pubkey or alias"="", node_ids), selected=peernet_subject(), server=TRUE)
+			updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey or alias"="", node_ids), selected=nodestats$subject, server=TRUE)
 		}
 	})
 	# dashboard rendering
 	output$chartlink <- renderInfoBox({
 		infoBox(a('Build your own chart', onclick="openTab('chart')", href="#"), subtitle='Explore network-wide node data and gather insight on trends and correlations', icon=icon('chart-bar'), color='yellow')
 	})
-	output$peernetlink <- renderInfoBox({
-		infoBox(a('Peer network', onclick="openTab('peernet')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
+	output$nodestatslink <- renderInfoBox({
+		infoBox(a('Node stats', onclick="openTab('nodestats')", href="#"), subtitle="Explore your node's local network and gain insight on peers", icon=icon('project-diagram', lib='font-awesome'), color='yellow')
 	})
 	output$rebalsimlink <- renderInfoBox({
 		infoBox(a('Payment/rebalance simulator', onclick="openTab('rebalsim')", href="#"), subtitle="Estimate the potential cost of a payment or rebalance to gain insight on liquidity demand and bottlenecks", icon=icon('calculator', lib='font-awesome'), color='yellow')
@@ -32,20 +32,154 @@ server <- function(input, output, session) {
 		infoBox(a('Channel simulator', onclick="openTab('chansim')", href="#"), subtitle='Simulate opening or closing a channel on your node to measure influence in the network', icon=icon('edit'), color='yellow')
 	})
 	# node statistics/graph rendering
-	# 
+	output$nodestats.cent.between <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			cent.between.rank <- nodestats$data$cent.between.rank
+			val <- prettyNum(cent.between.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Betweenness rank", color='blue')
+	})
+	output$nodestats.cent.between.weight <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			cent.between.weight.rank <- nodestats$data$cent.between.weight.rank
+			val <- prettyNum(cent.between.weight.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Capacity-weighted betweenness rank", color='blue')
+	})
+	output$nodestats.cent.eigen <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			cent.eigen.rank <- nodestats$data$cent.eigen.rank
+			val <- prettyNum(cent.eigen.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Eigenvector/hubness rank", color='blue')
+	})
+	output$nodestats.cent.eigen.weight <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			cent.eigen.weight.rank <- nodestats$data$cent.eigen.weight.rank
+			val <- prettyNum(cent.eigen.weight.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Capacity-weighted eigenvector/hubness rank", color='blue')
+	})
+	output$nodestats.cent.close <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			cent.close.rank <- nodestats$data$cent.close.rank
+			val <- prettyNum(cent.close.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Closeness/hopness rank", color='blue')
+	})
+	output$nodestats.cent.close.weight <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			cent.close.weight.rank <- nodestats$data$cent.close.weight.rank
+			val <- prettyNum(cent.close.weight.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Capacity-weighted closeness/hopness rank", color='blue')
+	})
+	output$nodestats.nd <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			nd.rank <- nodestats$data$nd.rank
+			val <- prettyNum(nd.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "Terminal rank", color='blue')
+	})
+	output$nodestats.bos <- renderValueBox({
+		if (!is.null(nodestats$data$pubkey)) {
+			bos.rank <- nodestats$data$bos.rank
+			val <- prettyNum(bos.rank, big.mark=',')
+		} else {
+			val <- ''
+		}
+		valueBox(val, "BOS rank", color='blue')
+	})
 	# peer network rendering
-	peernet_subject <- reactiveVal()
-	observeEvent(input$peernet_subject, {
-		peernet_subject(input$peernet_subject)
+	nodestats <- reactiveValues(data=NULL)
+	observeEvent(input$nodestats_subject, {
+		req(input$nodestats_subject)
+		subject <- fetch_pubkey(input$nodestats_subject)
+		nodestats$data <- nodes_latest %>% filter(pubkey==subject)
+		subject_nd <- nd_latest %>% filter(pubkey==subject) %>% dplyr::select(-c(time, nd_id, centrality)) %>% rename(c('nd.score'='score', 'nd.rank'='rank'))
+		subject_bos <- bos_latest %>% filter(pubkey==subject) %>% rename(c('bos.score'='score', 'bos.rank'='rank')) %>% dplyr::select(-time)
+		nodestats$data <- left_join(nodestats$data, subject_nd, by='pubkey') %>% left_join(., subject_bos, by='pubkey')
+		peers <- adjacent_vertices(g, subject, mode='all') %>% unlist %>% names %>% strsplit("\\.") %>% lapply(function(x) x[2]) %>% unlist
+		nodestats$peers <- nodes_agg_3m %>% filter(pubkey %in% peers) %>% mutate(tot.capacity=tot.capacity/1e8)
+		nodestats$entries <- nodestats$peers %>% pull(time) %>% unique %>% length
+		nodestats$lnsummary <- nodes_agg_3m %>% mutate(time=ordered(format(time, "%m-%d"))) %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE))
+		nodesummary <- nodes_agg_3m %>% filter(pubkey==nodestats$data$pubkey) %>% mutate(time=ordered(format(time, "%m-%d"))) %>% dplyr::select(time, tot.capacity, mean.rate.ppm)
+		nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary)
+	})
+	output$node_cap_change <- renderPlotly({
+		plot_ly(nodestats$lnsummary, x=~time, y=~avg.node.cap, type='scatter', mode='lines', name='LN average') %>%
+			add_trace(y=~tot.capacity, type='scatter', mode='lines', name=nodestats$data$alias) %>%
+			layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Capacity (BTC)"))
+	})
+	output$node_fee_change <- renderPlotly({
+		plot_ly(nodestats$lnsummary, x=~time, y=~avg.rate.ppm, type='scatter', mode='lines', name='LN average') %>%
+			add_trace(y=~mean.rate.ppm, type='scatter', mode='lines', name=nodestats$data$alias) %>%
+			layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Average fee rate (ppm)"))
+	})
+	output$peer_overlap <- renderPlotly({
+		common_peers <- fetch_peer_overlaps(nodestats$data %>% pull(pubkey))
+		plot_ly(common_peers, x=~alias, y=~num_common_peers, size=~num.channels, type='scatter', mode='markers') %>%
+			layout(
+				xaxis=list(title="Peer alias", tickangle=45, categoryorder="array", categoryarray=common_peers$alias),
+				yaxis=list(title="Number of peers in common")
+			)
+	})
+	output$node_vs_peer_fees <- renderPlotly({
+		fees <- fetch_peer_fees(g, nodestats$data %>%
+			pull(pubkey)) %>%
+			mutate(diff=ifelse(subject_fee>peer_fee, "Outbound fee is more than the inbound fee", ifelse(subject_fee==peer_fee, "Outbound is the same as inbound", "Outbound fee is less than the inbound fee"))) %>%
+			arrange(diff) %>%
+			mutate(diff=factor(diff))
+		min_fee <- fees %>% dplyr::select(subject_fee, peer_fee) %>% unlist %>% min
+		max_fee <- fees %>% dplyr::select(subject_fee, peer_fee) %>% unlist %>% max
+		plt <- ggplot(fees, aes(y=subject_fee, x=peer_fee, text=paste0("Outgoing fee: ", subject_fee, "\n", peer_alias, " fee:", peer_fee), color=as.factor(diff), size=9, alpha=0.8)) +
+			geom_point() +
+			geom_abline(intercept=0, slope=1, linetype='dashed', alpha=0.4) +
+			scale_color_manual(values = c("dodgerblue3", "orange", "darkgray")) +
+			xlim(min_fee, max_fee) +
+			ylim(min_fee, max_fee) +
+			theme_minimal()
+		ggplotly(plt, tooltip="text") %>%
+			layout(
+				xaxis=list(title="Incoming peer fee (ppm)", size=10),
+				yaxis=list(title="Outgoing fee (ppm)", size=10),
+				legend=list(orientation='h', y=-0.15))
+	})
+	output$lncompare <- renderUI({
+		txt <- ifelse(!is.null(nodestats$data), paste(nodestats$data %>% pull(alias), "vs the Network"), "Node vs the Network")
+	})
+	output$peercompare <- renderUI({
+		txt <- ifelse(!is.null(nodestats$data), paste(nodestats$data %>% pull(alias), "peers"), "Node peers")
+	})
+	output$chancap_change <- renderPlotly({
+		nodestats$peers %>%
+			mutate(time=format(time, "%m-%d")) %>%
+			distinct(time, pubkey, .keep_all=TRUE) %>%
+			plot_ly(x=~num.channels, y=~tot.capacity, frame=~time, type='scatter', mode='text', text=~alias, showlegend=FALSE, hovertemplate=paste0("%{text}\n", "Capacity: %{y}\n", "Channels: %{x}")) %>%
+				layout(xaxis=list(title="Number of channels", type='log'), yaxis=list(title="Total capacity (BTC)", type='log'))  %>%
+				animation_slider(active=nodestats$entries, currentvalue=list(prefix="Date: "))
 	})
 	output$net <- renderForceNetwork({
-		req(peernet_subject())
-		subject <- fetch_pubkey(peernet_subject())
-		reduced_g <- peer_graph(g, subject)
+		req(input$nodestats_subject)
+		reduced_g <- peer_graph(g, nodestats$data %>% pull(pubkey))
 		node <- reduced_g %>%
 			mutate(id=row_number()-1) %>%
 			as_tibble %>%
-			mutate(group=ifelse(name==subject, 1, 2), nodesize=tot.capacity/1e8)
+			mutate(group=ifelse(name==nodestats$data$pubkey, 1, 2), nodesize=tot.capacity/1e8)
 		links <- reduced_g %>%
 			activate(edges) %>%
 			as_tibble %>%
@@ -64,9 +198,9 @@ server <- function(input, output, session) {
 	})
 	# summarise peer info in a table
 	output$nodetable <- renderDataTable({
-		req(peernet_subject())
+		req(nodestats$subject)
 		req(input$show_columns)
-		subject <- fetch_pubkey(peernet_subject())
+		subject <- fetch_pubkey(nodestats$subject)
 		peer_table <- peer_graph(g, subject) %>%
 			mutate(id=row_number()-1) %>%
 			as_tibble %>%
@@ -85,7 +219,7 @@ server <- function(input, output, session) {
 	})
 
 	output$table_vars <- renderUI({
-		req(peernet_subject())
+		req(nodestats$subject)
 		req(input$peerinfotab == "tablenet")
 		box(width=NULL,
 			checkboxGroupInput("show_columns", "Select columns to show", choices=table_vars, inline=TRUE,
@@ -95,12 +229,7 @@ server <- function(input, output, session) {
 	})
 
 	filtered_node <- reactiveValues()
-	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$community.filt), {
-		if (is.null(input$community.filt)) {
-			community.filt <- g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull
-		} else {
-			community.filt <- input$community.filt
-		}
+	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt), {
 		filtered_node$list <- g %>%
 			as_tibble %>%
 			filter(
@@ -134,7 +263,7 @@ server <- function(input, output, session) {
 			target="_blank")
 
 	})
-	updateSelectizeInput(session, "peernet_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
+	updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "chansim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "rebalsim_subject", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "rebalsim_out_node", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)

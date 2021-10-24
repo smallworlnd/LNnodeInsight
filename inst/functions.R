@@ -25,6 +25,27 @@ peer_graph <- function(graph, s_node) {
 		as_tbl_graph)
 }
 
+# fetch neighborhood fees
+fetch_peer_fees <- function(graph, pubkey) {
+	pubkey_id <- fetch_id(g, pubkey)
+	fees <- graph %>%
+		activate(edges) %>%
+		filter(from==pubkey_id | to==pubkey_id) %>%
+		mutate(
+			subject_fee=ifelse(from==pubkey_id, from_fee_rate, to_fee_rate),
+			peer_fee=ifelse(from==pubkey_id, to_fee_rate, from_fee_rate),
+			peer_id=ifelse(from==pubkey_id, to, from)) %>%
+		as_tibble %>%
+		dplyr::select(subject_fee, peer_fee, peer_id)
+	fees$peer_alias <- sapply(fees$peer_id, fetch_alias_from_id)
+	return(fees)
+}
+
+p_abline <- function(x, a=1, b=0) {
+	y <- a * x + b
+	return(y)
+}
+
 fetch_pubkey <- function(alias_pubkey) {
 	return(tail(str_split(alias_pubkey, " - ")[[1]], 1))
 }
@@ -33,10 +54,27 @@ fetch_alias <- function(pubkey) {
 	return(g %>% filter(name==pubkey) %>% pull(alias))
 }
 
+fetch_alias_from_id <- function(node_id) {
+	return(g %>% filter(id==node_id) %>% pull(alias))
+}
+
 fetch_peer_aliases <- function(pubkey) {
 	peers <- adjacent_vertices(g, pubkey, mode='all') %>% unlist %>% as.vector
 	peer_aliases <- g %>% filter(id %in% peers) %>% dplyr::select(alias) %>% as_tibble %>% pull(alias)
 	return(peer_aliases)
+}
+
+fetch_peer_overlaps <- function(pubkey) {
+	peer_pubkeys <- adjacent_vertices(g, pubkey, mode='all') %>%
+		unlist %>%
+		enframe %>%
+		separate(name, c('pubkey', 'peer_pubkey')) %>%
+		pull(peer_pubkey)
+	peer_pubkey_aliases <- g %>% filter(name %in% peer_pubkeys) %>% dplyr::select(name, alias, num.channels) %>% as_tibble
+	peers_of_peers <- lapply(peer_pubkey_aliases$name, function(x) fetch_peer_aliases(x) %>% unique)
+	num_common_peers <- lapply(peers_of_peers, function(x) length(Reduce(intersect, list(x, peer_pubkey_aliases$alias)))) %>% unlist
+	df <- data.frame(peer_pubkey_aliases, num_common_peers) %>% arrange(desc(num_common_peers))
+	return(df)
 }
 
 sim_chan <- function(s_node, t_node, indel, amount=5e6) {

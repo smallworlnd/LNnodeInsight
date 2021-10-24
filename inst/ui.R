@@ -16,7 +16,7 @@ sidebar <- dashboardSidebar(
 		menuItem("Dashboard", tabName="dashboard", icon=icon('globe', lib='font-awesome')),
 		menuItem("Visuals", startExpanded=TRUE, tabName="visuals", icon=icon('eye-open', lib='glyphicon'),
 			menuItem("Build your own chart", tabName="chart", icon=NULL),
-			menuItem("Node peer network", tabName="peernet", icon=NULL)),
+			menuItem("Node stats", tabName="nodestats", icon=NULL)),
 		menuItem("Simulators", startExpanded=TRUE, tabName="simulators", icon=icon('route'),
 			menuItem("Rebalance simulator", tabName="rebalsim", icon=NULL, badgeLabel="New"),
 			menuItem("Channel simulator", tabName="chansim", icon=NULL)),
@@ -53,7 +53,7 @@ dashboardbody <- dashboardBody(
 			hr(),
 			fluidRow(
 				infoBoxOutput('chartlink', width=6),
-				infoBoxOutput('peernetlink', width=6),
+				infoBoxOutput('nodestatslink', width=6),
 				infoBoxOutput('chansimlink', width=6),
 				infoBoxOutput('rebalsimlink', width=6),
 				)),
@@ -166,17 +166,41 @@ dashboardbody <- dashboardBody(
 				),
 			),
 		),
-		tabItem(tabName='peernet',
+		tabItem(tabName='nodestats',
 			fluidRow(
-				column(6,
-					box(selectizeInput(inputId="peernet_subject", label='Enter pubkey/alias to view local peer network', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=NULL)),
-				column(6,
-					uiOutput('table_vars'))),
+				column(8,
+					fluidRow(box(selectizeInput(inputId="nodestats_subject", label='Enter pubkey/alias to view stats', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=12)),
+				)),
+#				column(6,
+#					uiOutput('table_vars')),
+			h3('Ranks'),
 			fluidRow(
-				column(12,
-					tabBox(id='peerinfotab', side='left', selected='forcenet', width=NULL,
-						tabPanel('Peer network', forceNetworkOutput("net", height="750px"), value='forcenet', id='forcenet', width=NULL),
-						tabPanel('Summary table', dataTableOutput('nodetable'), value='tablenet', id='tablenet', width=NULL))))),
+				valueBoxOutput('nodestats.cent.between', width=3) %>% bs_embed_tooltip(title="", placement='top'),
+				valueBoxOutput('nodestats.cent.eigen', width=3) %>% bs_embed_tooltip(title="", placement='top'),
+				valueBoxOutput('nodestats.cent.close', width=3) %>% bs_embed_tooltip(title="", placement='top'),
+				valueBoxOutput('nodestats.nd', width=3) %>% bs_embed_tooltip(title="", placement='top')),
+			fluidRow(
+				valueBoxOutput('nodestats.cent.between.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
+				valueBoxOutput('nodestats.cent.eigen.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
+				valueBoxOutput('nodestats.cent.close.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
+				valueBoxOutput('nodestats.bos', width=3) %>% bs_embed_tooltip(title="", placement='top')),
+			h3(uiOutput('lncompare')),
+			fluidRow(
+				tabBox(id='nodestats_cap_change_tab', side='left', selected='node_cap_change', width=12,
+					tabPanel('Capacity', plotlyOutput("node_cap_change"), value='node_cap_change', id='node_cap_change', width=NULL),
+					tabPanel('Fees ', plotlyOutput("node_fee_change"), value='node_fee_change', id='node_fee_change', width=NULL),
+				)
+			),
+			h3(uiOutput('peercompare')),
+			fluidRow(
+				tabBox(id='peer_chancap_change_tab', side='left', selected='fee_comp', width=12,
+					tabPanel('Fee comparison', plotlyOutput("node_vs_peer_fees", height="750px"), value='fee_comp', id='fee_comp', width=NULL),
+					tabPanel('Peers of peers in common', plotlyOutput("peer_overlap", height="750px"), value='peer_overlap', id='peer_overlap', width=NULL),
+					tabPanel('Peer evolution', plotlyOutput("chancap_change", height="750px"), value='chancap_change', id='chancap_change', width=NULL),
+					tabPanel('Peer network', forceNetworkOutput("net", height="750px"), value='forcenet', id='forcenet', width=NULL),
+				)
+			),
+		),
 		tabItem(tabName='chansim',
 			fluidRow(column(8,
 				box(
@@ -224,8 +248,6 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
 						column(12,
-							selectizeInput(inputId='community.filt', label='Filter by one or more communities', choices=g %>% as_tibble %>% dplyr::select(community) %>% unique %>% pull %>% sort, multiple=TRUE, options=list(placeholder="Select community number"))),
-						column(12,
 							prettyRadioButtons(inputId='pubkey.or.alias', label='Show pubkey or alias or both in the drop-down menu', selected=3, choiceNames=c('Pubkey', 'Alias', 'Both'), choiceValues=c(1, 2, 3), inline=TRUE))),
 						column(12, align='center',
 							actionBttn(inputId='launch_sim', label='Start', style='fill', color='success', block=FALSE)),
@@ -255,7 +277,6 @@ dashboardbody <- dashboardBody(
 			box(p("Closeness/hopness centrality is a measure of how many hops it takes to reach any node on the network from a given node. The better the rank, the fewer the hops required to reach any and all nodes."), title="Closeness/hopness centrality", width=NULL, collapsible=TRUE),
 			box(p("Eigenvector/hubness centrality measures influence of a given node in the network. Higher ranks imply a well-connected node that is linked to other well-connected nodes. A lower eigenvector centrality could also imply a new and/or underserved node in the network."), title="Eigenvector/hubness centrality", width=NULL, collapsible=TRUE),
 			box(p("Maximum flow is the highest amount of sats that can theoretically be pushed through a path if liquidity were 100% outbound. In reality, outbound across a path is likely 50% or less."), title="Maximum liquidity flow", width=NULL, collapsible=TRUE),
-			box(p("The communities are inferred with the Louvain algorithm. It detects clusters of nodes. It could be a useful metric to identify groups of nodes further away from a given node in the network."), title="Community", width=NULL, collapsible=TRUE),
 		)
 	))
 

@@ -143,7 +143,7 @@ g <- edges %>%
 	dplyr::select(node1_pub, node2_pub, capacity, age, last_update, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
 	mutate(last_update=as.numeric(as_datetime(max(last_update, na.rm=TRUE)) - as_datetime(last_update), units='days')) %>%
 	rename(c('from_base_fee'='node1_policy.fee_base_msat', 'from_fee_rate'='node1_policy.fee_rate_milli_msat', 'to_base_fee'='node2_policy.fee_base_msat', 'to_fee_rate'='node2_policy.fee_rate_milli_msat')) %>%
-	graph.data.frame(directed=FALSE) %>%
+	graph.data.frame(directed=TRUE) %>%
 	as_tbl_graph
 # join node information
 g <- left_join(g, nodes, by=c('name'='pub_key'))
@@ -191,9 +191,6 @@ g <- left_join(g, g_betw_w) %>% left_join(., g_clo_w) %>% left_join(., g_eigen_w
 # compute ranks for centrality scores
 g <- g %>%
 	mutate(cent.between.rank=rank(-cent.between, ties.method='first'), cent.eigen.rank=rank(-cent.eigen, ties.method='first'), cent.close.rank=rank(-cent.close, ties.method='first'), cent.between.weight.rank=rank(-cent.between.weight, ties.method='first'), cent.close.weight.rank=rank(-cent.close.weight, ties.method='first'), cent.eigen.weight.rank=rank(-cent.eigen.weight, ties.method='first'))
-# infer communities of nodes
-g <- g %>%
-	mutate(community=group_louvain())
 
 # add column with links to 1ml/amboss
 g <- g %>%
@@ -221,7 +218,7 @@ chansim_filter_parms <- g %>%
 
 chart_vars <- g %>%
 	as_tibble %>%
-	dplyr::select(tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
+	dplyr::select(tot.capacity:cent.eigen.weight.rank, bos, tweb.score, -id, -mean.delta) %>%
 	names
 chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'Number of channels'='num.channels',
@@ -237,12 +234,11 @@ chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'Betweenness centrality'='cent.between',
 	'Eigenvector centrality'='cent.eigen',
 	'Closeness centrality'='cent.close',
-	'Community'='community',
 	'Terminal Web score'='tweb.score',
 	'BOS score'='bos')
 table_vars <- g %>%
 	as_tibble %>%
-	dplyr::select(name, alias, tot.capacity:community, bos, tweb.score, -id, -mean.delta) %>%
+	dplyr::select(name, alias, tot.capacity:cent.eigen.weight.rank, bos, tweb.score, -id, -mean.delta) %>%
 	names
 table_vars <- c('Pubkey'='name',
 	'Alias'='alias',
@@ -260,7 +256,6 @@ table_vars <- c('Pubkey'='name',
 	'Betweenness centrality rank'='cent.between.rank',
 	'Eigenvector centrality rank'='cent.eigen.rank',
 	'Closeness centrality rank'='cent.close.rank',
-	'Community'='community',
 	'Terminal Web score'='tweb.score',
 	'BOS score'='bos')
 
