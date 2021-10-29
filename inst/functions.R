@@ -1,6 +1,6 @@
 recompute_centralities <- function(graph) {
 	graph_filt <- graph %>%
-		filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels, last_update<14) %>%
+		filter(act.channels>0, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
 		mutate(id=row_number()) %>%
 		dplyr::select(-c(cent.between, cent.close, cent.eigen))
 	ids <- graph_filt %>%

@@ -169,7 +169,7 @@ heuristics <- g %>%
 	dplyr::select(tot.capacity, num.channels) %>%
 	summarise(q1capacity=quantile(tot.capacity, 0.25), q1num.channels=quantile(num.channels, 0.25))
 g_heur <- g %>%
-	filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels, last_update<14)
+	filter(act.channels>0, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels)
 g_heur_ids <- g_heur %>%
 	as_tibble %>%
 	pull(id)
