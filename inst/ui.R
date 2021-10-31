@@ -187,17 +187,17 @@ dashboardbody <- dashboardBody(
 			h3(uiOutput('lncompare')),
 			fluidRow(
 				tabBox(id='nodestats_cap_change_tab', side='left', selected='node_cap_change', width=12,
-					tabPanel('Capacity', plotlyOutput("node_cap_change"), value='node_cap_change', id='node_cap_change', width=NULL),
-					tabPanel('Fees ', plotlyOutput("node_fee_change"), value='node_fee_change', id='node_fee_change', width=NULL),
+					tabPanel('Capacity',withSpinner(plotlyOutput("node_cap_change")), value='node_cap_change', id='node_cap_change', width=NULL),
+					tabPanel('Fees ', withSpinner(plotlyOutput("node_fee_change")), value='node_fee_change', id='node_fee_change', width=NULL),
 				)
 			),
 			h3(uiOutput('peercompare')),
 			fluidRow(
 				tabBox(id='peer_chancap_change_tab', side='left', selected='fee_comp', width=12,
-					tabPanel('Fee comparison', plotlyOutput("node_vs_peer_fees", height="750px"), value='fee_comp', id='fee_comp', width=NULL),
-					tabPanel('Peers of peers in common', plotlyOutput("peer_overlap", height="750px"), value='peer_overlap', id='peer_overlap', width=NULL),
-					tabPanel('Peer evolution', plotlyOutput("chancap_change", height="750px"), value='chancap_change', id='chancap_change', width=NULL),
-					tabPanel('Peer network', forceNetworkOutput("net", height="750px"), value='forcenet', id='forcenet', width=NULL),
+					tabPanel('Fee comparison', withSpinner(plotlyOutput("node_vs_peer_fees", height="750px")), value='fee_comp', id='fee_comp', width=NULL),
+					tabPanel('Peers of peers in common', withSpinner(plotlyOutput("peer_overlap", height="750px")), value='peer_overlap', id='peer_overlap', width=NULL),
+					tabPanel('Peer evolution', withSpinner(plotlyOutput("chancap_change", height="750px")), value='chancap_change', id='chancap_change', width=NULL),
+					tabPanel('Peer network', withSpinner(forceNetworkOutput("net", height="750px")), value='forcenet', id='forcenet', width=NULL),
 				)
 			),
 		),

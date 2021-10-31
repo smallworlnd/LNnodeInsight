@@ -109,26 +109,28 @@ server <- function(input, output, session) {
 	observeEvent(input$nodestats_subject, {
 		req(input$nodestats_subject)
 		subject <- fetch_pubkey(input$nodestats_subject)
-		nodestats$data <- nodes_latest %>% filter(pubkey==subject)
-		subject_nd <- nd_latest %>% filter(pubkey==subject) %>% dplyr::select(-c(time, nd_id, centrality)) %>% rename(c('nd.score'='score', 'nd.rank'='rank'))
-		subject_bos <- bos_latest %>% filter(pubkey==subject) %>% rename(c('bos.score'='score', 'bos.rank'='rank')) %>% dplyr::select(-time)
+		nodestats$data <- nodes_latest %>% filter(pubkey==subject) %>% as_tibble
+		subject_nd <- nd_latest %>% filter(pubkey==subject) %>% dplyr::select(pubkey, score, rank) %>% rename(c('nd.score'='score', 'nd.rank'='rank')) %>% as_tibble
+		subject_bos <- bos_latest %>% filter(pubkey==subject) %>% rename(c('bos.score'='score', 'bos.rank'='rank')) %>% dplyr::select(-time) %>% as_tibble
 		nodestats$data <- left_join(nodestats$data, subject_nd, by='pubkey') %>% left_join(., subject_bos, by='pubkey')
 		peers <- adjacent_vertices(g, subject, mode='all') %>% unlist %>% names %>% strsplit("\\.") %>% lapply(function(x) x[2]) %>% unlist
 		nodestats$peers <- nodes_agg_3m %>% filter(pubkey %in% peers) %>% mutate(tot.capacity=tot.capacity/1e8)
 		nodestats$entries <- nodestats$peers %>% pull(time) %>% unique %>% length
-		nodestats$lnsummary <- nodes_agg_3m %>% mutate(time=ordered(format(time, "%m-%d"))) %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE))
-		nodesummary <- nodes_agg_3m %>% filter(pubkey==nodestats$data$pubkey) %>% mutate(time=ordered(format(time, "%m-%d"))) %>% dplyr::select(time, tot.capacity, mean.rate.ppm)
-		nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary)
+		nodestats$lnsummary <- nodes_agg_3m %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE))
+		nodesummary <- nodes_agg_3m %>% filter(pubkey==local(nodestats$data$pubkey)) %>% dplyr::select(time, tot.capacity, mean.rate.ppm)
+		nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary) %>% as_tibble
 	})
 	output$node_cap_change <- renderPlotly({
-		plot_ly(nodestats$lnsummary, x=~time, y=~avg.node.cap, type='scatter', mode='lines', name='LN average') %>%
-			add_trace(y=~tot.capacity, type='scatter', mode='lines', name=nodestats$data$alias) %>%
-			layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Capacity (BTC)"))
+		nodestats$lnsummary %>%
+			plot_ly(x=~time, y=~avg.node.cap, type='scatter', mode='lines', name='LN average') %>%
+				add_trace(y=~tot.capacity, type='scatter', mode='lines', name=nodestats$data$alias) %>%
+				layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Capacity (BTC)"))
 	})
 	output$node_fee_change <- renderPlotly({
-		plot_ly(nodestats$lnsummary, x=~time, y=~avg.rate.ppm, type='scatter', mode='lines', name='LN average') %>%
-			add_trace(y=~mean.rate.ppm, type='scatter', mode='lines', name=nodestats$data$alias) %>%
-			layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Average fee rate (ppm)"))
+		nodestats$lnsummary %>%
+			plot_ly(x=~time, y=~avg.rate.ppm, type='scatter', mode='lines', name='LN average') %>%
+				add_trace(y=~mean.rate.ppm, type='scatter', mode='lines', name=nodestats$data$alias) %>%
+				layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Average fee rate (ppm)"))
 	})
 	output$peer_overlap <- renderPlotly({
 		common_peers <- fetch_peer_overlaps(nodestats$data %>% pull(pubkey))
@@ -167,8 +169,7 @@ server <- function(input, output, session) {
 	})
 	output$chancap_change <- renderPlotly({
 		nodestats$peers %>%
-			mutate(time=format(time, "%m-%d")) %>%
-			distinct(time, pubkey, .keep_all=TRUE) %>%
+			as_tibble %>%
 			plot_ly(x=~num.channels, y=~tot.capacity, frame=~time, type='scatter', mode='text', text=~alias, showlegend=FALSE, hovertemplate=paste0("%{text}\n", "Capacity: %{y}\n", "Channels: %{x}")) %>%
 				layout(xaxis=list(title="Number of channels", type='log'), yaxis=list(title="Total capacity (BTC)", type='log'))  %>%
 				animation_slider(active=nodestats$entries, currentvalue=list(prefix="Date: "))

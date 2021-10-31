@@ -1,0 +1,25 @@
+library(tidyverse)
+library(tidygraph)
+library(dbplyr)
+library(jsonlite)
+library(igraph)
+library(sna)
+library(lubridate)
+library(intergraph)
+library(DBI)
+library(RPostgreSQL)
+
+source('store/creds.R')
+
+nodes_agg <- tbl(con, 'nodes')
+nodes_agg_3m <- nodes_agg %>% filter(time>=today()-months(3)) %>% mutate(time=floor_date(time, 'day')) %>% group_by(time, pubkey) %>% filter(row_number()==1)
+nodes_latest <- nodes_agg %>% filter(time>=today()-days(5)) %>% filter(time==max(time))
+
+nd_agg <- tbl(con, 'nd')
+nd_latest <- nd_agg %>% filter(time>=today()-days(5)) %>% filter(time==max(time))
+
+bos_agg <- tbl(con, 'bos')
+bos_latest <- bos_agg %>% filter(time>=today()-days(5)) %>% filter(time==max(time)) %>% window_order(desc(score), pubkey) %>% mutate(rank=rank(-score))
+
+# dbDisconnect(con)
+# dbClearResult(dbListResults(con)[[1]])

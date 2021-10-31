@@ -169,7 +169,7 @@ heuristics <- g %>%
 	dplyr::select(tot.capacity, num.channels) %>%
 	summarise(q1capacity=quantile(tot.capacity, 0.25), q1num.channels=quantile(num.channels, 0.25))
 g_heur <- g %>%
-	filter(inact.channels/num.channels<.5, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels, last_update<14)
+	filter(act.channels>0, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels)
 g_heur_ids <- g_heur %>%
 	as_tibble %>%
 	pull(id)
@@ -275,7 +275,7 @@ node.redflags <- chan.state %>% filter(key=='low_median_capacity' | key=='low_ch
 nodes <- left_join(nodes, node.redflags) %>% mutate(state=ifelse(is.na(last_update), "inactive", ifelse(last_update>14, "inactive", state))) %>% mutate(state=replace_na(state, "healthy")) 
 
 g_dir <- tbl_graph(nodes, all_edges, directed=TRUE) %>%
-	filter(act.channels!=0, last_update<14) %>%
+	filter(act.channels>0) %>%
 	activate(edges) %>%
 	filter(!is.na(from_fee_rate), from_fee_rate<20e3, from_fee_rate>1) %>%
 	activate(nodes) %>%
