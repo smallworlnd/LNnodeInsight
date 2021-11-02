@@ -116,21 +116,27 @@ server <- function(input, output, session) {
 		peers <- adjacent_vertices(g, subject, mode='all') %>% unlist %>% names %>% strsplit("\\.") %>% lapply(function(x) x[2]) %>% unlist
 		nodestats$peers <- nodes_agg_3m %>% filter(pubkey %in% peers) %>% mutate(tot.capacity=tot.capacity/1e8)
 		nodestats$entries <- nodestats$peers %>% pull(time) %>% unique %>% length
-		nodestats$lnsummary <- nodes_agg_3m %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE))
-		nodesummary <- nodes_agg_3m %>% filter(pubkey==local(nodestats$data$pubkey)) %>% dplyr::select(time, tot.capacity, mean.rate.ppm)
+		nodestats$lnsummary <- nodes_agg_3m %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE), avg.chan.size=mean(avg.capacity, na.rm=TRUE))
+		nodesummary <- nodes_agg_3m %>% filter(pubkey==local(nodestats$data$pubkey)) %>% dplyr::select(time, tot.capacity, mean.rate.ppm, avg.capacity)
 		nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary) %>% as_tibble
 	})
 	output$node_cap_change <- renderPlotly({
 		nodestats$lnsummary %>%
 			plot_ly(x=~time, y=~avg.node.cap, type='scatter', mode='lines', name='LN average') %>%
 				add_trace(y=~tot.capacity, type='scatter', mode='lines', name=nodestats$data$alias) %>%
-				layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Capacity (BTC)"))
+				layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Capacity (sat)"))
 	})
 	output$node_fee_change <- renderPlotly({
 		nodestats$lnsummary %>%
 			plot_ly(x=~time, y=~avg.rate.ppm, type='scatter', mode='lines', name='LN average') %>%
 				add_trace(y=~mean.rate.ppm, type='scatter', mode='lines', name=nodestats$data$alias) %>%
 				layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Average fee rate (ppm)"))
+	})
+	output$node_chansize_change <- renderPlotly({
+		nodestats$lnsummary %>%
+			plot_ly(x=~time, y=~avg.chan.size, type='scatter', mode='lines', name='LN average') %>%
+				add_trace(y=~avg.capacity, type='scatter', mode='lines', name=nodestats$data$alias) %>%
+				layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Average channel size (sat)"))
 	})
 	output$peer_overlap <- renderPlotly({
 		common_peers <- fetch_peer_overlaps(nodestats$data %>% pull(pubkey))
@@ -139,6 +145,26 @@ server <- function(input, output, session) {
 				xaxis=list(title="Peer alias", tickangle=45, categoryorder="array", categoryarray=common_peers$alias),
 				yaxis=list(title="Number of peers in common")
 			)
+	})
+	output$peer_ranks <- renderPlotly({
+		nd_latest %>%
+			filter(pubkey %in% peers) %>%
+			as_tibble %>%
+			left_join(., g %>% dplyr::select(name, alias) %>% as_tibble, by=c('pubkey'='name')) %>%
+			mutate(state=ifelse(
+				state=="healthy", "Healthy", ifelse(
+				state=="stable", "Stable", ifelse(
+				state=="fail_min_median_capacity", "Median channel capacity less than 500k sat", ifelse(
+				state=="fail_max_disable_ratio", "More than 25% of channels are disabled", ifelse(
+				state=="fail_uptime_ratio", "Uptime less than 99.9%", ifelse(
+				state=="fail_min_chan_count", "Node has less than 10 channels", state))))))) %>%
+			plot_ly(
+				x=~rank, y=~good_peers, color=~state,
+				type='scatter', mode='markers', size=20, alpha=0.9, text=~alias, hovertemplate=paste0("%{text}\n", "Rank: %{x}\n", "Number of good peers: %{y}")) %>%
+				layout(
+					xaxis=list(title="Terminal Web rank", type='log'),
+					yaxis=list(title="Number of good peers"),
+					legend=list(orientation='h', y=-0.15))
 	})
 	output$node_vs_peer_fees <- renderPlotly({
 		fees <- fetch_peer_fees(g, nodestats$data %>%
@@ -170,9 +196,9 @@ server <- function(input, output, session) {
 	output$chancap_change <- renderPlotly({
 		nodestats$peers %>%
 			as_tibble %>%
+			arrange(time, pubkey) %>%
 			plot_ly(x=~num.channels, y=~tot.capacity, frame=~time, type='scatter', mode='text', text=~alias, showlegend=FALSE, hovertemplate=paste0("%{text}\n", "Capacity: %{y}\n", "Channels: %{x}")) %>%
-				layout(xaxis=list(title="Number of channels", type='log'), yaxis=list(title="Total capacity (BTC)", type='log'))  %>%
-				animation_slider(active=nodestats$entries, currentvalue=list(prefix="Date: "))
+				layout(xaxis=list(title="Number of channels", type='log'), yaxis=list(title="Total capacity (BTC)", type='log'))
 	})
 	output$net <- renderForceNetwork({
 		req(input$nodestats_subject)

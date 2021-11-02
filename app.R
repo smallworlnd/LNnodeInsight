@@ -24,6 +24,7 @@ library(DT)
 # load data and functions for applications
 #source('inst/data.R')
 load('graph.Rda')
+source('inst/node-stats.R', local=TRUE)
 source('inst/functions.R', local=TRUE)
 
 # load in invoice management
