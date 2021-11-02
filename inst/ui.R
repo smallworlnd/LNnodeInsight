@@ -16,9 +16,9 @@ sidebar <- dashboardSidebar(
 		menuItem("Dashboard", tabName="dashboard", icon=icon('globe', lib='font-awesome')),
 		menuItem("Visuals", startExpanded=TRUE, tabName="visuals", icon=icon('eye-open', lib='glyphicon'),
 			menuItem("Build your own chart", tabName="chart", icon=NULL),
-			menuItem("Node stats", tabName="nodestats", icon=NULL)),
+			menuItem("Node stats", tabName="nodestats", icon=NULL, badgeLabel="New")),
 		menuItem("Simulators", startExpanded=TRUE, tabName="simulators", icon=icon('route'),
-			menuItem("Rebalance simulator", tabName="rebalsim", icon=NULL, badgeLabel="New"),
+			menuItem("Rebalance simulator", tabName="rebalsim", icon=NULL),
 			menuItem("Channel simulator", tabName="chansim", icon=NULL)),
 		menuItem("FAQ", tabName="faq", icon=icon('question'))
 	))
