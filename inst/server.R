@@ -148,7 +148,7 @@ server <- function(input, output, session) {
 	})
 	output$peer_ranks <- renderPlotly({
 		nd_latest %>%
-			filter(pubkey %in% peers) %>%
+			filter(pubkey %in% local(nodestats$peers %>% pull(pubkey))) %>%
 			as_tibble %>%
 			left_join(., g %>% dplyr::select(name, alias) %>% as_tibble, by=c('pubkey'='name')) %>%
 			mutate(state=ifelse(
