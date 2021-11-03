@@ -48,6 +48,9 @@ dashboardbody <- dashboardBody(
 	}")),
 	tabItems(
 		tabItem(tabName='dashboard',
+			tags$style(type = 'text/css', '.bg-NULL {background-color: #FFFFFF !important; }'),
+			tags$style(type = 'text/css', '.bg- {background-color: #FFFFFF !important; }'),
+			tags$style(HTML(".info-box-icon .img-local {position: absolute; top: auto; left: 15px; }")),
 			h2("Develop your own data-driven Lightning Network insight", align='center'),
 			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network", align='center'),
 			hr(),
@@ -56,7 +59,13 @@ dashboardbody <- dashboardBody(
 				infoBoxOutput('nodestatslink', width=6),
 				infoBoxOutput('chansimlink', width=6),
 				infoBoxOutput('rebalsimlink', width=6),
-				)),
+			),
+			h3('Community tools'),
+			fluidRow(
+				infoBoxOutput('ambosslink', width=6),
+				infoBoxOutput('lnrouterlink', width=6),
+			),
+		),
 		tabItem(tabName='chart',
 		tabBox(id='charting', side='left', selected='histo', width=NULL, height="805px",
 			tabPanel('Histogram', value='histo', id='histo', width=NULL,
@@ -205,12 +214,8 @@ dashboardbody <- dashboardBody(
 		tabItem(tabName='chansim',
 			fluidRow(column(8,
 				box(
-					fluidRow(column(10, selectizeInput(inputId="chansim_subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias'))),
-					column(2,
-						tags$br(),
-						tags$b("See node stats on"),
-						uiOutput('ambosslink')
-					)),
+					fluidRow(column(12, selectizeInput(inputId="chansim_subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias'))),
+					),
 					# first
 					h4(p(strong('Step 2: enter or select pubkey/alias of up to 3 nodes with which to simulate adding or removing channels'))),
 					fluidRow(

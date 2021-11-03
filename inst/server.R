@@ -19,6 +19,14 @@ server <- function(input, output, session) {
 		}
 	})
 	# dashboard rendering
+	output$lnrouterlink <- renderInfoBox({
+		ic <- apputils::icon(list(src="www/lnrouter.png", width="90px"), lib="local")
+		apputils::infoBox(tags$a("lnrouter", href="https://lnrouter.app", target="_blank"), subtitle='Combine insights from the rebalance simulator with LnRouter to get a full picture of how effectively liquidity can be pushed through a node and its neighbourhood', icon=ic, color=NULL)
+	})
+	output$ambosslink <- renderInfoBox({
+		ic <- apputils::icon(list(src="www/amboss.png", width="90px"), lib="local")
+		apputils::infoBox(a("amboss", href="https://amboss.space", target="_blank"), subtitle='Explore a node\'s channels, fees and all the most useful summary stats at Amboss', icon=ic, color='NULL')
+	})
 	output$chartlink <- renderInfoBox({
 		infoBox(a('Build your own chart', onclick="openTab('chart')", href="#"), subtitle='Explore network-wide node data and gather insight on trends and correlations', icon=icon('chart-bar'), color='yellow')
 	})
@@ -275,21 +283,6 @@ server <- function(input, output, session) {
 		updateSelectizeInput(session, "target3", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 	})
 	# channel simulation
-	output$ambosslink<- renderUI({
-		if (input$chansim_subject != ""){
-			link <- paste0("https://amboss.space/node/", fetch_pubkey(input$chansim_subject))
-		} else {
-			link <- "https://amboss.space"
-		}
-
-		tags$a(
-			href=link, 
-			tags$img(src="www/AmbossLogo.png", 
-				width="100%",
-				height="100%"),
-			target="_blank")
-
-	})
 	updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "chansim_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	updateSelectizeInput(session, "rebalsim_subject", choices=c("Pubkey or alias"=NULL, g_dir_node_ids), selected=character(0), server=TRUE)
