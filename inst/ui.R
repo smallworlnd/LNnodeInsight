@@ -37,6 +37,7 @@ dashboardbody <- dashboardBody(
 		  type = 'text/css',
 		  '.modal-dialog { width: fit-content !important; }'
 		),
+		tags$style(type="text/css", "#shiny-disconnected-overlay { background-color: inherit; opacity: 0; }"),
 	),
 	tags$script(HTML("
 	var openTab = function(tabName){
