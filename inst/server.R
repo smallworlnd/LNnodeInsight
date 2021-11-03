@@ -11,11 +11,13 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 server <- function(input, output, session) {
 	observeEvent(session$clientData$url_search, {
 		query <- parseQueryString(session$clientData$url_search)
-		if (!is.null(query[['peer_network']])) {
-			pubkey <- query[['peer_network']]
-			updateTabItems(session, "sidebar", "peernet")
-			peernet_subject(pubkey)
-			updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey or alias"="", node_ids), selected=nodestats$subject, server=TRUE)
+		if (length(query)>0) {
+			pubkey <- str_split(names(query), '/')[[1]][2]
+			pubkey_search <- node_ids[grepl(pubkey, node_ids)]
+			if (length(pubkey_search) > 0) {
+				updateTabItems(session, "sidebar", "nodestats")
+				updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey/alias"="", node_ids), selected=pubkey_search, server=TRUE)
+			}
 		}
 	})
 	# dashboard rendering
