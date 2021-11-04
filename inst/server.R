@@ -9,6 +9,21 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 }
 
 server <- function(input, output, session) {
+	observeEvent(input$sidebar, {
+		req(input$sidebar == "support")
+		showModal(
+			modalDialog(
+				title="Thanks for considering supporting us!",
+				h4("Our Lightning Address:"),
+				h2(a("smallworlnd@btcpay.lnnodeinsight.com")),
+				size='l',
+				easyClose=TRUE,
+				footer=tagList(
+					modalActionButton("donate_cancel", "Cancel")
+				)
+			)
+		)
+	})
 	observeEvent(session$clientData$url_search, {
 		query <- parseQueryString(session$clientData$url_search)
 		if (length(query)>0) {

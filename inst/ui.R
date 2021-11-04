@@ -20,7 +20,8 @@ sidebar <- dashboardSidebar(
 		menuItem("Simulators", startExpanded=TRUE, tabName="simulators", icon=icon('route'),
 			menuItem("Rebalance simulator", tabName="rebalsim", icon=NULL),
 			menuItem("Channel simulator", tabName="chansim", icon=NULL)),
-		menuItem("FAQ", tabName="faq", icon=icon('question'))
+		menuItem("FAQ", tabName="faq", icon=icon('question')),
+		menuItem("Support our work", tabName="support", icon=icon('heart'))
 	))
 
 
