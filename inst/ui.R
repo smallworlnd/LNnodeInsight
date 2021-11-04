@@ -172,14 +172,24 @@ dashboardbody <- dashboardBody(
 							valueBoxOutput('rebalsim.sd', width=12),
 							width=NULL
 						),
-					)
+					),
+#					fluidRow(
+#						infoBoxOutput('lnrouterlink2', width=12)
+#					)
 				),
 			),
 		),
 		tabItem(tabName='nodestats',
 			fluidRow(
 				column(8,
-					fluidRow(box(selectizeInput(inputId="nodestats_subject", label='Enter pubkey/alias to view stats', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=12)),
+					fluidRow(
+						box(selectizeInput(inputId="nodestats_subject", label='Enter pubkey/alias to view stats', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=12),
+					)
+				),
+				column(4,
+					tags$br(),
+					tags$div("Also see node stats on"),
+					uiOutput('ambossnodestats')
 				)),
 #				column(6,
 #					uiOutput('table_vars')),

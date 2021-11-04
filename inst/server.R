@@ -23,7 +23,11 @@ server <- function(input, output, session) {
 	# dashboard rendering
 	output$lnrouterlink <- renderInfoBox({
 		ic <- apputils::icon(list(src="www/lnrouter.png", width="90px"), lib="local")
-		apputils::infoBox(tags$a("lnrouter", href="https://lnrouter.app", target="_blank"), subtitle='Combine insights from the rebalance simulator with LnRouter to get a full picture of how effectively liquidity can be pushed through a node and its neighbourhood', icon=ic, color=NULL)
+		apputils::infoBox(tags$a("lnrouter", href="https://lnrouter.app", target="_blank"), subtitle='Explore channel balancedness with LnRouter to help identify well-managed nodes', icon=ic, color=NULL)
+	})
+	output$lnrouterlink2 <- renderInfoBox({
+		ic <- apputils::icon(list(src="www/lnrouter.png", width="90px"), lib="local")
+		apputils::infoBox(tags$a("LnRouter", href="https://lnrouter.app", target="_blank"), subtitle='Combine the results of the rebalance simulator with LookUps to get a full picture of the liquidity availability of a node and its neighbourhood', icon=ic, color=NULL)
 	})
 	output$ambosslink <- renderInfoBox({
 		ic <- apputils::icon(list(src="www/amboss.png", width="90px"), lib="local")
@@ -113,6 +117,21 @@ server <- function(input, output, session) {
 			val <- ''
 		}
 		valueBox(val, "BOS rank", color='blue')
+	})
+	output$ambossnodestats <- renderUI({
+		if (!is.null(nodestats$data)){
+			link <- paste0("https://amboss.space/node/", nodestats$data %>% pull(pubkey))
+		} else {
+			link <- "https://amboss.space"
+		}
+		print(link)
+		tags$a(
+			href=link, 
+			tags$img(src="www/AmbossLogo.png", 
+				width="125px",
+				height="100%"),
+			target="_blank")
+
 	})
 	# peer network rendering
 	nodestats <- reactiveValues(data=NULL)
