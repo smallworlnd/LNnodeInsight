@@ -139,7 +139,6 @@ server <- function(input, output, session) {
 		} else {
 			link <- "https://amboss.space"
 		}
-		print(link)
 		tags$a(
 			href=link, 
 			tags$img(src="www/AmbossLogo.png", 
@@ -161,7 +160,8 @@ server <- function(input, output, session) {
 		nodestats$peers <- nodes_agg_3m %>% filter(pubkey %in% peers) %>% mutate(tot.capacity=tot.capacity/1e8)
 		nodestats$entries <- nodestats$peers %>% pull(time) %>% unique %>% length
 		nodestats$lnsummary <- nodes_agg_3m %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE), avg.chan.size=mean(avg.capacity, na.rm=TRUE))
-		nodesummary <- nodes_agg_3m %>% filter(pubkey==local(nodestats$data$pubkey)) %>% dplyr::select(time, tot.capacity, mean.rate.ppm, avg.capacity)
+		nodestats$historical <- nodes_agg_3m %>% filter(pubkey==local(nodestats$data$pubkey))
+		nodesummary <- nodestats$historical %>% dplyr::select(time, tot.capacity, mean.rate.ppm, avg.capacity)
 		nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary) %>% as_tibble
 	})
 	output$node_cap_change <- renderPlotly({
@@ -236,6 +236,71 @@ server <- function(input, output, session) {
 	})
 	output$peercompare <- renderUI({
 		txt <- ifelse(!is.null(nodestats$data), paste(nodestats$data %>% pull(alias), "peers"), "Node peers")
+	})
+	histranks_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
+	observeEvent(input$show_hist_ranks, {
+		histranks_inv$cancel <- FALSE
+		histranks_inv$settled <- FALSE
+		histranks_inv$invoice <- content(POST(url=base, body=histranks_inv_body, config=headers))
+		histranks_inv$status <- "Unpaid"
+		showModal(
+			modalDialog(
+				plotOutput("histranks_qr", height='400px', width='400px'),
+				title=paste("Done! Please pay", as.numeric(histranks_msat)/1e3, "sats to view results."),
+				size='s',
+				footer=tagList(
+					rclipButton("clipbtn", "Copy", histranks_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
+					modalActionButton("histranks_cancel", "Cancel")
+				)
+			)
+		)
+	})
+	observeEvent(input$nodestats_subject, {
+		histranks_inv$settled <- FALSE
+	})
+	observeEvent(histranks_inv$status, {
+		if (histranks_inv$cancel == TRUE ) {
+			histranks_inv$status <- NULL
+			removeModal()
+		}
+		else if (histranks_inv$status == "Unpaid") {
+			delay(2000, histranks_inv$status <- 'Try again')
+		}
+		else if (histranks_inv$status == "Try again") {
+			delay(2000, histranks_inv$status <- content(GET(url=paste0(base, '/', histranks_inv$invoice$id), config=headers))$status)
+		}
+		else if (histranks_inv$status == "Paid") {
+			histranks_inv$settled <- TRUE
+			removeModal()
+		}
+		else if (histranks_inv$status == "Expired") {
+			removeModal()
+		}
+	})
+	observeEvent(input$nodestats_subject, {
+		histranks_inv$cancel <- TRUE
+	})
+	output$rank_change <- renderPlotly({
+		if (histranks_inv$settled == TRUE) {
+			bos <- bos_agg %>% filter(pubkey==local(nodestats$data %>% pull(pubkey)), time>=today()-months(3)) %>% as_tibble
+			nd <- nd_agg %>% filter(time>=today()-months(3), pubkey==local(nodestats$data %>% pull(pubkey))) %>% as_tibble
+			plt <- nodestats$historical %>%
+				as_tibble %>%
+				plot_ly(x=~time, y=~cent.between.rank, name="Betweenness", type='scatter', mode='lines', hovertemplate="%{y}") %>%
+				add_trace(y=~cent.close.rank, name="Closeness/hopness") %>%
+				add_trace(y=~cent.eigen.rank, name="Eigenvector/hubness") %>%
+				add_trace(y=~cent.between.weight.rank, name="Capacity-weighted betweenness") %>%
+				add_trace(y=~cent.close.weight.rank, name="Capacity-weighted closeness/hopness") %>%
+				add_trace(y=~cent.eigen.weight.rank, name="Capacity-weighted eigenvector/hubness") %>%
+				layout(yaxis=list(title="Rank", type='log'), xaxis=list(title="Date"), hovermode='x')
+			if (nrow(bos) > 0) {
+				plt <- plt %>% add_trace(data=bos, x=~time, y=~rank, name="BOS rank", type='scatter', mode='lines')
+			}
+			if (nrow(nd) > 0) {
+				plt <- plt %>% add_trace(data=nd, x=~time, y=~rank, name="Terminal Web rank", type='scatter', mode='lines')
+			}
+			plt
+		}
 	})
 	output$chancap_change <- renderPlotly({
 		nodestats$peers %>%
@@ -621,6 +686,10 @@ server <- function(input, output, session) {
 	})
 	output$rebal_qr <- renderPlot({
 		bolt11 <- rebal_inv$invoice$BOLT11
+		ggqrcode(bolt11)
+	})
+	output$histranks_qr <- renderPlot({
+		bolt11 <- histranks_inv$invoice$BOLT11
 		ggqrcode(bolt11)
 	})
 

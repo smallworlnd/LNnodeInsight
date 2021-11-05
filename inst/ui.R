@@ -34,6 +34,7 @@ dashboardbody <- dashboardBody(
 		tags$style(HTML(".control-label {font-size: 18px}")),
 		tags$style(HTML(".shiny-output-error { visibility: hidden; }")),
 		tags$style(HTML(".shiny-output-error:before { visibility: hidden; }")),
+		tags$style(HTML(".ss-gray-out { background-color: inherit; opacity: 0; !important; }")),
 		tags$style(
 		  type = 'text/css',
 		  '.modal-dialog { width: fit-content !important; }'
@@ -50,6 +51,7 @@ dashboardbody <- dashboardBody(
 	}")),
 	tabItems(
 		tabItem(tabName='dashboard',
+			tags$style(".info-box-icon { background-color: #FFFFFF !important; color: #000000 !important; }"),
 			tags$style(type = 'text/css', '.bg-NULL {background-color: #FFFFFF !important; }'),
 			tags$style(type = 'text/css', '.bg- {background-color: #FFFFFF !important; }'),
 			tags$style(HTML(".info-box-icon .img-local {position: absolute; top: auto; left: 15px; }")),
@@ -194,7 +196,7 @@ dashboardbody <- dashboardBody(
 				)),
 #				column(6,
 #					uiOutput('table_vars')),
-			h3('Ranks'),
+			h3('Current ranks'),
 			fluidRow(
 				valueBoxOutput('nodestats.cent.between', width=3) %>% bs_embed_tooltip(title="", placement='top'),
 				valueBoxOutput('nodestats.cent.eigen', width=3) %>% bs_embed_tooltip(title="", placement='top'),
@@ -205,6 +207,17 @@ dashboardbody <- dashboardBody(
 				valueBoxOutput('nodestats.cent.eigen.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
 				valueBoxOutput('nodestats.cent.close.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
 				valueBoxOutput('nodestats.bos', width=3) %>% bs_embed_tooltip(title="", placement='top')),
+			h3("Historical ranks"),
+			conditionalPanel(
+				condition="input.nodestats_subject != ''",
+				conditionalPanel(
+					condition="output.histranks_inv_settled==TRUE",
+					withSpinner(plotlyOutput("rank_change", width=NULL)),
+				),
+				hr(),
+				column(12, align='center',
+					actionBttn(inputId='show_hist_ranks', label=paste('View historical ranks for', as.numeric(histranks_msat)/1e3, 'sats'), style='fill', color='success', block=FALSE)),
+			),
 			h3(uiOutput('lncompare')),
 			fluidRow(
 				tabBox(id='nodestats_cap_change_tab', side='left', selected='node_cap_change', width=12,
