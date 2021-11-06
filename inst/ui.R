@@ -34,12 +34,10 @@ dashboardbody <- dashboardBody(
 		tags$style(HTML(".control-label {font-size: 18px}")),
 		tags$style(HTML(".shiny-output-error { visibility: hidden; }")),
 		tags$style(HTML(".shiny-output-error:before { visibility: hidden; }")),
-		tags$style(HTML(".ss-gray-out { background-color: inherit; opacity: 0; !important; }")),
 		tags$style(
 		  type = 'text/css',
 		  '.modal-dialog { width: fit-content !important; }'
 		),
-		tags$style(type="text/css", "#shiny-disconnected-overlay { background-color: inherit; opacity: 0; }"),
 	),
 	tags$script(HTML("
 	var openTab = function(tabName){

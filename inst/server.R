@@ -9,6 +9,7 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 }
 
 server <- function(input, output, session) {
+	removeCssClass("ss-overlay", "ss-gray-out")
 	observeEvent(input$sidebar, {
 		req(input$sidebar == "support")
 		showModal(
