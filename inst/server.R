@@ -240,6 +240,7 @@ server <- function(input, output, session) {
 	})
 	histranks_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
 	observeEvent(input$show_hist_ranks, {
+		disable('show_hist_ranks')
 		histranks_inv$cancel <- FALSE
 		histranks_inv$settled <- FALSE
 		histranks_inv$invoice <- content(POST(url=base, body=histranks_inv_body, config=headers))
@@ -255,6 +256,7 @@ server <- function(input, output, session) {
 				)
 			)
 		)
+		enable('show_hist_ranks')
 	})
 	observeEvent(input$nodestats_subject, {
 		histranks_inv$settled <- FALSE
@@ -397,6 +399,7 @@ server <- function(input, output, session) {
 	payrebal_sim <- reactiveValues()
 	observeEvent(c(input$launch_payrebalsim, input$pay_or_rebal), {
 		req(input$launch_payrebalsim)
+		disable('launch_payrebalsim')
 		if (input$pay_or_rebal == 1) {
 			req(input$rebalsim_subject)
 			req(input$rebalsim_in_node)
@@ -432,6 +435,7 @@ server <- function(input, output, session) {
 				)
 			)
 		)
+		enable('launch_payrebalsim')
 	})
 	observeEvent({list(input$rebalsim_subject, input$rebalsim_in_node, input$rebalsim_out_node)}, {
 		rebal_inv$settled <- FALSE
@@ -699,6 +703,7 @@ server <- function(input, output, session) {
 	observeEvent(input$launch_sim, {
 		req(input$chansim_subject)
 		req(input$target != "" || input$target2 != "" || input$target3 != "")
+		disable('launch_sim')
 		chansim_status('latest')
 		subject <- fetch_pubkey(input$chansim_subject)
 		targets <- c(input$target, input$target2, input$target3) %>% na.omit
@@ -714,6 +719,7 @@ server <- function(input, output, session) {
 		chan_sim_parms$betw <- sim_graph$betw
 		chan_sim_parms$clo <- sim_graph$clo
 		chan_sim_parms$eigen <- sim_graph$eigen
+		enable('launch_sim')
 	})
 	observeEvent({list(input$chansim_subject, input$target, input$target2, input$target3)}, {
 		chansim_status('changed')
