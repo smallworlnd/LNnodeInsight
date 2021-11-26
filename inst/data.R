@@ -161,6 +161,7 @@ all.subgraphs <- component.dist(asNetwork(g), connected='weak')
 g <- delete_vertices(g, which(all.subgraphs$membership>1)) %>%
 	as_tbl_graph %>%
 	mutate(id=row_number())
+g <- g %>% mutate(graph_timestamp=ss.time)
 
 # heuristics to speed up centrality measures
 # ignore nodes with >50% inactive channels, total capacity <1e5 (q1) and only 1 channel (q1)
