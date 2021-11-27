@@ -369,6 +369,7 @@ server <- function(input, output, session) {
 
 	filtered_node <- reactiveValues()
 	observeEvent(c(input$chansim_subject, input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$peers.of.peers.filter), {
+		req(input$chansim_subject)
 		filtered_node$list <- g %>%
 			as_tibble %>%
 			filter(
