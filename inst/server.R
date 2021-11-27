@@ -368,7 +368,7 @@ server <- function(input, output, session) {
 	})
 
 	filtered_node <- reactiveValues()
-	observeEvent(c(input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$peers.of.peers.filter), {
+	observeEvent(c(input$chansim_subject, input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$peers.of.peers.filter), {
 		filtered_node$list <- g %>%
 			as_tibble %>%
 			filter(
@@ -384,6 +384,7 @@ server <- function(input, output, session) {
 		if (input$peers.of.peers.filter == 2) {
 			filtered_node$list <- filtered_node$list %>% pull(alias_pubkey)
 		} else {
+			pubkey <- fetch_pubkey(input$chansim_subject)
 			peers_of_peers <- fetch_peers_of_peers(pubkey) %>% unlist %>% unique
 			filtered_node$list <- filtered_node$list %>% filter(!(alias %in% peers_of_peers)) %>% pull(alias_pubkey)
 		}
