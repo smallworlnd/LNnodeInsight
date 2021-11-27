@@ -277,7 +277,7 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
 						column(12,
-							prettyRadioButtons(inputId='pubkey.or.alias', label='Show pubkey or alias or both in the drop-down menu', selected=3, choiceNames=c('Pubkey', 'Alias', 'Both'), choiceValues=c(1, 2, 3), inline=TRUE))),
+							prettyRadioButtons(inputId='peers.of.peers.filter', label='Filter out nodes that have at least one peer in common with the node selected in Step 1', selected=2, choiceNames=c('Yes', 'No'), choiceValues=c(1, 2), inline=TRUE))),
 						column(12, align='center',
 							actionBttn(inputId='launch_sim', label='Start', style='fill', color='success', block=FALSE)),
 					background='yellow', width=NULL),
