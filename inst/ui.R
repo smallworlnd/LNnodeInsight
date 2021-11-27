@@ -277,6 +277,8 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
 						column(12,
+							sliderInput(inputId='hops.filt', label='Only show nodes that fall within a range of hops away from the node selected in Step 1', min=1, max=11, step=1, value=c(1, 11), ticks=FALSE)),
+						column(12,
 							prettyRadioButtons(inputId='peers.of.peers.filter', label='Filter out nodes that have at least one peer in common with the node selected in Step 1', selected=2, choiceNames=c('Yes', 'No'), choiceValues=c(1, 2), inline=TRUE))),
 						column(12, align='center',
 							actionBttn(inputId='launch_sim', label='Start', style='fill', color='success', block=FALSE)),

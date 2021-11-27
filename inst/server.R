@@ -368,10 +368,11 @@ server <- function(input, output, session) {
 	})
 
 	filtered_node <- reactiveValues()
-	observeEvent(c(input$chansim_subject, input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$peers.of.peers.filter), {
+	observeEvent(c(input$chansim_subject, input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$peers.of.peers.filter, input$hops.filt), {
 		req(input$chansim_subject)
-		filtered_node$list <- g %>%
-			as_tibble %>%
+		pubkey <- fetch_pubkey(input$chansim_subject)
+		filtered_node$list <- make_ego_graph(g, order=input$hops.filt[2]+1, nodes=pubkey, mindist=input$hops.filt[1]+1)[[1]] %>%
+			as_tbl_graph %>%
 			filter(
 				tot.capacity>=input$tot.capacity.filt[1]*1e8, tot.capacity<=input$tot.capacity.filt[2]*1e8,
 				avg.capacity>=input$avg.capacity.filt[1]*1e8, avg.capacity<=input$avg.capacity.filt[2]*1e8,
@@ -385,7 +386,6 @@ server <- function(input, output, session) {
 		if (input$peers.of.peers.filter == 2) {
 			filtered_node$list <- filtered_node$list %>% pull(alias_pubkey)
 		} else {
-			pubkey <- fetch_pubkey(input$chansim_subject)
 			peers_of_peers <- fetch_peers_of_peers(pubkey) %>% unlist %>% unique
 			filtered_node$list <- filtered_node$list %>% filter(!(alias %in% peers_of_peers)) %>% pull(alias_pubkey)
 		}
