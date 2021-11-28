@@ -263,7 +263,7 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='tot.capacity.filt', label='Filter by range of total capacity (in bitcoin)', min=0.1, max=chansim_filter_parms$max.cap, step=0.1, value=c(0.1, chansim_filter_parms$max.cap), ticks=FALSE)),
 						column(12,
-							sliderInput(inputId='avg.capacity.filt', label='Filter by range average channel capacity (in bitcoin)', min=0.005, max=chansim_filter_parms$max.avg.capacity, step=0.01, value=c(0.005, chansim_filter_parms$max.avg.capacity), ticks=FALSE)),
+							sliderInput(inputId='avg.capacity.filt', label='Filter by range of average channel capacity (in bitcoin)', min=0.005, max=chansim_filter_parms$max.avg.capacity, step=0.01, value=c(0.005, chansim_filter_parms$max.avg.capacity), ticks=FALSE)),
 						column(12,
 							sliderInput(inputId='num.channels.filt', label='Filter by range of total channels', min=1, max=chansim_filter_parms$max.num.channels, step=1, value=c(1, chansim_filter_parms$max.num.channels), ticks=FALSE)),
 						column(12,
