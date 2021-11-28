@@ -9,6 +9,12 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 }
 
 server <- function(input, output, session) {
+    runjs("
+      $('.box').on('click', '.box-header h3', function() {
+          $(this).closest('.box')
+                 .find('[data-widget=collapse]')
+                 .click();
+      });")
 	removeCssClass("ss-overlay", "ss-gray-out")
 	observeEvent(input$sidebar, {
 		req(input$sidebar == "support")

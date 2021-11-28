@@ -28,6 +28,14 @@ sidebar <- dashboardSidebar(
 dashboardbody <- dashboardBody(
 	rclipboardSetup(),
 	useShinyjs(),
+    tags$style(HTML("
+      .box-header {
+        padding: 0 10px 0 0;
+      }
+      .box-header h3 {
+        width: 100%;
+        padding: 10px;
+    }")),
 	tags$head(
 		tags$style(HTML(".small-box {height: 80px}")),
 		tags$style(HTML(".info-box-text {font-size: 20px}")),
@@ -196,15 +204,15 @@ dashboardbody <- dashboardBody(
 #					uiOutput('table_vars')),
 			h3('Current ranks'),
 			fluidRow(
-				valueBoxOutput('nodestats.cent.between', width=3) %>% bs_embed_tooltip(title="", placement='top'),
-				valueBoxOutput('nodestats.cent.eigen', width=3) %>% bs_embed_tooltip(title="", placement='top'),
-				valueBoxOutput('nodestats.cent.close', width=3) %>% bs_embed_tooltip(title="", placement='top'),
-				valueBoxOutput('nodestats.nd', width=3) %>% bs_embed_tooltip(title="", placement='top')),
+				valueBoxOutput('nodestats.cent.between', width=3) %>% bs_embed_tooltip(title="Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.", placement='top'),
+				valueBoxOutput('nodestats.cent.eigen', width=3) %>% bs_embed_tooltip(title="Eigenvector/hubness centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.", placement='top'),
+				valueBoxOutput('nodestats.cent.close', width=3) %>% bs_embed_tooltip(title="Closeness/hopness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.", placement='top'),
+				valueBoxOutput('nodestats.nd', width=3) %>% bs_embed_tooltip(title="Rank according to the system designed by Lightning Labs.", placement='top')),
 			fluidRow(
-				valueBoxOutput('nodestats.cent.between.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
-				valueBoxOutput('nodestats.cent.eigen.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
-				valueBoxOutput('nodestats.cent.close.weight', width=3) %>% bs_embed_tooltip(title="", placement='top'),
-				valueBoxOutput('nodestats.bos', width=3) %>% bs_embed_tooltip(title="", placement='top')),
+				valueBoxOutput('nodestats.cent.between.weight', width=3) %>% bs_embed_tooltip(title="Betweenness centrality but using channel capacities as weights.", placement='top'),
+				valueBoxOutput('nodestats.cent.eigen.weight', width=3) %>% bs_embed_tooltip(title="Eigenvector/hubness centrality but using channel capacities as weights.", placement='top'),
+				valueBoxOutput('nodestats.cent.close.weight', width=3) %>% bs_embed_tooltip(title="Closeness/hopness centrality but using channel capacities as weights.", placement='top'),
+				valueBoxOutput('nodestats.bos', width=3) %>% bs_embed_tooltip(title="Rank according to the system designed by Alex Bosworth.", placement='top')),
 			h3("Historical ranks"),
 			conditionalPanel(
 				condition="input.nodestats_subject != ''",
@@ -259,7 +267,7 @@ dashboardbody <- dashboardBody(
 						column(2,
 							prettyRadioButtons(inputId='add_or_del3', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
 
-						box(id="filt.box", title="Optional: apply filters to pubkey or alias menu choices", background="yellow", width=NULL, collapsible=TRUE, collapsed=TRUE, solidHeader=TRUE, status='primary',
+						box(id="filt.box", title="Optional: expand this bar to apply filters to nodes in the drop-down menus in Step 2", background="yellow", width=NULL, collapsible=TRUE, collapsed=TRUE, solidHeader=TRUE, status='primary',
 						column(12,
 							sliderInput(inputId='tot.capacity.filt', label='Filter by range of total capacity (in bitcoin)', min=0.1, max=chansim_filter_parms$max.cap, step=0.1, value=c(0.1, chansim_filter_parms$max.cap), ticks=FALSE)),
 						column(12,
