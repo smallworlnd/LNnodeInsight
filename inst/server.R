@@ -375,15 +375,15 @@ server <- function(input, output, session) {
 
 	filtered_node <- reactiveValues()
 	observeEvent(input$chansim_subject, {
-		updateSliderInput(session, 'tot.capacity.filt', value=c(0.1, chansim_filter_parms$max.cap))
-		updateSliderInput(session, 'avg.capacity.filt', value=c(0.005, chansim_filter_parms$max.avg.capacity))
+		updateSliderInput(session, 'tot.capacity.filt', value=c(0.01, chansim_filter_parms$max.cap))
+		updateSliderInput(session, 'avg.capacity.filt', value=c(0.001, chansim_filter_parms$max.avg.capacity))
 		updateSliderInput(session, 'num.channels.filt', value=c(1, chansim_filter_parms$max.num.channels))
 		updateSliderInput(session, 'fee.rate.filt', value=c(0, 6000))
 		updateSliderInput(session, 'age.filt', value=c(0, chansim_filter_parms$max.age))
 		updateSliderInput(session, 'cent.between.rank.filt', value=c(1, chansim_filter_parms$max.between))
 		updateSliderInput(session, 'cent.close.rank.filt', value=c(1, chansim_filter_parms$max.close))
 		updateSliderInput(session, 'cent.eigen.rank.filt', value=c(1, chansim_filter_parms$max.eigen))
-		updateSliderInput(session, 'hops.filt', value=c(1, 11))
+		updateSliderInput(session, 'hops.filt', value=c(0, 11))
 		updateSliderInput(session, 'peers.of.peers.filter', value=2)
 	})
 	observeEvent(c(input$chansim_subject, input$tot.capacity.filt, input$avg.capacity.filt, input$num.channels.filt, input$fee.rate.filt, input$age.filt, input$cent.between.rank.filt, input$cent.close.rank.filt, input$cent.eigen.rank.filt, input$peers.of.peers.filter, input$hops.filt), {
@@ -410,6 +410,13 @@ server <- function(input, output, session) {
 		updateSelectizeInput(session, "target", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 		updateSelectizeInput(session, "target2", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
 		updateSelectizeInput(session, "target3", choices=c("Pubkey or alias"="", filtered_node$list), selected=character(0), server=TRUE)
+	})
+	output$filtered_node_num <- renderUI({
+		if (length(filtered_node$list) > 0) {
+			paste("Optional: expand this bar to apply filters to the", length(filtered_node$list), "nodes in the drop-down menus in Step 2")
+		} else {
+			paste("Optional: expand this bar to apply filters to nodes in the drop-down menus in Step 2")
+		}
 	})
 	# channel simulation
 	updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)

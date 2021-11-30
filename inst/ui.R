@@ -267,7 +267,7 @@ dashboardbody <- dashboardBody(
 						column(2,
 							prettyRadioButtons(inputId='add_or_del3', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
 
-						box(id="filt.box", title="Optional: expand this bar to apply filters to nodes in the drop-down menus in Step 2", background="yellow", width=NULL, collapsible=TRUE, collapsed=TRUE, solidHeader=TRUE, status='primary',
+						box(id="filt.box", title=uiOutput('filtered_node_num'), background="yellow", width=NULL, collapsible=TRUE, collapsed=TRUE, solidHeader=TRUE, status='primary',
 						column(12,
 							sliderInput(inputId='tot.capacity.filt', label='Filter by range of total capacity (in bitcoin)', min=0.1, max=chansim_filter_parms$max.cap, step=0.1, value=c(0.1, chansim_filter_parms$max.cap), ticks=FALSE)),
 						column(12,
@@ -285,7 +285,7 @@ dashboardbody <- dashboardBody(
 						column(12,
 							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
 						column(12,
-							sliderInput(inputId='hops.filt', label='Only show nodes that fall within a range of hops away from the node selected in Step 1', min=1, max=11, step=1, value=c(1, 11), ticks=FALSE)),
+							sliderInput(inputId='hops.filt', label='Only show nodes that fall within a range of hops away from the node selected in Step 1', min=0, max=11, step=1, value=c(0, 11), ticks=FALSE)),
 						column(12,
 							prettyRadioButtons(inputId='peers.of.peers.filter', label='Filter out nodes that have at least one peer in common with the node selected in Step 1', selected=2, choiceNames=c('Yes', 'No'), choiceValues=c(1, 2), inline=TRUE))),
 						column(12, align='center',
