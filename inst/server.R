@@ -9,6 +9,7 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 }
 
 server <- function(input, output, session) {
+	track_usage(storage_mode = store_json(path = "logs/"))
     runjs("
       $('.box').on('click', '.box-header h3', function() {
           $(this).closest('.box')
