@@ -1,11 +1,11 @@
 title <- tags$p(tags$img(src='www/LNnodeinsight-tinylogonobkgrnd-white.svg', height='30', width='30'), 'LNnodeinsight', target="_blank")
 
-header <- dashboardHeader(title=title,
-	tags$li(class="dropdown",tags$a("Telegram", href="https://t.me/LNnodeInsight", icon("telegram"), target="_blank")),
-	tags$li(class="dropdown",tags$a("Twitter", href="https://twitter.com/smallworlnd", icon("twitter"), target="_blank")),
-	tags$li(class="dropdown",tags$a("Email", href="mailto:smallworlnd@protonmail.com", icon("envelope"), target="_blank")),
-	tags$li(class="dropdown",tags$a("Node", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788", icon("bolt"), target="_blank")),
-	tags$li(class="dropdown",tags$a("Source", href="https://github.com/smallworlnd/LNnodeInsight", icon("github"), target="_blank"))
+header <- dashboardHeader(title=title#,
+#	tags$li(class="dropdown",tags$a("Telegram", href="https://t.me/LNnodeInsight", icon("telegram"), target="_blank")),
+#	tags$li(class="dropdown",tags$a("Twitter", href="https://twitter.com/smallworlnd", icon("twitter"), target="_blank")),
+#	tags$li(class="dropdown",tags$a("Email", href="mailto:smallworlnd@protonmail.com", icon("envelope"), target="_blank")),
+#	tags$li(class="dropdown",tags$a("Node", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788", icon("bolt"), target="_blank")),
+#	tags$li(class="dropdown",tags$a("Source", href="https://github.com/smallworlnd/LNnodeInsight", icon("github"), target="_blank"))
 	)
 
 sidebar <- dashboardSidebar(
@@ -21,6 +21,12 @@ sidebar <- dashboardSidebar(
 			menuItem("Rebalance simulator", tabName="rebalsim", icon=NULL),
 			menuItem("Channel simulator", tabName="chansim", icon=NULL)),
 		menuItem("FAQ", tabName="faq", icon=icon('question')),
+		menuItem("Contact", tabName="contact", icon=icon('comment'),
+			menuItem("Telegram", href="https://t.me/LNnodeInsight", icon=icon('telegram')),
+			menuItem("Twitter", href="https://twitter.com/smallworlnd", icon=icon('twitter')),
+			menuItem("Email", href="mailto:smallworlnd@protonmail.com", icon=icon('envelope')),
+			menuItem("Node", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788", icon=icon('bolt')),
+			menuItem("Source", href="https://github.com/smallworlnd/LNnodeInsight", icon=icon('github'))),
 		menuItem("Support our work", tabName="support", icon=icon('heart'))
 	))
 
