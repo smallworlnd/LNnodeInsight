@@ -75,7 +75,13 @@ fetch_peers_of_peers <- function(pubkey) {
 }
 
 fetch_peer_overlaps <- function(pubkey) {
-	peers_of_peers <- fetch_peers_of_peers(pubkey)
+	peer_pubkeys <- adjacent_vertices(g, pubkey, mode='all') %>%
+		unlist %>%
+		enframe %>%
+		separate(name, c('pubkey', 'peer_pubkey')) %>%
+		pull(peer_pubkey)
+	peer_pubkey_aliases <- g %>% filter(name %in% peer_pubkeys) %>% dplyr::select(name, alias, num.channels) %>% as_tibble
+	peers_of_peers <- lapply(peer_pubkey_aliases$name, function(x) fetch_peer_aliases(x) %>% unique)
 	num_common_peers <- lapply(peers_of_peers, function(x) length(Reduce(intersect, list(x, peer_pubkey_aliases$alias)))) %>% unlist
 	df <- data.frame(peer_pubkey_aliases, num_common_peers) %>% arrange(desc(num_common_peers))
 	return(df)
