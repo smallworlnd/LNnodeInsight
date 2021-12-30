@@ -21,6 +21,7 @@ library(plotly)
 library(ggVennDiagram)
 library(qrencoder)
 library(DT)
+library(stringi)
 
 # load data and functions for applications
 #source('inst/data.R')
@@ -30,6 +31,9 @@ source('inst/functions.R', local=TRUE)
 
 # load in invoice management
 source('store/api.R')
+
+# load account management
+source('store/accounts.R', local=TRUE)
 
 # load in shiny parts
 source('inst/server.R', local=TRUE)

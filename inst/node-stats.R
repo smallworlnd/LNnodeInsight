@@ -21,5 +21,7 @@ nd_latest <- nd_agg %>% filter(time>=today()-days(5)) %>% filter(time==max(time)
 bos_agg <- tbl(con, 'bos')
 bos_latest <- bos_agg %>% filter(time>=today()-days(5)) %>% filter(time==max(time)) %>% window_order(desc(score), pubkey) %>% mutate(rank=rank(-score))
 
+users <- tbl(con, 'users')
+
 # dbDisconnect(con)
 # dbClearResult(dbListResults(con)[[1]])

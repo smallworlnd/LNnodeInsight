@@ -9,6 +9,45 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 }
 
 server <- function(input, output, session) {
+	credentials <- loginServer(
+		id="login",
+		data=users,
+		pubkey_col='pubkey',
+		cookie_logins=TRUE,
+		reload_on_logout=TRUE,
+		sessionid_col='sessionid',
+		cookie_getter=get_sessions_from_db,
+		cookie_setter=add_session_to_db,
+		log_out=reactive(logout_init())
+	)
+	logout_init <- logoutServer(
+		id="logout",
+		active=reactive(credentials()$user_auth)
+	)
+	output$login_nav <- renderUI({
+		req(!credentials()$user_auth)
+		actionBttn(inputId='login_nav', label='Login', style='fill', color='success', block=FALSE, size='sm')
+	})
+	onclick('login_nav', updateTabItems(session, "sidebar", "account"))
+	output$account_page <- renderUI({
+		req(credentials()$user_auth)
+		acc <- users %>% filter(name==credentials()$info)
+		column(8, offset=2,
+			box(title=NULL, background='yellow', width=12,
+				p(style="text-align: left; font-size: 20px", strong(paste(acc$alias, "account page"))),
+				hr(),
+				fluidRow(
+					column(6, align='left',
+						p('Subscription')
+					),
+					column(6, align='right',
+						p(acc$permissions)
+					),
+				)
+			)
+		)
+	})
+
 	track_usage(storage_mode = store_json(path = "logs/"))
     runjs("
       $('.box').on('click', '.box-header h3', function() {
