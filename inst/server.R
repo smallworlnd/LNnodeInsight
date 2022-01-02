@@ -942,45 +942,5 @@ server <- function(input, output, session) {
 		}
 		valueBox(val, "Eigenvector centralization", color='blue')
 	})
-	# scatterplotting
-	output$scatter <- renderPlotly({
-		req(input$scatter_x, input$scatter_y)
-		plot_ly(g %>% as_tibble,
-			type='scatter',
-			x=as.formula(paste0('~', chart_vars[input$scatter_x])),
-			y=as.formula(paste0('~', chart_vars[input$scatter_y])),
-			height='725') %>%
-				layout(
-					xaxis=list(title=input$scatter_x, type='log'),
-					yaxis=list(title=input$scatter_y, type='log')) %>%
-				add_annotations(
-					xref="paper", yref="paper",
-					x=1, y=1, text="LNnodeinsight.com",
-					font=list(size=16),
-					showarrow=FALSE
-				)
-	})
-	observeEvent(input$scatterclear, {
-		updateSelectizeInput(session, inputId='scatter_x', label='Choose an X-axis variable', choices=c('', names(chart_vars)))
-		updateSelectizeInput(session, inputId='scatter_y', label='Choose a Y-axis variable', choices=c('', names(chart_vars)))
-	})
-	# histograms
-	output$histo <- renderPlotly({
-		req(input$histo_x)
-		plot_ly(g %>% as_tibble,
-			x=as.formula(paste0('~', chart_vars[input$histo_x])),
-			height='725') %>%
-				layout(
-					xaxis=list(title=input$histo_x,type='linear'),
-					yaxis=list(title="Number of nodes with", type='log')) %>%
-				add_annotations(
-					xref="paper", yref="paper",
-					x=1, y=1, text="LNnodeinsight.com",
-					font=list(size=16),
-					showarrow=FALSE
-				)
-	})
-	observeEvent(input$histoclear, {
-		updateSelectizeInput(session, inputId='histo_x', label='Choose a variable', choices=c('', names(chart_vars)))
-	})
+	byocServer('byoc')
 }
