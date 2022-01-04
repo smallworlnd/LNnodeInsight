@@ -31,7 +31,7 @@ server <- function(input, output, session) {
 	onclick('login_nav', updateTabItems(session, "sidebar", "account"))
 	output$account_page <- renderUI({
 		req(credentials()$user_auth)
-		acc <- users %>% filter(name==credentials()$info)
+		acc <- users %>% filter(pubkey==local(credentials()$info)) %>% as_tibble
 		column(8, offset=2,
 			box(title=NULL, background='yellow', width=12,
 				p(style="text-align: left; font-size: 20px", strong(paste(acc$alias, "account page"))),
@@ -942,5 +942,5 @@ server <- function(input, output, session) {
 		}
 		valueBox(val, "Eigenvector centralization", color='blue')
 	})
-	byocServer('byoc')
+	byocServer('byoc', reactive_show=reactive(credentials()$user_auth))
 }

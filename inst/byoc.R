@@ -15,13 +15,17 @@ chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'Terminal Web score'='tweb.score',
 	'BOS score'='bos')
 
-histogramUI <- function(id, vars=chart_vars) {
+comms <- tbl(con, 'communities') %>% as_tibble
+comms_list <- comms %>% pull(community) %>% unique
+
+histogramUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 	ns <- shiny::NS(id)
 	tabPanel('Histogram', value='histo', id=ns('histo'), width=NULL,
 		column(2,
 			fluidRow(
 				box(width=NULL,
-					selectizeInput(inputId=ns('histo_var'), label='Choose a variable', choices=c('', names(vars))),
+					selectizeInput(inputId=ns('histo_var'), label='Choose a node variable', choices=c('', names(vars))),
+					selectizeInput(inputId=ns('histo_comm'), label='Filter by Amboss community', choices=c('', communities_list)),
 				column(12, offset=3,
 					actionBttn(inputId=ns('histo_clear'), label='Clear', style='fill', color='danger', block=FALSE)),
 				)
@@ -35,7 +39,7 @@ histogramUI <- function(id, vars=chart_vars) {
 	)
 }
 
-scatterplotUI <- function(id, vars=chart_vars) {
+scatterplotUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 	ns <- shiny::NS(id)
 	tabPanel('Scatterplot', value='scatter', id=ns('scatter'), width=NULL,
 		column(2,
@@ -43,6 +47,9 @@ scatterplotUI <- function(id, vars=chart_vars) {
 				box(width=NULL,
 					selectizeInput(inputId=ns('scatter_xvar'), label='Choose an X-axis variable', choices=c('', names(vars))),
 					selectizeInput(inputId=ns('scatter_yvar'), label='Choose a Y-axis variable', choices=c('', names(vars))),
+					shinyjs::hidden(
+						selectizeInput(inputId=ns('scatter_comm'), label='Color by Amboss community', choices=c('', communities_list))
+					),
 					column(12, offset=3,
 						actionBttn(inputId=ns('scatter_clear'), label='Clear', style='fill', color='danger', block=FALSE)),
 				),
@@ -56,10 +63,19 @@ scatterplotUI <- function(id, vars=chart_vars) {
 	)
 }
 
-histogramServer <- function(id, tblgraph=g, vars=chart_vars) {
+histogramServer <- function(id, tblgraph=g, vars=chart_vars, communities_list=comms_list, communities_df=comms, logged_in=FALSE) {
 	moduleServer(id, function(input, output, session) {
+		shiny::observe({
+			shinyjs::toggle('histo_comm', condition=logged_in())
+		})
 		output$histo <- renderPlotly({
-			plot_ly(tblgraph %>% as_tibble,
+			if (logged_in() && input$histo_comm != "") {
+				pubkeys <- communities_df %>% filter(community %in% input$histo_comm) %>% pull(pubkey)
+				dat <- tblgraph %>% as_tibble %>% filter(name %in% pubkeys)
+			} else {
+				dat <- tblgraph %>% as_tibble
+			}
+			plot_ly(dat,
 				x=as.formula(paste0('~', vars[input$histo_var]))) %>%
 					layout(
 						xaxis=list(title=input$histo_var, type='linear'),
@@ -72,16 +88,27 @@ histogramServer <- function(id, tblgraph=g, vars=chart_vars) {
 					)
 		})
 		observeEvent(input$histo_clear, {
-			updateSelectizeInput(session, inputId='histo_var', label='Choose a variable', choices=c('', names(vars)))
+			updateSelectizeInput(session, inputId='histo_var', label='Choose a node variable', choices=c('', names(vars)))
+			updateSelectizeInput(session, inputId='histo_comm', label='Filter by Amboss community', choices=c('', communities_list))
 		})
 	})
 }
 
-scatterplotServer <- function(id, tblgraph=g, vars=chart_vars) {
+scatterplotServer <- function(id, tblgraph=g, vars=chart_vars, communities_list=comms_list, communities_df=comms, logged_in=FALSE) {
 	moduleServer(id, function(input, output, session) {
+		shiny::observe({
+			shinyjs::toggle('scatter_comm', condition=logged_in())
+		})
 		output$scatter <- renderPlotly({
-			plot_ly(tblgraph %>% as_tibble,
-				type='scatter',
+			if (logged_in() && input$scatter_comm != "") {
+				pubkeys <- communities_df %>% filter(community %in% input$scatter_comm) %>% pull(pubkey)
+				dat <- g %>% as_tibble %>% mutate(Group=ifelse(name %in% pubkeys, input$scatter_comm, "Rest of the LN"))
+			} else {
+				dat <- tblgraph %>% as_tibble %>% mutate(Group="LN")
+			}
+			plot_ly(dat %>% as_tibble,
+				type='scatter', split=~Group, text=~alias,
+				hovertemplate=paste0("%{text}\n", "%{x}, %{y}"),
 				x=as.formula(paste0('~', vars[input$scatter_xvar])),
 				y=as.formula(paste0('~', vars[input$scatter_yvar]))) %>%
 					layout(
@@ -97,27 +124,28 @@ scatterplotServer <- function(id, tblgraph=g, vars=chart_vars) {
 		observeEvent(input$scatter_clear, {
 			updateSelectizeInput(session, inputId='scatter_xvar', label='Choose an X-axis variable', choices=c('', names(vars)))
 			updateSelectizeInput(session, inputId='scatter_yvar', label='Choose a Y-axis variable', choices=c('', names(vars)))
+			updateSelectizeInput(session, inputId='scatter_comm', label='Color by Amboss community', choices=c('', communities_list))
 		})
 	})
 }
 
-byocUI <- function(id, vars=chart_vars) {
-	tabBox(id='charting', side='left', selected='histo', width=NULL, height='500px', title="Network-wide statistics",
+byocUI <- function(id) {
+	tabBox(id='charting', side='left', selected='histo', width=NULL, height='500px',
 		histogramUI('ln_histo'),
 		scatterplotUI('ln_scatter')
 	)
 }
 
-byocServer <- function(input, output, session) {
-	histogramServer('ln_histo')
-	scatterplotServer('ln_scatter')
+byocServer <- function(input, output, session, reactive_show) {
+	histogramServer('ln_histo', logged_in=reactive_show)
+	scatterplotServer('ln_scatter', logged_in=reactive_show)
 }
 
 byocDemo <- function() {
   
 	ui <- fluidPage(byocUI("x"))
 	server <- function(input, output, session) {
-		byocServer("x")
+		byocServer("x", reactive_show=reactive(TRUE))
 	}
 	shinyApp(ui, server)
   
