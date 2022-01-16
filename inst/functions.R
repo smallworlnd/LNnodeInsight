@@ -87,7 +87,7 @@ fetch_peer_overlaps <- function(pubkey) {
 	return(df)
 }
 
-sim_chan <- function(s_node, t_node, indel, amount=5e6) {
+simulate_channel <- function(s_node, t_node, indel, amount=5e6) {
 	t_node_req <- data.frame(t_node, indel)
 	s_id <- g %>%
 		filter(name %in% s_node) %>%

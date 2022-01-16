@@ -240,71 +240,7 @@ dashboardbody <- dashboardBody(
 			),
 		),
 		tabItem(tabName='chansim',
-			fluidRow(column(8,
-				box(
-					fluidRow(column(12, selectizeInput(inputId="chansim_subject", label='Step 1: enter your pubkey or alias', choices=NULL, options=list(placeholder='Pubkey/alias'))),
-					),
-					# first
-					h4(p(strong('Step 2: enter or select pubkey/alias of up to 3 nodes with which to simulate adding or removing channels'))),
-					fluidRow(
-						column(10,
-							selectizeInput(inputId="target", label=NULL, choices=NULL, options=list(placeholder='Pubkey/alias'))),
-						column(2,
-							prettyRadioButtons(inputId='add_or_del', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
-					# second
-					fluidRow(
-						column(10,
-							selectizeInput(inputId="target2", label=NULL, choices=NULL, options=list(placeholder='Pubkey/alias'))),
-						column(2,
-							prettyRadioButtons(inputId='add_or_del2', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
-					# third
-					fluidRow(
-						column(10,
-							selectizeInput(inputId="target3", label=NULL, choices=NULL, options=list(placeholder='Pubkey/alias'))),
-						column(2,
-							prettyRadioButtons(inputId='add_or_del3', label=NULL, selected='add', choiceNames=c('Add', 'Remove'), choiceValues=c('add', 'del')))),
-
-						box(id="filt.box", title=uiOutput('filtered_node_num'), background="yellow", width=NULL, collapsible=TRUE, collapsed=TRUE, solidHeader=TRUE, status='primary',
-						column(12,
-							sliderInput(inputId='tot.capacity.filt', label='Filter by range of total capacity (in bitcoin)', min=0.1, max=chansim_filter_parms$max.cap, step=0.1, value=c(0.1, chansim_filter_parms$max.cap), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='avg.capacity.filt', label='Filter by range of average channel capacity (in bitcoin)', min=0.005, max=chansim_filter_parms$max.avg.capacity, step=0.01, value=c(0.005, chansim_filter_parms$max.avg.capacity), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='num.channels.filt', label='Filter by range of total channels', min=1, max=chansim_filter_parms$max.num.channels, step=1, value=c(1, chansim_filter_parms$max.num.channels), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='fee.rate.filt', label='Filter by range of median channel fee rates (ppm)', min=0, max=6000, step=1, value=c(0, 6000), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='age.filt', label='Filter by range of approximate node age (in days)', min=0, max=chansim_filter_parms$max.age, step=1, value=c(0, chansim_filter_parms$max.age), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='cent.between.rank.filt', label='Filter by range of betweenness centrality ranks', min=1, max=chansim_filter_parms$max.between, step=1, value=c(1, chansim_filter_parms$max.between), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='cent.close.rank.filt', label='Filter by range of closeness centrality ranks', min=1, max=chansim_filter_parms$max.close, step=1, value=c(1, chansim_filter_parms$max.close), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='cent.eigen.rank.filt', label='Filter by range of eigenvector centrality ranks', min=1, max=chansim_filter_parms$max.eigen, step=1, value=c(1, chansim_filter_parms$max.eigen), ticks=FALSE)),
-						column(12,
-							sliderInput(inputId='hops.filt', label='Only show nodes that fall within a range of hops away from the node selected in Step 1', min=0, max=11, step=1, value=c(0, 11), ticks=FALSE)),
-						column(12,
-							prettyRadioButtons(inputId='peers.of.peers.filter', label='Filter out nodes that have at least one peer in common with the node selected in Step 1', selected=2, choiceNames=c('Yes', 'No'), choiceValues=c(1, 2), inline=TRUE))),
-						column(12, align='center',
-							actionBttn(inputId='launch_sim', label='Start', style='fill', color='success', block=FALSE)),
-					background='yellow', width=NULL),
-					tabBox(id='chansim_peer_stats', side='left', selected='chansim_venn_tab', width=NULL,
-						tabPanel(
-							'Peer overlap',
-							withSpinner(plotlyOutput('chansim_venn')), value='chansim_venn_tab',
-							id='chansim_venn_tab', width=NULL
-						) 
-					),
-				),
-			column(4,
-				fluidRow(box(title="Node centrality ranks", solidHeader=TRUE, collapsible=TRUE,
-					valueBoxOutput('cent.between', width=12) %>% bs_embed_tooltip(title="Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.", placement='top'),
-					valueBoxOutput('cent.eigen', width=12) %>% bs_embed_tooltip(title="Eigenvector/hubness centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.", placement='top'),
-					valueBoxOutput('cent.close', width=12) %>% bs_embed_tooltip(title="Closeness/hopness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.", placement='top'), width=NULL)),
-				fluidRow(box(title="Centralization scores of the network", solidHeader=TRUE, collapsible=TRUE,
-					valueBoxOutput('between.centralization', width=12) %>% bs_embed_tooltip(title="Total betweenness score for the whole Lightning Network. Increase in your node's betweenness doesn't always mean increase in the network's betweenness.", placement='top'),
-					valueBoxOutput('eigen.centralization', width=12) %>% bs_embed_tooltip(title="Total eigenvector/hubness score for the whole Lightning Network. Increase in your node's eigenvector centrality doesn't always mean increase in the network's eigenvector centrality.", placement='top'),
-					valueBoxOutput('closeness.centralization', width=12) %>% bs_embed_tooltip(title="Total closeness/hopness score for the whole Lightning Network. Increase in your node's closeness doesn't always mean increase in the network's closeness centrality.", placement='top'), width=NULL))))
+			chansimUI('chansim')
 		),
 		tabItem(tabName='faq',
 			box(p("Betweeness centrality measures the number of shortest paths that pass through a node. A higher number of shortest paths a node has to any two other node in the network, the more likely they will be included in a route depending on the liquidity balance of each channel in the path."), title="Betweenness centrality", width=NULL, collapsible=TRUE),

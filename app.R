@@ -37,6 +37,7 @@ source('store/accounts.R', local=TRUE)
 
 # load in shiny parts
 source('inst/byoc.R', local=TRUE)
+source('inst/chan-sim.R', local=TRUE)
 source('inst/server.R', local=TRUE)
 source('inst/ui.R', local=TRUE)
 
