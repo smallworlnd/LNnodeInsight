@@ -114,14 +114,14 @@ chansimUI <- function(id) {
 						choice_labels=c('Yes', 'No'), choice_vals=c(1, 2),
 						default_choice=2
 					),
-					dropdownFilterSelectUI(
-						id=NS(id, 'filters'),
-						filtId='community',
-						lab='Filter nodes by Amboss community',
-						placehold='Community'
+					shinyjs::hidden(
+						dropdownFilterSelectUI(
+							id=NS(id, 'filters'),
+							filtId='community',
+							lab='Filter nodes by Amboss community',
+							placehold='Community'
+						)
 					)
-
-
 				),
 				column(12, align='center',
 					startButtonUI(NS(id, 'launch_sim'))
@@ -176,14 +176,21 @@ centralityUI <- function(id) {
 	)
 }
 
-resetFiltersServer <- function(id, subject) {
+resetFiltersServer <- function(id, subject, db=con) {
 	moduleServer(id, function(input, output, session) {
 		observeEvent(subject(), {
 			lapply(filters, function(x)
-				updateSliderInput(session, x[1], value=c(x[4], x[2]))
+				updateSliderInput(session, inputId=x[1], value=c(x[4], x[2]))
 			)
-			updateSliderInput(session, 'max.hops', value=c(0, 11))
-			updateSliderInput(session, 'peers.of.peers', value=2)
+			updateSliderInput(session, inputId='max.hops', value=c(0, 11))
+			updateSliderInput(session, inputId='peers.of.peers', value=2)
+
+			comms <- tbl(con, 'communities') %>% pull(community) %>% unique %>% sort
+			updateSelectizeInput(session, inputId="community",
+				choices=c("Community"=NULL, comms),
+				selected=character(0),
+				server=TRUE
+			)
 		})
 	})
 }
@@ -356,15 +363,19 @@ targetUpdateServer <- function(id, pubkey_list) {
 	})
 }
 
-dropdownFilterSelectServer <- function(id, db=con) {
+dropdownFilterSelectServer <- function(id, db=con, logged_in=FALSE) {
 	moduleServer(id, function(input, output, session) {
+		shiny::observe({
+			shinyjs::toggle('community', condition=logged_in())
+		})
 		comms <- tbl(con, 'communities') %>% pull(community) %>% unique %>% sort
 		updateSelectizeInput(
 			session, 
 			inputId="community",
 			choices=c("Community"=NULL, comms),
 			selected=character(0),
-			server=TRUE)
+			server=TRUE
+		)
 	})
 }
 
@@ -404,7 +415,7 @@ startButtonServer <- function(id) {
 	})
 }
 
-chansimServer <- function(id) {
+chansimServer <- function(id, reactive_show) {
 	moduleServer(id, function(input, output, session) {
 		subject <- getSubject('subject_select')
 		targets <- getTargets('target_select')
@@ -428,7 +439,7 @@ chansimServer <- function(id) {
 			lapply(centralities, function(x) centralityRankOutput('cents', x))
 		})
 
-		dropdownFilterSelectServer('filters')
+		dropdownFilterSelectServer('filters', db=con, logged_in=reactive_show)
 		resetFiltersServer('filters', subject)
 		subjectSelectServer('subject_select')
 
@@ -457,7 +468,7 @@ chansimApp <- function() {
 		skin='yellow',
 	)
 	server <- function(input, output, session) {
-		chansimServer('x')
+		chansimServer('x', reactive_show=reactive(FALSE))
 	}
 	shinyApp(ui, server)
   

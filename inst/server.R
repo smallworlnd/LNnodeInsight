@@ -724,6 +724,6 @@ server <- function(input, output, session) {
 		ggqrcode(bolt11)
 	})
 
-	chansimServer('chansim')
+	chansimServer('chansim', reactive(credentials()$user_auth))
 	byocServer('byoc', reactive_show=reactive(credentials()$user_auth))
 }
