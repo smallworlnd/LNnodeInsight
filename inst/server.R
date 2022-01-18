@@ -209,7 +209,7 @@ server <- function(input, output, session) {
 		nodestats$lnsummary <- nodes_agg_3m %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE), avg.chan.size=mean(avg.capacity, na.rm=TRUE))
 		nodestats$historical <- nodes_agg_3m %>% filter(pubkey==local(nodestats$data$pubkey))
 		nodesummary <- nodestats$historical %>% dplyr::select(time, tot.capacity, mean.rate.ppm, avg.capacity)
-		nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary) %>% as_tibble
+		nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary) %>% as_tibble %>% drop_na
 	})
 	output$node_cap_change <- renderPlotly({
 		nodestats$lnsummary %>%
