@@ -18,6 +18,8 @@ server <- function(input, output, session) {
 		sessionid_col='sessionid',
 		cookie_getter=get_sessions_from_db,
 		cookie_setter=add_session_to_db,
+		rest_url_base=rest_url,
+		rest_headers=rest_headers,
 		log_out=reactive(logout_init())
 	)
 	logout_init <- logoutServer(

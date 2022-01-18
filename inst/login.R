@@ -110,7 +110,9 @@ loginServer <- function(id,
                         cookie_logins=FALSE,
                         sessionid_col,
                         cookie_getter,
-                        cookie_setter) {
+                        cookie_setter,
+						rest_url_base,
+						rest_headers) {
   
   if (cookie_logins && (missing(cookie_getter) | missing(cookie_setter) | missing(sessionid_col))) {
     stop("if cookie_logins=TRUE, cookie_getter, cookie_setter and sessionid_col must be provided")
@@ -227,7 +229,8 @@ loginServer <- function(id,
       shiny::observeEvent(input$button, {
 		
 	  	# check if signed message yields a pubkey
-		signed_msg_output <- fromJSON(system(paste("docker exec -it lnd-neutrino lncli verifymessage --msg", shQuote(input$verify_msg), shQuote(input$signed_msg)), intern=TRUE))
+		rest_content <- toJSON(list(msg=base64_enc(input$verify_msg), signature=input$signed_msg), auto_unbox=TRUE)
+		signed_msg_output <- content(POST(url=rest_url_base, body=rest_content, config=rest_headers))
         
         # if signed message resolves to a valid pubkey, then credentials are valid
         if (signed_msg_output$valid) {
