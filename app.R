@@ -32,9 +32,8 @@ source('inst/functions.R', local=TRUE)
 # load in invoice management
 source('store/api.R')
 
-# load account management
-source('store/accounts.R', local=TRUE)
-
+# load user session management
+source('inst/session-mgmt.R', local=TRUE)
 # load in shiny parts
 source('inst/byoc.R', local=TRUE)
 source('inst/chan-sim.R', local=TRUE)

@@ -63,7 +63,6 @@ bos <- bos.list$scores %>%
 	as_tibble
 chan.blocktimes <- read_tsv('data/chan-blockheights.tsv', col_names=FALSE) %>%
 	rename(c('chan_point'='X1', 'blocktime'='X2'))
-self <- '0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788' # for testing
 
 # fetch nodes
 nodes <- graph$nodes %>%
