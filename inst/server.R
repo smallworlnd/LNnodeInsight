@@ -291,7 +291,7 @@ server <- function(input, output, session) {
 		disable('show_hist_ranks')
 		histranks_inv$cancel <- FALSE
 		histranks_inv$settled <- FALSE
-		histranks_inv$invoice <- content(POST(url=base, body=histranks_inv_body, config=headers))
+		histranks_inv$invoice <- content(POST(url=store_url, body=histranks_inv_body, config=store_headers))
 		histranks_inv$status <- "Unpaid"
 		showModal(
 			modalDialog(
@@ -318,7 +318,7 @@ server <- function(input, output, session) {
 			delay(2000, histranks_inv$status <- 'Try again')
 		}
 		else if (histranks_inv$status == "Try again") {
-			delay(2000, histranks_inv$status <- content(GET(url=paste0(base, '/', histranks_inv$invoice$id), config=headers))$status)
+			delay(2000, histranks_inv$status <- content(GET(url=paste0(store_url, '/', histranks_inv$invoice$id), config=store_headers))$status)
 		}
 		else if (histranks_inv$status == "Paid") {
 			histranks_inv$settled <- TRUE
@@ -449,7 +449,7 @@ server <- function(input, output, session) {
 				"Running simulation, please wait...",
 				size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'))
 		payrebal_sim$values <- path_flow_cost(in_graph=g_dir, subject=subject, out_node=out_node, in_node=in_node)
-		rebal_inv$invoice <- content(POST(url=base, body=rebalsim_inv_body, config=headers))
+		rebal_inv$invoice <- content(POST(url=store_url, body=rebalsim_inv_body, config=store_headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()
 		showModal(
@@ -477,7 +477,7 @@ server <- function(input, output, session) {
 			delay(2000, rebal_inv$status <- 'Try again')
 		}
 		else if (rebal_inv$status == "Try again") {
-			delay(2000, rebal_inv$status <- content(GET(url=paste0(base, '/', rebal_inv$invoice$id), config=headers))$status)
+			delay(2000, rebal_inv$status <- content(GET(url=paste0(store_url, '/', rebal_inv$invoice$id), config=store_headers))$status)
 		}
 		else if (rebal_inv$status == "Paid") {
 			rebal_inv$settled <- TRUE
