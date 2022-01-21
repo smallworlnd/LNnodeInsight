@@ -113,13 +113,21 @@ loginServer <- function(id,
                         cookie_setter,
 						rest_url_base,
 						rest_headers) {
+
+  # if colnames are strings convert them to symbols
+  try_class_uc <- try(class(pubkey_col), silent = TRUE)
+  if (try_class_uc == "character") {
+    pubkey_col <- rlang::sym(pubkey_col)
+  }
   
   if (cookie_logins && (missing(cookie_getter) | missing(cookie_setter) | missing(sessionid_col))) {
     stop("if cookie_logins=TRUE, cookie_getter, cookie_setter and sessionid_col must be provided")
-  }  
-
-  # ensure all text columns are character class
-  data <- dplyr::mutate_if(data, is.factor, as.character)
+  } else {
+    try_class_sc <- try(class(sessionid_col), silent = TRUE)
+    if (try_class_sc == "character") {
+      sessionid_col <- rlang::sym(sessionid_col)
+    }
+  }
   
   shiny::moduleServer(
     id,
@@ -213,11 +221,11 @@ loginServer <- function(id,
             
             cookie_setter(.userid, .sessionid)
             
-            cookie_data <- cookie_getter() %>% dplyr::filter({{sessionid_col}} == .sessionid, {{pubkey_col}} == .userid)
+            cookie_data <- utils::head(dplyr::filter(cookie_getter(), {{sessionid_col}} == .sessionid, {{pubkey_col}} == .userid))
             
             credentials$user_auth <- TRUE
             credentials$info <- dplyr::bind_cols(
-              dplyr::filter(data, {{pubkey_col}} == .userid),
+              dplyr::filter(data, {{pubkey_col}} == .userid) %>% as_tibble,
               dplyr::select(cookie_data, -{{pubkey_col}})
             )
           }
