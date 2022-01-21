@@ -88,7 +88,7 @@ dashboardbody <- dashboardBody(
 			tags$style(type = 'text/css', '.bg- {background-color: #FFFFFF !important; }'),
 			tags$style(HTML(".info-box-icon .img-local {position: absolute; top: auto; left: 15px; }")),
 			h2("Develop your own data-driven Lightning Network insight", align='center'),
-			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network", align='center'),
+			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network. Login to access additional features!", align='center'),
 			h3('Visuals'),
 			fluidRow(
 				infoBoxOutput('chartlink', width=6),
