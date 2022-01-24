@@ -112,7 +112,8 @@ loginServer <- function(id,
                         cookie_getter,
                         cookie_setter,
 						rest_url_base,
-						rest_headers) {
+						rest_headers,
+						rest_content) {
 
   # if colnames are strings convert them to symbols
   try_class_uc <- try(class(pubkey_col), silent = TRUE)

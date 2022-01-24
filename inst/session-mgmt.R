@@ -1,7 +1,3 @@
-source('inst/login.R')
-source('inst/logout.R')
-source('inst/internal.R')
-
 cookie_expiry <- 7 # Days until session expires
 
 get_sessions_from_db <- function(conn=con, expiry=cookie_expiry) {

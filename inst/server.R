@@ -20,6 +20,7 @@ server <- function(input, output, session) {
 		cookie_setter=add_session_to_db,
 		rest_url_base=rest_url,
 		rest_headers=rest_headers,
+		rest_content=rest_content,
 		log_out=reactive(logout_init())
 	)
 	logout_init <- logoutServer(
@@ -50,7 +51,6 @@ server <- function(input, output, session) {
 		)
 	})
 
-	track_usage(storage_mode = store_json(path = "logs/"))
     runjs("
       $('.box').on('click', '.box-header h3', function() {
           $(this).closest('.box')

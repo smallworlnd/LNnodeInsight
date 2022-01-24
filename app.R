@@ -1,4 +1,5 @@
 library(tidyverse)
+library(dbplyr)
 library(tidygraph)
 library(jsonlite)
 library(igraph)
@@ -8,37 +9,46 @@ library(intergraph)
 library(networkD3)
 library(shiny)
 library(shinyWidgets)
-library(shinythemes)
 library(shinydashboard)
 library(shinycssloaders)
 library(shinyjs)
-library(shinylogs)
 library(htmlwidgets)
 library(htmltools)
 library(bsplus)
 library(rclipboard)
+library(httr)
 library(plotly)
 library(ggVennDiagram)
 library(qrencoder)
 library(DT)
 library(stringi)
+library(DBI)
+library(RPostgreSQL)
 
 # load data and functions for applications
-#source('inst/data.R')
-load('graph.Rda')
-source('inst/node-stats.R', local=TRUE)
-source('inst/functions.R', local=TRUE)
+load('data/graph.Rda')
+
+source('inst/db.R', local=TRUE)
+source('inst/graph-functions.R', local=TRUE)
 
 # load in invoice management
 source('store/api.R')
 
-# load user session management
+# load user account management
 source('inst/session-mgmt.R', local=TRUE)
-# load in shiny parts
+source('inst/login.R')
+source('inst/logout.R')
+source('inst/accounts-internal.R')
+
+# load in build your own chart app
 source('inst/byoc.R', local=TRUE)
+
+# load the channel simulator
 source('inst/chan-sim.R', local=TRUE)
+
+# load top-level shiny components
 source('inst/server.R', local=TRUE)
 source('inst/ui.R', local=TRUE)
 
-# put it all together
+# start the shiny app
 shinyApp(ui, server)

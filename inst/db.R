@@ -1,14 +1,3 @@
-library(tidyverse)
-library(tidygraph)
-library(dbplyr)
-library(jsonlite)
-library(igraph)
-library(sna)
-library(lubridate)
-library(intergraph)
-library(DBI)
-library(RPostgreSQL)
-
 source('store/creds.R')
 
 nodes_agg <- tbl(con, 'nodes')
