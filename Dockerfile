@@ -4,9 +4,10 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
 	libudunits2-dev \
 	libgdal-dev \
 	# clean up
-	&& apt-get clean
+	&& apt-get clean \
+	&& rm -rf /var/lib/apt/lists/*
 
-RUN R -e 'install.packages(c("dbplyr", "tidygraph", "jsonlite", "igraph", "sna", "lubridate", "intergraph", "shiny", "shinyWidgets", "shinydashboard", "shinycssloaders", "shinyjs", "htmlwidgets", "htmltools", "bsplus", "httr", "plotly", "rclipboard", "DT", "stringi", "DBI", "RPostgreSQL", "ggVennDiagram"))'
+RUN R -e 'install.packages(c("dbplyr", "tidygraph", "jsonlite", "igraph", "sna", "lubridate", "intergraph", "shiny", "shinyWidgets", "shinydashboard", "shinycssloaders", "shinyjs", "htmlwidgets", "htmltools", "bsplus", "httr", "plotly", "rclipboard", "stringi", "DBI", "RPostgreSQL", "ggVennDiagram"))'
 RUN R -e 'devtools::install_github(c("christophergandrud/networkD3", "hrbrmstr/qrencoder", "leonawicz/apputils"))'
 
 RUN install2.r --error \
