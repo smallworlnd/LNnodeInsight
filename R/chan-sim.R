@@ -1,5 +1,13 @@
-#source('inst/functions.R')
-filters <- chansim_filter_parms %>%
+filters <- g %>%
+	as_tibble %>%
+	summarise(
+		max.cap=round(max(tot.capacity)/1e8+1, 0),
+		max.avg.capacity=max(avg.capacity)/1e8,
+		max.num.channels=max(num.channels)+1,
+		max.age=round(max(age)+1, 0),
+		max.between=max(cent.between.rank, na.rm=TRUE),
+		max.close=max(cent.close.rank, na.rm=TRUE),
+		max.eigen=max(cent.eigen.rank, na.rm=TRUE)) %>%
 	mutate(max.hops=11) %>%
 	t %>%
 	as.data.frame %>%

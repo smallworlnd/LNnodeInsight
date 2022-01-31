@@ -90,11 +90,7 @@ function(el, x) {
 			.style("background-color", "#181818")
 			.style("font-family", "sans-serif")
 			.style("box-shadow", "2px 2px 6px #888888")
-			.html(
-				"<a href=\"" + d.amboss + "\" target=\"_blank\">amboss.space</a>" +
-				" | " +
-				"<a href=\"" + d.oneml + "\" target=\"_blank\">1ml.com</a>"
-				)
+			.html("<a href=\"" + d.amboss + "\" target=\"_blank\">amboss.space</a>")
 			.style("left", (d3.event.pageX) + "px")
 			.style("top", (d3.event.pageY - 28) + "px");
 		d3.event.stopPropagation()

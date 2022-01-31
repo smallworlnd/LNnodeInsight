@@ -27,27 +27,27 @@ library(RPostgreSQL)
 # load data and functions for applications
 load('data/graph.Rda')
 
-source('inst/db.R', local=TRUE)
-source('inst/graph-functions.R', local=TRUE)
+source('R/db.R', local=TRUE)
+source('R/graph-functions.R', local=TRUE)
 
 # load in invoice management
 source('store/api.R')
 
 # load user account management
-source('inst/session-mgmt.R', local=TRUE)
-source('inst/login.R')
-source('inst/logout.R')
-source('inst/accounts-internal.R')
+source('R/session-mgmt.R', local=TRUE)
+source('R/login.R')
+source('R/logout.R')
+source('R/accounts-internal.R')
 
 # load in build your own chart app
-source('inst/byoc.R', local=TRUE)
+source('R/byoc.R', local=TRUE)
 
 # load the channel simulator
-source('inst/chan-sim.R', local=TRUE)
+source('R/chan-sim.R', local=TRUE)
 
 # load top-level shiny components
-source('inst/server.R', local=TRUE)
-source('inst/ui.R', local=TRUE)
+source('R/server.R', local=TRUE)
+source('R/ui.R', local=TRUE)
 
 # start the shiny app
 shinyApp(ui, server)

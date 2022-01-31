@@ -1,5 +1,42 @@
 customjs <- read_file("inst/custom.js")
 
+node_ids <- paste(g %>% pull(alias), "-", g %>% pull(name))
+
+table_vars <- c('Pubkey'='name',
+	'Alias'='alias',
+	'Total capacity (sat)'='tot.capacity',
+	'Number of channels'='num.channels',
+	'Average channel capacity (sat)'='avg.capacity',
+	'Median channel capacity (sat)'='med.capacity',
+	'Mean base fee (msat)'='mean.base.msat',
+	'Median base fee (msat)'='median.base.msat',
+	'Mean fee rate (ppm)'='mean.rate.ppm',
+	'Median fee rate (ppm)'='median.rate.ppm',
+	'Approximate node age (days)'='age',
+	'Number of active channels'='act.channels',
+	'Number of inactive channels'='inact.channels',
+	'Betweenness centrality rank'='cent.between.rank',
+	'Eigenvector centrality rank'='cent.eigen.rank',
+	'Closeness centrality rank'='cent.close.rank',
+	'Terminal Web score'='tweb.score',
+	'BOS score'='bos')
+chart_vars <- c('Total capacity (sat)'='tot.capacity',
+	'Number of channels'='num.channels',
+	'Average channel capacity (sat)'='avg.capacity',
+	'Median channel capacity (sat)'='med.capacity',
+	'Mean base fee (msat)'='mean.base.msat',
+	'Median base fee (msat)'='median.base.msat',
+	'Mean fee rate (ppm)'='mean.rate.ppm',
+	'Median fee rate (ppm)'='median.rate.ppm',
+	'Number of active channels'='act.channels',
+	'Number of inactive channels'='inact.channels',
+	'Approximate node age (days)'='age',
+	'Betweenness centrality'='cent.between',
+	'Eigenvector centrality'='cent.eigen',
+	'Closeness centrality'='cent.close',
+	'Terminal Web score'='tweb.score',
+	'BOS score'='bos')
+
 modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 	value <- restoreInput(id = inputId, default = NULL)
 	tags$button(id = inputId, type = "button", style = if (!is.null(width)) 
@@ -379,8 +416,7 @@ server <- function(input, output, session) {
 			bounded=FALSE, fontFamily='sans-serif', zoom=TRUE, charge=-1000, opacityNoHover=1,
 			colourScale = JS("d3.scaleOrdinal(d3.schemeCategory10);"))
 		fn$x$nodes$pubkey <- node$name
-		fn$x$nodes$amboss <- node$amboss
-		fn$x$nodes$oneml <- node$oneml
+		fn$x$nodes$amboss <- paste0("https://amboss.space/node/", node$name)
 		onRender(fn, customjs)
 	})
 	# summarise peer info in a table
@@ -449,6 +485,16 @@ server <- function(input, output, session) {
 				"Running simulation, please wait...",
 				size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'))
 		payrebal_sim$values <- path_flow_cost(in_graph=g_dir, subject=subject, out_node=out_node, in_node=in_node)
+
+#chan.bals <- chan.state %>% filter(key=='inbound' | key=='outbound') %>% mutate(from.key=ifelse(key=='inbound', value, name), to.key=ifelse(key=='outbound', value, name)) %>% dplyr::select(from.key, to.key) %>% left_join(ids, by=c('from.key'='name')) %>% left_join(ids, by=c('to.key'='name')) %>% rename(c('from'='id.x', 'to'='id.y')) %>% mutate(balance='min1M') %>% dplyr::select(from, to, balance) %>% unique
+#all_edges <- left_join(all_edges, chan.bals)
+#node.redflags <- chan.state %>% filter(key=='low_median_capacity' | key=='low_chan_count' | key=='many_disabled_channels' | key=='suboptimal_uptime') %>% dplyr::select(name, key) %>% rename('state'='key') %>% unique
+#nodes <- left_join(nodes, node.redflags) %>% mutate(state=ifelse(is.na(last_update), "inactive", ifelse(last_update>14, "inactive", state))) %>% mutate(state=replace_na(state, "healthy")) 
+
+#chan.bals <- nd %>% filter(key=='inbound' | key=='outbound') %>% mutate(from.key=ifelse(key=='inbound', value, name), to.key=ifelse(key=='outbound', value, name)) %>% dplyr::select(from.key, to.key) %>% left_join(ids, by=c('from.key'='name')) %>% left_join(ids, by=c('to.key'='name')) %>% rename(c('from'='id.x', 'to'='id.y')) %>% mutate(balance='min1M') %>% dplyr::select(from, to, balance) %>% unique
+#all_edges <- left_join(all_edges, chan.bals)
+#node.redflags <- nd %>% filter(key=='low_median_capacity' | key=='low_chan_count' | key=='many_disabled_channels' | key=='suboptimal_uptime') %>% dplyr::select(name, key) %>% rename('state'='key') %>% unique
+
 		rebal_inv$invoice <- content(POST(url=store_url, body=rebalsim_inv_body, config=store_headers))
 		rebal_inv$status <- "Unpaid"
 		removeModal()

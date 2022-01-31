@@ -1,4 +1,4 @@
-recompute_centralities <- function(graph) {
+compute_centralities <- function(graph) {
 	graph_filt <- graph %>%
 		filter(act.channels>0, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
 		mutate(id=row_number()) %>%
@@ -111,7 +111,7 @@ simulate_channel <- function(s_node, t_node, indel, amount=5e6) {
 		del_edges <- g %>% activate(edges) %>% filter((from==s_id & to %in% rem) | (from %in% rem & to==s_id)) %>% as_tibble %>% dplyr::select(to, from, capacity)
 		g_mod <- delete_edges(g, E(g)[del_edges$from %--% del_edges$to]) %>% as_tbl_graph
 	}
-	sim_g <- recompute_centralities(g_mod)
+	sim_g <- compute_centralities(g_mod)
 	return(sim_g)
 }
 
