@@ -1,7 +1,18 @@
-FROM rocker/tidyverse:3.6.3 AS base
-RUN R -e 'install.packages(c("tidygraph", "jsonlite", "igraph", "lubridate", "intergraph", "httr", "DBI", "RPostgreSQL"))'
-COPY .Renviron /opt/
+FROM r-base:4.1.2
+RUN apt-get update \
+	&& apt-get install -y \
+	libglpk-dev \
+	r-cran-tidyverse \
+	r-cran-tidygraph \
+	r-cran-jsonlite \
+	r-cran-lubridate \
+	r-cran-httr \
+	r-cran-dbi \
+	r-cran-rpostgresql \
+	&& rm -rf /var/lib/apt/lists/*
+RUN install2.r --error \ 
+	-r 'http://cran.rstudio.com' \
+	intergraph
 
-FROM base AS data-processing
-COPY add-latest-data-to-db.R /opt/
-CMD ["Rscript", "/opt/add-latest-data-to-db.R"]
+COPY ["add-latest-data-to-db.R", "/opt"]
+COPY [".Renviron", "/opt"]

@@ -1,3 +1,5 @@
+# requires the .Renviron file be configured as described in Renviron.template
+
 library(tidyverse)
 library(tidygraph)
 library(tidyr)
@@ -272,7 +274,7 @@ tryCatch({
 )
 
 graph_headers <- add_headers(c("Grpc-Metadata-macaroon"=Sys.getenv("GRAPH_MACAROON")))
-dg_error_check <- tryCatch({
+tryCatch({
 	dg_req <- GET(url=Sys.getenv("GRAPH_ENDPOINT"), config=graph_headers)
 	latest_graph <- build_graph_from_data_req(dg_req)
 	# split the graph into parts for easy uploading
@@ -283,7 +285,7 @@ dg_error_check <- tryCatch({
 	error = function(e) { 
 		print(e)
 		print("Could not fetch graph data")
-		graph_error = http_error(dg_req)
+		graph_error <- http_error(dg_req)
 	}
 )
 
@@ -305,7 +307,7 @@ if (!graph_error) {
 	)
 }
 
-nd_error_check <- tryCatch({
+tryCatch({
 	nd_req <- RETRY("GET", url=Sys.getenv("ND_URL"), times=5, pause_min=2)
 	nd_agg <- summarise_nd_from_data_req(nd_req)
 	nd_error <- http_error(nd_req)
@@ -335,7 +337,7 @@ if (!nd_error) {
 	)
 }
 
-bos_error_check <- tryCatch({
+tryCatch({
 	bos_req <- RETRY("GET", url=Sys.getenv("BOS_URL"), times=5, pause_min=2)
 	bos <- summarise_bos_from_data_req(bos_req)
 	bos_error <- http_error(dg_req)

@@ -1,0 +1,9 @@
+GRAPH_ENDPOINT=<url to describegraph endpoint>
+GRAPH_MACAROON=<macaroon specific to describegraph endpoint>
+DB_HOST=<IP to your postgres DB>
+DB_PORT=<port of your postgres DB>
+DB_NAME=<DB name>
+DB_USER=<DB user name)
+DB_PW=<DB password for DB_USER>
+ND_URL=<URL to terminal web endpoint>
+BOS_URL=<URL to bos list endpoint>
