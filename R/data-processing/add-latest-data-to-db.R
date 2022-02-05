@@ -120,9 +120,8 @@ build_graph_from_data_req <- function(data_req) {
 		rename(c('from'='f', 'to'='t', 'from_base_fee'='fbf', 'from_fee_rate'='ff', 'to_base_fee'='tbf', 'to_fee_rate'='tf'))
 	forw_edges <- g %>% activate(edges) %>% as_tibble %>% mutate(direction=1)
 	all_edges <- rbind(forw_edges, rev_edges)
-	g <- tbl_graph(verts, all_edges, directed=TRUE)
+	g <- tbl_graph(nodes=verts, edges=all_edges, directed=TRUE, node_key='pubkey')
 	g_node_ids <- paste(g %>% pull(alias), "-", g %>% pull(pubkey))
-
 
 	# heuristics to speed up centrality measures
 	# ignore nodes with >50% inactive channels, total capacity <1e5 (q1) and only 1 channel (q1)
