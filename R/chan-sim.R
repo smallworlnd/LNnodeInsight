@@ -210,8 +210,8 @@ centralityRankServer <- function(id, graph=g, subject, metric, sim_output=NULL) 
 			ifelse(metric == "close", "Closeness/hopness",
 			"Eigenvector/hubness"))
 		if (!is.null(sim_output)) {
-			data <- sim_output()$graph %>%
-				filter(name==sim_output()$subject) %>%
+			data <- sim_output() %>%
+				filter(pubkey==subject()) %>%
 				dplyr::select(paste0('sim.cent.', metric, '.rank'), paste0('cent.', metric, '.rank.delta')) %>%
 				as_tibble
 			cent.rank <- eval(parse(text=paste0('data$sim.cent.', metric, '.rank')))
@@ -284,20 +284,26 @@ channelSimulationServer <- function(id, subject, targets, add_or_del) {
 	moduleServer(id, function(input, output, session) {
 		targets <- targets()[targets() != ""]
 		indels <- add_or_del()[which(targets() != '')]
+
 		showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
-		sim_graph <- simulate_channel(subject(), targets, indels)
+		# build request to chansim api
+		sim_req_header <- add_headers(c("Content-Type"=paste("application/json")))
+		sim_req_body <- toJSON(
+			list(
+				subject_pubkey=subject(),
+				target_pubkeys=targets,
+				indel=indels
+			),
+			auto_unbox=TRUE)
+		# make request
+		sim_query <- POST(
+			url=Sys.getenv("CHANSIM_API_URL"),
+			body=sim_req_body,
+			config=sim_req_header)
+		sim_resp <- content(sim_query)
 		removeModal()
-		return(
-			reactive(
-				list(
-					subject=subject(),
-					graph=sim_graph$graph,
-					betw=sim_graph$betw,
-					clo=sim_graph$clo,
-					eigen=sim_graph$eigen
-				)
-			)
-		)
+
+		return(reactive(sim_resp))
 	})
 }
 
