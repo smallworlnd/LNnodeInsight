@@ -1,4 +1,4 @@
-FROM rocker/shiny-verse:3.6.3
+FROM rocker/shiny-verse:4.1.2
 RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
 	libssl-dev \
 	libudunits2-dev \
@@ -7,18 +7,39 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN R -e 'install.packages(c("dbplyr", "tidygraph", "jsonlite", "igraph", "sna", "lubridate", "intergraph", "shiny", "shinyWidgets", "shinydashboard", "shinycssloaders", "shinyjs", "htmlwidgets", "htmltools", "bsplus", "httr", "plotly", "rclipboard", "stringi", "DBI", "RPostgreSQL", "ggVennDiagram"))'
-RUN R -e 'devtools::install_github(c("christophergandrud/networkD3", "hrbrmstr/qrencoder", "leonawicz/apputils"))'
-
-RUN install2.r --error \
+RUN install2.r --error \ 
 	-r 'http://cran.rstudio.com' \
-	googleAuthR \
+	dbplyr \
+	tidygraph \
+	igraph \
+	lubridate \
+	intergraph \
+	jsonlite \
+	ggVennDiagram \
+	shinyWidgets \
+	shinydashboard \
+	shinycssloaders \
+	shinyjs \
+	htmlwidgets \
+	htmltools \
+	bsplus \
+	httr \
+	plotly \
+	rclipboard \
+	stringi \
+	DBI \
+	RPostgreSQL \
+	pool \
 	## install Github packages
 	## clean up
 	&& rm -rf /tmp/downloaded_packages/ /tmp/*.rds
 
+RUN R -e 'devtools::install_github(c("christophergandrud/networkD3", "hrbrmstr/qrencoder", "leonawicz/apputils"))'
+
 # copy our local shiny app
-COPY . /srv/shiny-server/lnnodeinsight/
+COPY . /srv/shiny-server/
+COPY shiny-customized.config /etc/shiny-server/shiny-server.conf
 # select the port
 EXPOSE 3838
-CMD ["/usr/bin/shiny-server.sh"]
+USER shiny
+CMD ["/usr/bin/shiny-server"]

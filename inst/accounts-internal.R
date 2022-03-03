@@ -109,5 +109,5 @@ js_return_click <- function(idpassword, idbutton) {
 #' to make the shinyauthr package more self-contained
 #' @noRd
 jscookie_script <- function() {
-  shiny::includeScript(path="inst/js-cookie.js")
+  shiny::includeScript(path="js/js-cookie.js")
 }

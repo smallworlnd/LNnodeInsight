@@ -7,3 +7,4 @@ DB_USER=<DB user name)
 DB_PW=<DB password for DB_USER>
 ND_URL=<URL to terminal web endpoint>
 BOS_URL=<URL to bos list endpoint>
+AMBOSS_URL=<URL to amboss endpoint>

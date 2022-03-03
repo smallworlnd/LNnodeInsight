@@ -1,34 +1,34 @@
-filters <- g %>%
-	as_tibble %>%
-	summarise(
-		max.cap=round(max(tot.capacity)/1e8+1, 0),
-		max.avg.capacity=max(avg.capacity)/1e8,
-		max.num.channels=max(num.channels)+1,
-		max.age=round(max(age)+1, 0),
-		max.between=max(cent.between.rank, na.rm=TRUE),
-		max.close=max(cent.close.rank, na.rm=TRUE),
-		max.eigen=max(cent.eigen.rank, na.rm=TRUE)) %>%
-	mutate(max.hops=11) %>%
-	t %>%
-	as.data.frame %>%
-	rownames_to_column()
-steps <- c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1)
-min_vals <- c(0.01, 0.001, 0, 1, 0, 1, 1, 1, 0)
-med_fee_filter <- c(rowname='max.fee.rate', V1=6000)
-filters <- rbind(filters[1:2,], med_fee_filter, filters[-(1:2),])
-descr <- c(
+filter_vars <- c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops")
+filter_descr <- c(
 	'Filter by range of total capacity (in bitcoin)',
 	'Filter by range of average channel capacity (in bitcoin)',
 	'Filter by range of average channel fee rates (ppm)',
 	'Filter by range of total channels',
-	'Filter by range of approximate node age (in days)',
 	'Filter by range of betweenness centrality ranks',
 	'Filter by range of closeness centrality ranks',
 	'Filter by range of eigenvector centrality ranks',
 	'Only show nodes that fall within a range of hops away from the node selected in Step 1'
 )
-filters <- cbind(filters, descr, min_vals, steps)
-filters <- filters %>% rename(c('max_vals'='V1', 'filter'='rowname')) %>% t %>% as_tibble
+filter_min <- c(0.01, 0.001, 0, 1, 1, 1, 1, 0)
+filter_max <- tbl(pool, 'nodes_current') %>%
+	summarise(
+		max.cap=round(max(tot.capacity)/1e8, 0),
+		max.avg.capacity=max(avg.capacity)/1e8,
+		max.fee.rate=6000,
+		max.num.channels=max(num.channels)+1,
+		max.between=max(cent.between.rank),
+		max.close=max(cent.close.rank),
+		max.eigen=max(cent.eigen.rank),
+		max.hops=11) %>%
+	as.data.frame
+filter_steps <- c(0.1, 0.01, 1, 1, 1, 1, 1, 1)
+filters <- rbind(
+		filter_vars,
+		filter_max,
+		filter_descr,
+		filter_min,
+		filter_steps) %>%
+	setNames(paste0('V', c(1:ncol(.))))
 
 subjectSelectUI <- function(id) {
 	selectizeInput(inputId=NS(id, "subject"),
@@ -193,7 +193,10 @@ resetFiltersServer <- function(id, subject, db=con) {
 			updateSliderInput(session, inputId='max.hops', value=c(0, 11))
 			updateSliderInput(session, inputId='peers.of.peers', value=2)
 
-			comms <- tbl(con, 'communities') %>% pull(community) %>% unique %>% sort
+			comms <- tbl(pool, 'communities') %>%
+				distinct(community) %>%
+				pull(community) %>%
+				sort
 			updateSelectizeInput(session, inputId="community",
 				choices=c("Community"=NULL, comms),
 				selected=character(0),
@@ -203,7 +206,7 @@ resetFiltersServer <- function(id, subject, db=con) {
 	})
 }
 
-centralityRankServer <- function(id, graph=g, subject, metric, sim_output=NULL) {
+centralityRankServer <- function(id, graph=undir_graph, subject, metric, sim_output=NULL) {
 	moduleServer(id, function(input, output, session) {
 		result_metric <- paste0('cent.', metric, '.rank')
 		label <- ifelse(metric == "between", "Betweenness",
@@ -211,9 +214,7 @@ centralityRankServer <- function(id, graph=g, subject, metric, sim_output=NULL) 
 			"Eigenvector/hubness"))
 		if (!is.null(sim_output)) {
 			data <- sim_output() %>%
-				filter(pubkey==subject()) %>%
-				dplyr::select(paste0('sim.cent.', metric, '.rank'), paste0('cent.', metric, '.rank.delta')) %>%
-				as_tibble
+				filter(pubkey==subject())
 			cent.rank <- eval(parse(text=paste0('data$sim.cent.', metric, '.rank')))
 			delta <- eval(parse(text=paste0('data$cent.', metric, '.rank.delta')))
 			qualifier <- ifelse(delta>0, 'gain', ifelse(delta==0, 'no change', 'lose'))
@@ -225,7 +226,7 @@ centralityRankServer <- function(id, graph=g, subject, metric, sim_output=NULL) 
 			color <- 'blue'
 			cent.rank <- graph %>%
 				as_tibble %>%
-				filter(name==subject()) %>% 
+				filter(pubkey==subject()) %>% 
 				pull(result_metric)
 			val <- prettyNum(cent.rank, big.mark=',')
 		} else {
@@ -250,10 +251,10 @@ peerOverlapServer <- function(id, subject, targets) {
 			req(subject() != "")
 			req(length(targets()[targets() != ""]) > 0)
 			xkey <- subject()
-			xkey_alias <- fetch_alias(xkey)
+			xkey_alias <- fetch_alias(pubkey=xkey)
 			ykeys <- targets()[targets() != ""]
-			ykey_aliases <- sapply(ykeys, function(z) fetch_alias(z)) %>% as.vector
-			peers <- lapply(c(xkey, ykeys), function(z) fetch_peer_aliases(z))
+			ykey_aliases <- sapply(ykeys, function(z) fetch_alias(pubkey=z)) %>% as.vector
+			peers <- lapply(c(xkey, ykeys), function(z) fetch_peer_aliases(pubkey=z))
 			names(peers) <- c(xkey_alias, ykey_aliases)
 			venn <- Venn(peers)
 			data <- process_data(venn)
@@ -307,26 +308,25 @@ channelSimulationServer <- function(id, subject, targets, add_or_del) {
 	})
 }
 
-applyFiltersToTargetsServer <- function(id, graph=g, pubkey, node_list=node_ids, db=con) {
+applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list=node_ids, db=con) {
 	moduleServer(id, function(input, output, session) {
 		if (pubkey != "") {
-			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=pubkey, mindist=input$max.hops[1]+1)[[1]] %>%
+			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
 				as_tbl_graph %>%
 				filter(
 					tot.capacity>=input$max.cap[1]*1e8, tot.capacity<=input$max.cap[2]*1e8,
 					avg.capacity>=input$max.avg.capacity[1]*1e8, avg.capacity<=input$max.avg.capacity[2]*1e8,
 					num.channels>=input$max.num.channels[1], num.channels<=input$max.num.channels[2],
 					median.rate.ppm>=input$max.fee.rate[1], median.rate.ppm<=input$max.fee.rate[2],
-					age>=input$max.age[1], age<=input$max.age[2],
 					cent.between.rank>=input$max.between[1], cent.between.rank<=input$max.between[2],
 					cent.close.rank>=input$max.close[1], cent.close.rank<=input$max.close[2],
 					cent.eigen.rank>=input$max.eigen[1], cent.eigen.rank<=input$max.eigen[2]) %>%
-				mutate(target=paste(alias, "-", name))
+				mutate(target=paste(alias, "-", pubkey))
 				if (input$community != "") {
-					members <- tbl(con, 'communities') %>%
+					members <- tbl(pool, 'communities') %>%
 						filter(community==local(input$community)) %>%
 						pull(pubkey)
-					vals <- vals %>% filter(name %in% members)
+					vals <- vals %>% filter(pubkey %in% members)
 				}
 			if (as.numeric(input$peers.of.peers) == 1) {
 				peers_of_peers <- fetch_peers_of_peers(pubkey) %>% unlist %>% unique
@@ -377,12 +377,12 @@ targetUpdateServer <- function(id, pubkey_list) {
 	})
 }
 
-dropdownFilterSelectServer <- function(id, db=con, logged_in=FALSE) {
+dropdownFilterSelectServer <- function(id, db=pool, logged_in=FALSE) {
 	moduleServer(id, function(input, output, session) {
 		shiny::observe({
 			shinyjs::toggle('community', condition=logged_in())
 		})
-		comms <- tbl(con, 'communities') %>% pull(community) %>% unique %>% sort
+		comms <- tbl(pool, 'communities') %>% pull(community) %>% unique %>% sort
 		updateSelectizeInput(
 			session, 
 			inputId="community",
@@ -448,12 +448,12 @@ chansimServer <- function(id, reactive_show) {
 			centralities <- lapply(
 				c('between', 'close', 'eigen'),
 				function(x)
-					centralityRankServer('cents', g, subject, x)
+					centralityRankServer('cents', undir_graph, subject, x)
 				)
 			lapply(centralities, function(x) centralityRankOutput('cents', x))
 		})
 
-		dropdownFilterSelectServer('filters', db=con, logged_in=reactive_show)
+		dropdownFilterSelectServer('filters', db=pool, logged_in=reactive_show)
 		resetFiltersServer('filters', subject)
 		subjectSelectServer('subject_select')
 
@@ -465,7 +465,7 @@ chansimServer <- function(id, reactive_show) {
 			simulated_centralities <- lapply(
 				c('between', 'close', 'eigen'),
 				function(x)
-					centralityRankServer('cents', g, subject, x, sim_output)
+					centralityRankServer('cents', undir_graph, subject, x, sim_output)
 				)
 			lapply(simulated_centralities, function(x) centralityRankOutput('cents', x))
 		})

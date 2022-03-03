@@ -1,0 +1,422 @@
+modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
+	value <- restoreInput(id = inputId, default = NULL)
+	tags$button(id = inputId, type = "button", style = if (!is.null(width)) 
+	paste0("width: ", validateCssUnit(width), ";"), type = "button", 
+	class = "btn btn-default action-button", `data-dismiss` = "modal", `data-val` = value, 
+	list(shiny:::validateIcon(icon), label), ...)
+}
+
+store_headers <- add_headers(c(
+	"Content-Type"=paste("application/json"),
+	"Authorization"=paste("token", Sys.getenv("STORE_API_KEY"), sep=" ")))
+
+simTypeUI <- function(id) {
+	prettyRadioButtons(
+		inputId=NS(id, 'pay_or_rebal'),
+		label=HTML("Simulate either a rebalance or a payment<br>*Can be with existing or simulated channels"),
+		selected=1,
+		choiceNames=c('Rebalance', 'Payment'),
+		choiceValues=c(1, 2),
+		inline=TRUE
+	)
+}
+
+nodeSelectUI <- function(id, nodeId, lab) {
+	selectizeInput(
+		inputId=NS(id, nodeId),
+		label=lab,
+		choices=NULL,
+		options=list(placeholder='Pubkey/alias')
+	)
+}
+
+startButtonUI <- function(id) {
+	actionBttn(
+		inputId=NS(id, 'launch_sim_button'),
+		label=paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"),
+		style='fill',
+		color='success',
+		block=FALSE
+	)
+}
+
+histoTabUI <- function(id, plotTitle, plotId) {
+	tabPanel(
+		title=plotTitle,
+		withSpinner(plotlyOutput(NS(id, paste0('histo_', plotId, '_plot')))),
+		value=paste0('histo_', plotId),
+		id=NS(id, paste0("histo_", plotId, "_tab")),
+		width=NULL
+	)
+}
+
+scatterTabUI <- function(id, plotTitle, plotId) {
+	tabPanel(
+		plotTitle,
+		withSpinner(plotlyOutput(NS(id, paste0('scatter_', plotId, '_plot')))),
+		value=paste0('scatter_', plotId),
+		id=NS(id, paste0('scatter_', plotId, '_tab')),
+		width=NULL
+	)
+}
+
+simResultUI <- function(id, resId) {
+	valueBoxOutput(NS(id, resId), width=12)
+}
+
+rebalsimUI <- function(id) {
+	ns <- NS(id)
+	fluidRow(
+		useShinyjs(),
+		rclipboardSetup(),
+		column(8,
+			fluidRow(
+				box(
+					simTypeUI(NS(id, "sim_type")),
+					conditionalPanel(
+						"output.sim_type_choice == 1", ns=ns,
+						# simulating a rebalance
+						nodeSelectUI(NS(id, "node_select"), nodeId="subject", lab="Enter a pubkey/alias on which to simulate a circular rebalance")
+					),
+					nodeSelectUI(NS(id, "node_select"), nodeId="out_node", lab="Enter/choose an outgoing node"),
+					nodeSelectUI(NS(id, "node_select"), nodeId="in_node", lab="Enter/select an incoming node"),
+					column(12, align='center', startButtonUI(NS(id, "launch_sim"))),
+					background='yellow', width=12,
+				),
+				do.call(tabBox,
+					c(id=NS(id, 'histo_tab'), side='left', width=12,
+						lapply(
+							data.frame(
+								plotTitle=c(
+									"Path cost histogram",
+									"Path maximum liquidity flow histogram",
+									"High liquidity availability histogram"),
+								plotId=c("cost", "flow", "bal")) %>% t %>% as.data.frame,
+							function(x) histoTabUI(NS(id, "histo_tab_selected"), plotTitle=x[1], plotId=x[2])
+						) %>% unname
+					)
+				),
+				do.call(tabBox,
+					c(id=NS(id, 'scatter_tab'), side='left', width=12,
+						lapply(
+							data.frame(
+								plotTitle=c(
+									'Maximum liquidity flow vs cost',
+									'Maximum liquidity flow vs high liquidity availability',
+									'High liquidity availability vs cost'),
+								plotId=c("flowcost", "flowbal", "balcost")) %>% t %>% as.data.frame,
+							function(x) scatterTabUI(NS(id, "scatter_tab_selected"), plotTitle=x[1], plotId=x[2])
+						) %>% unname
+					)
+				)
+			)
+		),
+		column(4,
+			fluidRow(
+				box(title="Summary stats", solidHeader=TRUE, collapsible=TRUE, width=NULL,
+					lapply(
+						c("samples", "min", "max", "mean", "median", "sd"),
+						function(x)
+							simResultUI(NS(id, "sim_result"), x)
+					)
+				)
+			)
+		)
+	)
+}
+
+nodeListServer <- function(id, pubkey_list=node_ids) {
+	moduleServer(id, function(input, output, session) {
+		lapply(c("subject", "out_node", "in_node"), function(x)
+			updateSelectizeInput(
+				session,
+				inputId=x,
+				choices=c("Pubkey or alias"=NULL, pubkey_list),
+				selected=character(0),
+				server=TRUE
+			)
+		)
+	})
+}
+
+getNodePubkey <- function(id, node) {
+	moduleServer(id, function(input, output, session) {
+		reactive(fetch_pubkey(eval(parse(text=paste0('input$', node)))))
+	})
+}
+
+startButtonServer <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		reactive(input$launch_sim_button)
+	})
+}
+
+simulationServer <- function(id, subject, out_node, in_node) {
+	moduleServer(id, function(input, output, session) {
+		showModal(
+			modalDialog(
+				"Running simulation, please wait...",
+				size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'
+			)
+		)
+		sim_req_header <- add_headers(c("Content-Type"=paste("application/json")))
+		sim_req_body <- toJSON(
+			list(
+				subject_pubkey=subject(),
+				out_pubkey=out_node(),
+				in_pubkey=in_node()),
+			auto_unbox=TRUE)
+		# post request for simulation
+		sim_query <- POST(
+			url=Sys.getenv("REBALSIM_API_URL"),
+			body=sim_req_body,
+			config=sim_req_header)
+		sim_resp <- content(sim_query)
+		removeModal()
+		return(reactive(sim_resp))
+	})
+}
+
+invoiceGenerator <- function(id, link, amt, desc) {
+	moduleServer(id, function(input, output, session) {
+		# build an invoice for the service
+		inv_body <- toJSON(
+			list(
+				amount=format(as.numeric(amt), scientific=FALSE),
+				description=desc,
+				expiry=360,
+				privateRouteHints=TRUE),
+			auto_unbox=TRUE)
+		inv <- content(POST(url=link, body=inv_body, config=store_headers))
+		return(inv)
+	})
+}
+
+invoiceDisplayServer <- function(id, invoice, amt) {
+	moduleServer(id, function(input, output, session) {
+		ns <- session$ns
+		output$inv_qr <- renderPlot({
+			ggqrcode(invoice$BOLT11)
+		})
+		qrModal <- function() {
+			modalDialog(
+				plotOutput(ns("inv_qr"), height='270px', width='270px'),
+				title=paste("Done! Please pay", as.numeric(amt)/1e3, "sats to view results."),
+				size='s',
+				footer=tagList(
+					rclipButton(ns("clipbtn"), "Copy", invoice$BOLT11, icon("clipboard"), modal=TRUE),
+					modalActionButton(ns("cancel"), "Cancel")
+				)
+			)
+		}
+		showModal(qrModal())
+	})
+}
+
+invoiceHandlingServer <- function(id, reactive_trigger, inv_fetch_url, inv_amt, inv_desc) {
+	moduleServer(id, function(input, output, session) {
+		invoice <- reactiveValues(details=NULL)
+		observeEvent(reactive_trigger(), {
+			invoice$details <- invoiceGenerator("rebalsim_inv", inv_fetch_url, inv_amt, inv_desc)
+			invoiceDisplayServer("rebalsim_inv", invoice$details, inv_amt)
+		})
+
+		inv_cancel <- invoiceCancel("rebalsim_inv")
+		observeEvent(inv_cancel(), {
+			invoice$details$status <- "Cancelled"
+		})
+		observe({
+			req(invoice$details)
+			if (invoice$details$status != "Cancelled" && invoice$details$status == "Unpaid") {
+				invoice$details$status <- content(GET(url=paste0(inv_fetch_url, '/', invoice$details$id), config=store_headers))$status
+				invalidateLater(2000)
+			} else {
+				removeModal()
+				return()
+			}
+		})
+		return(reactive(invoice$details$status))
+	})
+}
+
+invoiceCancel <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		return(reactive(input$cancel))
+	})
+}
+
+simTypeServer <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		reactive(input$pay_or_rebal)
+	})
+}
+
+histoPlotServer <- function(id, plotId, xlab, xvar, sim_res) {
+	moduleServer(id, function(input, output, session) {
+		output[[paste0("histo_", plotId, "_plot")]] <- renderPlotly({
+			req(!is.null(sim_res()))
+			plot_ly(sim_res() %>% filter(path_fee<10e3),
+				x=~eval(parse(text=xvar))) %>%
+					layout(
+						xaxis=list(title=xlab),
+						yaxis=list(title="Number of paths"))
+		})
+	})
+}
+
+scatterPlotServer <- function(id, plotId, xlab, ylab, xvar, yvar, sim_res) {
+	moduleServer(id, function(input, output, session) {
+		output[[paste0("scatter_", plotId, "_plot")]] <- renderPlotly({
+			req(!is.null(sim_res))
+			plot_ly(sim_res() %>% filter(path_fee<10e3),
+				x=~eval(parse(text=xvar)), y=~eval(parse(text=yvar)),
+				showlegend=TRUE, type='scatter',
+				marker=list(
+					color=~path_hops,
+					size=15,
+					colorscale="RdBu",
+					colorbar=list(title='# of hops'),
+					opacity=0.4)) %>%
+					layout(
+						xaxis=list(title=xlab),
+						yaxis=list(title=ylab))
+		})
+	})
+}
+
+simResultServer <- function(id, resId, tabId, xvar, desc, sim_res_reactive) {
+	moduleServer(id, function(input, output, session) {
+		sim_res <- reactiveVal(NULL)
+		observeEvent(sim_res_reactive(), {
+			sim_res(sim_res_reactive())
+		})
+		output[[resId]] <- renderValueBox({
+			if (!is.null(sim_res())) {
+				if (resId != "samples") {
+					val <- eval(parse(text=paste0(resId, "(", parse(text=paste0("sim_res()$", xvar)), ")"))) %>%
+						round(0) %>%
+						format(scientific=FALSE) %>%
+						prettyNum(big.mark=",")
+				} else {
+					val <- sim_res() %>% nrow
+				}
+			} else {
+				val <- ""
+			}
+			valueBox(val, desc, color="blue")
+		})
+	})
+}
+
+rebalsimServer <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		# build list of nodes to select from
+		nodeListServer("node_select")
+		# reactive pubkey selections
+		subject <- getNodePubkey("node_select", "subject")
+		out_node <- getNodePubkey("node_select", "out_node")
+		in_node <- getNodePubkey("node_select", "in_node")
+		# simulation type selection; payment/rebalance
+		output$sim_type_choice <- simTypeServer("sim_type")
+		outputOptions(output, "sim_type_choice", suspendWhenHidden=FALSE)
+
+		# start simulation reactive button
+		sim_start_button <- startButtonServer("launch_sim")
+
+		# reactive output summary stats depending on active histogram tab
+		histo_tab <- reactive({input$histo_tab})
+		observe({
+			req(input$histo_tab)
+			histo_tab <- (str_split(input$histo_tab, "_") %>% unlist)[2]
+			lapply(
+				data.frame(
+					stat=c(rep("samples", 3), rep("min", 3), rep("max", 3), rep("mean", 3), rep("median", 3), rep("sd", 3)),
+					tab=rep(c("cost", "flow", "bal"), 6),
+					xvar=c("path_fee", "max_path_flow", "known_1Mmin"),
+					desc=c(
+						"Number of paths sampled", "Number of paths sampled", "Number of paths sampled",
+						"Lowest path cost (ppm)", "Lowest maximum liquidity flow (sat)", "Lowest percentage of channels with high liquidity availability",
+						"Highest path cost (ppm)", "Highest maximum liquidity flow (sat)", "Highest percentage of channels with high liquidity availability",
+						"Expected path cost (ppm)", "Expected maximum liquidity flow (sat)", "Expected percentage of channels with high liquidity availability",
+						"Median path cost (ppm)", "Median path maximum liquidity flow (sat)", "Median percentage of channels with high liquidity availability",
+						"Spread in path cost (ppm)", "Spread in path maximum liquidity flow (sat)", "Spread in percentage of channels with high liquidity availability")
+				) %>%
+				filter(tab==histo_tab) %>%
+				t %>%
+				as.data.frame,
+				function(x)
+					simResultServer(id="sim_result",
+						resId=x[1],
+						tabId=x[2],
+						xvar=x[3],
+						desc=x[4],
+						sim_output
+					)
+			)
+		})
+		# build reactive histograms
+		lapply(
+			data.frame(
+				plotId=c("cost", "flow", "bal"),
+				xlab=c(
+					"Total path cost (ppm)",
+					"Path maximum liquidity flow (sat)",
+					"Percentage of channels in path with at least 1M routable sats"),
+				xvar=c("path_fee", "max_path_flow", "known_1Mmin")) %>% t %>% as.data.frame,
+			function(x)
+				histoPlotServer(id="histo_tab_selected", plotId=x[1], xvar=x[3], xlab=x[2], sim_res=sim_output)
+		)
+		# build reactive scatterplots
+		lapply(
+			data.frame(
+				plotId=c("flowcost", "flowbal", "balcost"),
+				xlab=c(
+					"Path maximum liquidity flow (sat)",
+					"Path maximum liquidity flow (sat)",
+					"Path cost (ppm)"),
+				ylab=c(
+					"Path cost (ppm)",
+					"% of path with known minimum of 1M routable sats",
+					"% of path with known minimum of 1M routable sats"),
+				xvar=c("max_path_flow", "max_path_flow", "path_fee"),
+				yvar=c("path_fee", "known_1Mmin", "known_1Mmin")) %>% t %>% as.data.frame,
+			function(x)
+				scatterPlotServer(id="scatter_tab_selected", plotId=x[1], xlab=x[2], ylab=x[3], xvar=x[4], yvar=x[5], sim_output)
+		)
+		# start the simulation when the start button is selected
+		sim_result <- eventReactive(sim_start_button(), {
+			req(out_node() != "")
+			req(in_node() != "")
+			simulationServer("launch_sim", subject, out_node, in_node)() %>% filter(path_fee<10e3)
+		})
+		# generate and manage invoice once simulation is done
+		invoice <- invoiceHandlingServer(
+			"rebalsim_inv",
+			reactive_trigger=sim_result,
+			inv_fetch_url=Sys.getenv("STORE_URL"),
+			inv_amt=Sys.getenv("REBALSIM_MSAT"),
+			inv_desc="rebalance simulator")
+		# require that the invoice be paid to reactively show simulation results
+		sim_output <- eventReactive(invoice(), {
+			req(invoice() == "Paid")
+			sim_result()
+		})
+	})
+
+}
+
+
+rebalsimApp <- function() {
+  
+	ui <- dashboardPage(
+		dashboardHeader(title='Rebalance Simulator'),
+		dashboardSidebar(),
+		dashboardBody(rebalsimUI('x')),
+		skin='yellow',
+	)
+	server <- function(input, output, session) {
+		rebalsimServer('x')
+	}
+	shinyApp(ui, server)
+  
+}

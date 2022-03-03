@@ -3,7 +3,6 @@ library(dbplyr)
 library(tidygraph)
 library(jsonlite)
 library(igraph)
-library(sna)
 library(lubridate)
 library(intergraph)
 library(networkD3)
@@ -23,31 +22,45 @@ library(qrencoder)
 library(stringi)
 library(DBI)
 library(RPostgreSQL)
+library(pool)
+
+pool <- dbPool(
+        drv=PostgreSQL(),
+        host=Sys.getenv("DB_HOST"),
+        port=Sys.getenv("DB_PORT"),
+        dbname=Sys.getenv("DB_NAME"),
+        user=Sys.getenv("DB_USER"),
+        password=Sys.getenv("DB_PW")
+)
 
 # load data and functions for applications
-load('data/graph.Rda')
-
-source('R/db.R', local=TRUE)
-source('R/graph-functions.R', local=TRUE)
+source('inst/graph-functions.R', local=TRUE)
+source('inst/globals.R', local=TRUE)
 
 # load in invoice management
-source('store/api.R')
+source('inst/store/api.R', local=TRUE)
 
 # load user account management
-source('R/session-mgmt.R', local=TRUE)
-source('R/login.R')
-source('R/logout.R')
-source('R/accounts-internal.R')
+source('inst/session-mgmt.R', local=TRUE)
+source('inst/login.R', local=TRUE)
+source('inst/logout.R', local=TRUE)
+source('inst/accounts-internal.R', local=TRUE)
 
 # load in build your own chart app
-source('R/byoc.R', local=TRUE)
+source('inst/byoc.R', local=TRUE)
 
 # load the channel simulator
-source('R/chan-sim.R', local=TRUE)
+source('inst/chan-sim.R', local=TRUE)
+
+# load the rebalance simulator
+source('inst/rebal-sim.R', local=TRUE)
 
 # load top-level shiny components
-source('R/server.R', local=TRUE)
-source('R/ui.R', local=TRUE)
+source('inst/server.R', local=TRUE)
+source('inst/ui.R', local=TRUE)
 
+onStop(function() {
+	poolClose(pool)
+})
 # start the shiny app
 shinyApp(ui, server)

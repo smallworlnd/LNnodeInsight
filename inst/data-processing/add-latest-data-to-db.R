@@ -10,6 +10,7 @@ library(intergraph)
 library(httr)
 library(DBI)
 library(RPostgreSQL)
+library(ghql)
 
 build_graph_from_data_req <- function(data_req) {
 	# fetch screenshot time of the graph
@@ -188,7 +189,7 @@ summarise_nd_from_data_req <- function(data_req) {
 	ss.time <- data_req$date
 	nd_resp <- content(data_req, as="text") %>% fromJSON(flatten=TRUE)
 
-	nd_scored_stable <- lapply(
+	chan_states <- lapply(
 		c('scored', 'stable'),
 		function(x)
 			eval(parse(text=paste0('nd_resp$', x))) %>%
@@ -203,23 +204,24 @@ summarise_nd_from_data_req <- function(data_req) {
 			as_tibble %>%
 			unique %>%
 			rename('value'='.') %>%
-			group_by(name, value) %>%
-			mutate(t1=n()) %>%
-			ungroup %>%
-			mutate(key=ifelse((key=="inbound" | key=="outbound") & t1==2, "inbound_and_outbound", key)) %>%
-			unique %>%
-			group_by(name, key) %>%
-			mutate(t1=n()) %>%
-			ungroup %>%
-			mutate(value=ifelse(key=="inbound_and_outbound" | key=="inbound" | key=="outbound", t1, value)) %>%
-			unique %>%
-			dplyr::select(-t1) %>%
 			group_by(name) %>%
 			do(add_row(., key="state", value=x)) %>%
 			ungroup %>%
 			fill(name)
 		) %>%
 		bind_rows
+	nd_scored_stable <- chan_states %>%
+		group_by(name, value) %>%
+		mutate(t1=n()) %>%
+		ungroup %>%
+		mutate(key=ifelse((key=="inbound" | key=="outbound") & t1==2, "inbound_and_outbound", key)) %>%
+		unique %>%
+		group_by(name, key) %>%
+		mutate(t1=n()) %>%
+		ungroup %>%
+		mutate(value=ifelse(key=="inbound_and_outbound" | key=="inbound" | key=="outbound", t1, value)) %>%
+		unique %>%
+		dplyr::select(-t1)
 	nd_unstable <- nd_resp$unstable %>%
 		unlist %>%
 		as.data.frame %>%
@@ -239,7 +241,15 @@ summarise_nd_from_data_req <- function(data_req) {
 		replace_na(list(inbound=0, outbound=0, inbound_and_outbound=0)) %>%
 		mutate(rank=rank(-score, ties.method='first'), time=ss.time, good_peers=inbound+outbound+inbound_and_outbound) %>%
 		rename('pubkey'='name')
-	return(nd_agg)
+	high_bal <- chan_states %>%
+		filter(key=='inbound' | key=='outbound') %>%
+		mutate(
+			from.key=ifelse(key=='inbound', value, name),
+			to.key=ifelse(key=='outbound', value, name)) %>%
+		dplyr::select(from.key, to.key)
+	fail_state <- nd_unstable %>% filter(key=='state') %>% dplyr::select(-key)
+	return(list(agg=nd_agg, bal=high_bal, state=fail_state))
+
 }
 
 summarise_bos_from_data_req <- function(data_req) {
@@ -252,6 +262,16 @@ summarise_bos_from_data_req <- function(data_req) {
 		mutate(time=as_datetime(ss.time)) %>%
 		as_tibble
 	return(bos)
+}
+
+summarise_amboss_communities_from_data_req <- function(data_req) {
+	communities <- Map(cbind,
+		data_req$data$getAllCommunities$member_list,
+		name=data_req$data$getAllCommunities$details$name) %>%
+			lapply(as.data.frame) %>%
+			bind_rows() %>% rename(c('pubkey'='V1', 'community'='name')) %>%
+			as_tibble
+	return(communities)
 }
 
 # connect to the db
@@ -306,9 +326,34 @@ if (!graph_error) {
 	)
 }
 
+# upload new users to db
+if (!graph_error) {
+	tryCatch({
+		users_in_db <- tbl(con, 'users') %>% as_tibble %>% dplyr::select(pubkey, alias)
+		users_in_graph <- latest_node_summary %>% dplyr::select(pubkey, alias)
+		new_users <- setdiff(users_in_graph$pubkey, users_in_db$pubkey)
+		if (length(new_users) > 0) {
+			users_to_add <- users_in_graph %>% filter(pubkey %in% new_users) %>% dplyr::select(pubkey, alias)
+			permissions <- 'standard'
+			new_users_df <- data.frame(users_to_add, permissions)
+			names(new_users_df) <- c('pubkey', 'alias', 'permissions')
+			dbWriteTable(con, 'users', new_users_df, row.names=FALSE, overwrite=FALSE, append=TRUE)
+		}
+
+		},
+		error = function(e) { 
+			print(e)
+			print("Could not upload new users")
+		},
+		warning = function(w) {
+			print(w)
+		}
+	)
+}
+
 tryCatch({
 	nd_req <- RETRY("GET", url=Sys.getenv("ND_URL"), times=5, pause_min=2)
-	nd_agg <- summarise_nd_from_data_req(nd_req)
+	nd <- summarise_nd_from_data_req(nd_req)
 	nd_error <- http_error(nd_req)
 	},
 	error = function(e) { 
@@ -323,7 +368,9 @@ tryCatch({
 
 if (!nd_error) {
 	tryCatch({
-		dbWriteTable(con, 'nd', nd_agg, row.names=FALSE, overwrite=FALSE, append=TRUE)
+		dbWriteTable(con, 'nd', nd$agg, row.names=FALSE, overwrite=FALSE, append=TRUE)
+		dbWriteTable(con, 'nd_bal', nd$bal, row.names=FALSE, overwrite=TRUE)
+		dbWriteTable(con, 'nd_fail', nd$state, row.names=FALSE, overwrite=TRUE)
 		dbExecute(con, 'delete from nd where "time" <= now() - interval \'3 month\'')
 		},
 		error = function(e) { 
@@ -367,8 +414,46 @@ if (!bos_error) {
 }
 
 tryCatch({
+	conn <- GraphqlClient$new(url=Sys.getenv("AMBOSS_URL"))
+	query <- '
+	{
+	  getAllCommunities {
+		member_list
+		details {
+		  name
+		}
+	  }
+	}'
+	new <- Query$new()$query('link', query)
+	data_req <- conn$exec(new$link) %>% fromJSON(flatten=F)
+	amboss_communities <- summarise_amboss_communities_from_data_req(data_req)
+	},
+	error = function(e) { 
+		print(e)
+		print("Could not fetch amboss data")
+	},
+	warning = function(w) {
+		print(w)
+	}
+)
+
+if (exists("amboss_communities") && nrow(amboss_communities) > 0) {
+	tryCatch({
+		dbWriteTable(con, 'communities', amboss_communities, row.names=FALSE, overwrite=FALSE, append=TRUE)
+		},
+		error = function(e) { 
+			print(e)
+			print("Could not upload amboss data")
+		},
+		warning = function(w) {
+			print(w)
+		}
+	)
+}
+
+tryCatch({
 	dbDisconnect(con)
-	print("DB connection closed")
+	print("Successfully closed DB connection")
 	},
 	error = function(e) { 
 		print(e)

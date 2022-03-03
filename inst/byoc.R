@@ -15,8 +15,7 @@ chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'Terminal Web score'='tweb.score',
 	'BOS score'='bos')
 
-comms <- tbl(con, 'communities') %>% as_tibble
-comms_list <- comms %>% pull(community) %>% unique
+comms_list <- tbl(pool, 'communities') %>% distinct(community) %>% arrange %>% pull
 
 histogramUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 	ns <- shiny::NS(id)
@@ -63,17 +62,25 @@ scatterplotUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 	)
 }
 
-histogramServer <- function(id, tblgraph=g, vars=chart_vars, communities_list=comms_list, communities_df=comms, logged_in=FALSE) {
+histogramServer <- function(id, db=pool, vars=chart_vars, communities_list=comms_list, logged_in=FALSE) {
 	moduleServer(id, function(input, output, session) {
 		shiny::observe({
 			shinyjs::toggle('histo_comm', condition=logged_in())
 		})
 		output$histo <- renderPlotly({
+			req(input$histo_var != "")
 			if (logged_in() && input$histo_comm != "") {
-				pubkeys <- communities_df %>% filter(community %in% input$histo_comm) %>% pull(pubkey)
-				dat <- tblgraph %>% as_tibble %>% filter(name %in% pubkeys)
+				pubkeys <- db %>% tbl('communities') %>%
+					filter(community %in% !!input$histo_comm) %>%
+					pull(pubkey)
+				dat <- db %>% tbl('nodes_current') %>%
+					filter(pubkey %in% !!pubkeys) %>%
+					dplyr::select(!!input$histo_var) %>%
+					as_tibble
 			} else {
-				dat <- tblgraph %>% as_tibble
+				dat <- db %>% tbl('nodes_current') %>%
+					dplyr::select(local(chart_vars[input$histo_var] %>% as.vector)) %>%
+					as_tibble
 			}
 			plot_ly(dat,
 				x=as.formula(paste0('~', vars[input$histo_var]))) %>%
@@ -94,19 +101,36 @@ histogramServer <- function(id, tblgraph=g, vars=chart_vars, communities_list=co
 	})
 }
 
-scatterplotServer <- function(id, tblgraph=g, vars=chart_vars, communities_list=comms_list, communities_df=comms, logged_in=FALSE) {
+scatterplotServer <- function(id, db=pool, vars=chart_vars, communities_list=comms_list, logged_in=FALSE) {
 	moduleServer(id, function(input, output, session) {
 		shiny::observe({
 			shinyjs::toggle('scatter_comm', condition=logged_in())
 		})
 		output$scatter <- renderPlotly({
+			req(input$scatter_xvar != "" && input$scatter_yvar != "")
 			if (logged_in() && input$scatter_comm != "") {
-				pubkeys <- communities_df %>% filter(community %in% input$scatter_comm) %>% pull(pubkey)
-				dat <- g %>% as_tibble %>% mutate(Group=ifelse(name %in% pubkeys, input$scatter_comm, "Rest of the LN"))
+				pubkeys <- db %>% tbl('communities') %>%
+					filter(community %in% !!input$scatter_comm) %>%
+					pull(pubkey)
+				dat <- db %>% tbl('nodes_current') %>%
+					mutate(Group=ifelse(name %in% !!pubkeys, !!input$scatter_comm, "Rest of the LN")) %>%
+					dplyr::select(
+						alias,
+						local(chart_vars[input$scatter_xvar] %>% as.vector),
+						local(chart_vars[input$scatter_yvar] %>% as.vector),
+						Group) %>%
+					as_tibble
 			} else {
-				dat <- tblgraph %>% as_tibble %>% mutate(Group="LN")
+				dat <- db %>% tbl('nodes_current') %>%
+					mutate(Group="LN") %>%
+					dplyr::select(
+						alias,
+						local(chart_vars[input$scatter_xvar] %>% as.vector),
+						local(chart_vars[input$scatter_yvar] %>% as.vector),
+						Group) %>%
+					as_tibble
 			}
-			plot_ly(dat %>% as_tibble,
+			plot_ly(dat,
 				type='scatter', split=~Group, text=~alias,
 				hovertemplate=paste0("%{text}\n", "%{x}, %{y}"),
 				x=as.formula(paste0('~', vars[input$scatter_xvar])),
@@ -141,9 +165,14 @@ byocServer <- function(input, output, session, reactive_show) {
 	scatterplotServer('ln_scatter', logged_in=reactive_show)
 }
 
-byocDemo <- function() {
+byocApp <- function() {
   
-	ui <- fluidPage(byocUI("x"))
+	ui <- dashboardPage(
+		dashboardHeader(title='Build Your Own Chart'),
+		dashboardSidebar(),
+		dashboardBody(byocUI('x')),
+		skin='yellow',
+	)
 	server <- function(input, output, session) {
 		byocServer("x", reactive_show=reactive(TRUE))
 	}
