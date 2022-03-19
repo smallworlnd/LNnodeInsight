@@ -1,3 +1,4 @@
+# needs startButtonServer in lnni-common
 filter_vars <- c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops")
 filter_descr <- c(
 	'Filter by range of total capacity (in bitcoin)',
@@ -132,7 +133,7 @@ chansimUI <- function(id) {
 					)
 				),
 				column(12, align='center',
-					startButtonUI(NS(id, 'launch_sim'))
+					startButtonUI(NS(id, 'launch_sim'), lab="Start")
 				),
 			),
 			tabBox(
@@ -143,7 +144,7 @@ chansimUI <- function(id) {
 					id=NS(id, 'chansim_venn_tab'),
 					title='Peer overlap', width=NULL,
 					value='chansim_venn_tab',
-					peerOverlapUI(NS(id, 'chansim_venn')),
+					peerVennUI(NS(id, 'chansim_venn')),
 				) 
 			),
 		),
@@ -159,16 +160,16 @@ chansimUI <- function(id) {
 
 }
 
-peerOverlapUI <- function(id) {
+peerVennUI <- function(id) {
 	withSpinner(
 		plotlyOutput(NS(id, 'chansim_venn'))
 	)
 }
 
-startButtonUI <- function(id) {
+startButtonUI <- function(id, lab) {
 	actionBttn(
 		inputId=NS(id, 'launch_sim_button'),
-		label='Start',
+		label=lab,
 		style='fill',
 		color='success',
 		block=FALSE
@@ -245,7 +246,7 @@ centralityRankOutput <- function(id, data) {
 	})
 }
 
-peerOverlapServer <- function(id, subject, targets) {
+peerVennServer <- function(id, subject, targets) {
 	moduleServer(id, function(input, output, session) {
 		output$chansim_venn <- renderPlotly({
 			req(subject() != "")
@@ -423,12 +424,6 @@ getChannelActions <- function(id) {
 	})
 }
 
-startButtonServer <- function(id) {
-	moduleServer(id, function(input, output, session) {
-		reactive(input$launch_sim_button)
-	})
-}
-
 chansimServer <- function(id, reactive_show) {
 	moduleServer(id, function(input, output, session) {
 		subject <- getSubject('subject_select')
@@ -436,12 +431,12 @@ chansimServer <- function(id, reactive_show) {
 		target_choices <- reactiveVal()
 		sim_output <- reactiveValues()
 		channel_actions <- getChannelActions('target_select')
-		launch_sim <- startButtonServer('launch_sim')
+		launch_sim <- startButtonServer('launch_sim', buttonId="launch_sim_button")
 
 		observe({
 			target_choices <- applyFiltersToTargetsServer('filters', pubkey=subject())
 			output$targets_num <- renderFilterBarServer('filterbar', target_choices)
-			output$chansim_venn <- peerOverlapServer('chansim_venn', subject, targets)
+			output$chansim_venn <- peerVennServer('chansim_venn', subject, targets)
 
 			targetUpdateServer('target_select', target_choices)
 

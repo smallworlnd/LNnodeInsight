@@ -12,7 +12,7 @@ library(RPostgreSQL)
 pool <- dbPool(
 	drv=PostgreSQL(),
 	host=Sys.getenv("DB_HOST"),
-	port=5432,
+	port=Sys.getenv("DB_PORT"),
 	dbname=Sys.getenv("DB_NAME"),
 	user=Sys.getenv("DB_USER"),
 	password=Sys.getenv("DB_PW"),

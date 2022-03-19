@@ -1,3 +1,5 @@
+# code adapted from https://github.com/PaulC91/shinyauthr
+
 cookie_expiry <- 7 # Days until session expires
 
 get_sessions_from_db <- function(conn=con, expiry=cookie_expiry) {

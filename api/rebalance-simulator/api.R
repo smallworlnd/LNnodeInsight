@@ -8,16 +8,16 @@ if(Sys.getenv("PORT") == "") Sys.setenv(PORT = 8000)
 #* @post /rebal_res
 #' @serializer tsv
 path_flow_cost <- function(subject_pubkey="", out_pubkey, in_pubkey, max_samp=1000) {
-	in_id <- fetch_id_from_pubkey(graph, in_pubkey)
-	out_id <- fetch_id_from_pubkey(graph, out_pubkey)
+	in_id <- fetch_id_from_pubkey(dir_graph, in_pubkey)
+	out_id <- fetch_id_from_pubkey(dir_graph, out_pubkey)
 	# figure out if in_pubkey has channel to subject_pubkey
-	if (subject_pubkey != "" && are_adjacent(graph, fetch_id_from_pubkey(nodes, subject_pubkey), in_id)) {
-		return_fee <- E(graph, path=data.frame(from=in_id, to=fetch_id_from_pubkey(nodes, subject_pubkey)))$from_fee_rate
+	if (subject_pubkey != "" && are_adjacent(dir_graph, fetch_id_from_pubkey(dir_graph, subject_pubkey), in_id)) {
+		return_fee <- E(dir_graph, path=data.frame(from=in_id, to=out_id))$from_fee_rate
 	} else {
 		# otherwise use median in_pubkey fee
 		return_fee <- nodes %>% filter(pubkey==in_pubkey) %>% pull(median.rate.ppm)
 	}
 	# find a single shortest path
-	dat <- build_path_flow_cost_dist(graph, out_id, in_id, return_fee)
+	dat <- build_path_flow_cost_dist(dir_graph, out_id, in_id, return_fee)
 	return(dat)
 }

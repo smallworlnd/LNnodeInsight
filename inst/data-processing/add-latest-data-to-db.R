@@ -22,6 +22,7 @@ build_graph_from_data_req <- function(data_req) {
 	nodes <- dg_resp$nodes %>%
 		unnest(addresses) %>%
 		dplyr::select(pub_key, alias) %>%
+		rename('pubkey'='pub_key') %>%
 		unique
 	# fetch links
 	edges <- dg_resp$edges %>%
@@ -89,47 +90,37 @@ build_graph_from_data_req <- function(data_req) {
 			mean.rate.ppm=mean(rate.ppm, na.rm=TRUE),
 			median.base.msat=median(base.msat, na.rm=TRUE),
 			median.rate.ppm=median(rate.ppm, na.rm=TRUE))
+	# join node information
+	nodes <- list(nodes, capacity, fees, chanstates) %>% 
+		reduce(left_join, by="pubkey")
 	# build graph
-	g <- edges %>%
+	channels <- edges %>%
 		dplyr::select(node1_pub, node2_pub, capacity, last_update, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
 		mutate(last_update=as.numeric(as_datetime(max(last_update, na.rm=TRUE)) - as_datetime(last_update), units='days')) %>%
-		rename(c('from_base_fee'='node1_policy.fee_base_msat', 'from_fee_rate'='node1_policy.fee_rate_milli_msat', 'to_base_fee'='node2_policy.fee_base_msat', 'to_fee_rate'='node2_policy.fee_rate_milli_msat')) %>%
-		graph.data.frame(directed=TRUE) %>%
-		as_tbl_graph %>%
-		rename('pubkey'='name')
-	# join node information
-	g <- left_join(g, nodes, by=c('pubkey'='pub_key'))
-	# join capacity
-	g <- left_join(g, capacity, by='pubkey')
-	# join the fee values
-	g <- left_join(g, fees, by='pubkey')
-	# join channel activity
-	g <- left_join(g, chanstates, by='pubkey')
+		rename(c('from_base_fee'='node1_policy.fee_base_msat', 'from_fee_rate'='node1_policy.fee_rate_milli_msat', 'to_base_fee'='node2_policy.fee_base_msat', 'to_fee_rate'='node2_policy.fee_rate_milli_msat', 'from'='node1_pub', 'to'='node2_pub')) %>%
+		as_tibble
 
+	# expand single edges into 2 to express asymmetric chann properties
+	rev_edges <- channels %>%
+		mutate(f=to, t=from, fbf=to_base_fee, tbf=from_base_fee, ff=to_fee_rate, tf=from_fee_rate, direction=0) %>%
+		dplyr::select(f, t, capacity, last_update, fbf, ff, tbf, tf, direction) %>%
+		rename(c('from'='f', 'to'='t', 'from_base_fee'='fbf', 'from_fee_rate'='ff', 'to_base_fee'='tbf', 'to_fee_rate'='tf'))
+	forw_edges <- channels %>% mutate(direction=1)
+	all_edges <- rbind(forw_edges, rev_edges)
+	g <- as_tbl_graph(all_edges, directed=TRUE, node_key='pubkey') %>%
+		rename('pubkey'='name') %>%
+		left_join(., nodes, by='pubkey')
 	# keep only the main network
 	g <- decompose(g, mode='weak')[[1]] %>%
 		as_tbl_graph %>%
 		mutate(id=row_number())
-
-	# expand single edges into 2 to express asymmetric chann properties
-	verts <- g %>% as_tibble
-	rev_edges <- g %>%
-		activate(edges) %>%
-		as_tibble %>%
-		mutate(f=to, t=from, fbf=to_base_fee, tbf=from_base_fee, ff=to_fee_rate, tf=from_fee_rate, direction=0) %>%
-		dplyr::select(f, t, capacity, last_update, fbf, ff, tbf, tf, direction) %>%
-		rename(c('from'='f', 'to'='t', 'from_base_fee'='fbf', 'from_fee_rate'='ff', 'to_base_fee'='tbf', 'to_fee_rate'='tf'))
-	forw_edges <- g %>% activate(edges) %>% as_tibble %>% mutate(direction=1)
-	all_edges <- rbind(forw_edges, rev_edges)
-	g <- tbl_graph(nodes=verts, edges=all_edges, directed=TRUE, node_key='pubkey')
-	g_node_ids <- paste(g %>% pull(alias), "-", g %>% pull(pubkey))
 
 	# heuristics to speed up centrality measures
 	# ignore nodes with >50% inactive channels, total capacity <1e5 (q1) and only 1 channel (q1)
 	heuristics <- g %>%
 		as_tibble %>%
 		dplyr::select(tot.capacity, num.channels) %>%
-		summarise(q1capacity=quantile(tot.capacity, 0.25), q1num.channels=quantile(num.channels, 0.25))
+		summarise(q1capacity=quantile(tot.capacity, 0.25, na.rm=TRUE), q1num.channels=quantile(num.channels, 0.25, na.rm=TRUE))
 	g_heur <- g %>%
 		filter(
 			act.channels>0,
@@ -170,10 +161,9 @@ build_graph_from_data_req <- function(data_req) {
 		cent.between.weight=g_betw_w$cent.between.weight,
 		cent.close.weight=g_clo_w$cent.close.weight,
 		cent.eigen.weight=g_eigen_w$cent.eigen.weight)
-	g <- left_join(g, g_cent_summ, by='pubkey')
-	g <- left_join(g, g_cent_w_summ, by='pubkey')
-	# compute ranks for centrality scores
-	g <- g %>%
+
+	nodes <- list(nodes, g_cent_summ, g_cent_w_summ) %>% 
+		reduce(left_join, by="pubkey") %>%
 		mutate(
 			time=ss.time,
 			cent.between.rank=rank(-cent.between, ties.method='first'),
@@ -182,7 +172,7 @@ build_graph_from_data_req <- function(data_req) {
 			cent.between.weight.rank=rank(-cent.between.weight, ties.method='first'),
 			cent.close.weight.rank=rank(-cent.close.weight, ties.method='first'),
 			cent.eigen.weight.rank=rank(-cent.eigen.weight, ties.method='first'))
-	return(g)
+	return(list(nodes=nodes, channels=all_edges))
 }
 
 summarise_nd_from_data_req <- function(data_req) {
@@ -297,8 +287,8 @@ tryCatch({
 	dg_req <- GET(url=Sys.getenv("GRAPH_ENDPOINT"), config=graph_headers)
 	latest_graph <- build_graph_from_data_req(dg_req)
 	# split the graph into parts for easy uploading
-	latest_node_summary <- latest_graph %>% as_tibble
-	latest_edges <- latest_graph %>% activate(edges) %>% as_tibble
+	latest_node_summary <- latest_graph$nodes
+	latest_edges <- latest_graph$channels
 	graph_error <- http_error(dg_req)
 	},
 	error = function(e) { 
@@ -311,10 +301,10 @@ tryCatch({
 # upload latest graph data to the db
 if (!graph_error) {
 	tryCatch({
-		dbWriteTable(con, 'nodes_historical', latest_node_summary, row.names=FALSE, overwrite=FALSE, append=TRUE)
+		dbWriteTable(con, 'nodes_historical', latest_graph$nodes, row.names=FALSE, overwrite=FALSE, append=TRUE)
 		dbExecute(con, 'delete from nodes_historical where "time" <= now() - interval \'3 month\'')
-		dbWriteTable(con, 'nodes_current', latest_node_summary, row.names=FALSE, overwrite=TRUE)
-		dbWriteTable(con, 'edges_current', latest_edges, row.names=FALSE, overwrite=TRUE)
+		dbWriteTable(con, 'nodes_current', latest_graph$nodes, row.names=FALSE, overwrite=TRUE)
+		dbWriteTable(con, 'edges_current', latest_graph$channels, row.names=FALSE, overwrite=TRUE)
 		},
 		error = function(e) { 
 			print(e)

@@ -8,7 +8,7 @@ server <- function(input, output, session) {
 		sessionid_col="sessionid",
 		cookie_getter=get_sessions_from_db,
 		cookie_setter=add_session_to_db,
-		rest_url_base=rest_url,
+		rest_url_base=Sys.getenv("VERIFY_MSG_URL"),
 		rest_headers=rest_headers,
 		rest_content=rest_content,
 		log_out=reactive(logout_init())
@@ -75,8 +75,8 @@ server <- function(input, output, session) {
 		}
 	})
 	dashboardServer('dashboard')
-	#nodeStatsServer('nodestats')
-	#rebalsimServer('rebalsim')
-	chansimServer('chansim', reactive(credentials()$user_auth))
 	byocServer('byoc', reactive_show=reactive(credentials()$user_auth))
+	nodestatsServer('nodestats')
+	rebalsimServer('rebalsim')
+	chansimServer('chansim', reactive(credentials()$user_auth))
 }

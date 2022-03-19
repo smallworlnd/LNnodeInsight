@@ -1,1 +1,5 @@
-R/data-processing
+inst/data-processing
+notes.md
+deploy.R
+.Renviron
+.git

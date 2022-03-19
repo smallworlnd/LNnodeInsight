@@ -1,14 +1,5 @@
-modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
-	value <- restoreInput(id = inputId, default = NULL)
-	tags$button(id = inputId, type = "button", style = if (!is.null(width)) 
-	paste0("width: ", validateCssUnit(width), ";"), type = "button", 
-	class = "btn btn-default action-button", `data-dismiss` = "modal", `data-val` = value, 
-	list(shiny:::validateIcon(icon), label), ...)
-}
-
-store_headers <- add_headers(c(
-	"Content-Type"=paste("application/json"),
-	"Authorization"=paste("token", Sys.getenv("STORE_API_KEY"), sep=" ")))
+# needs nodeSelectUI, nodeListServer, getNodePubkey, modalActionButton,
+# startButtonServer
 
 simTypeUI <- function(id) {
 	prettyRadioButtons(
@@ -21,19 +12,10 @@ simTypeUI <- function(id) {
 	)
 }
 
-nodeSelectUI <- function(id, nodeId, lab) {
-	selectizeInput(
-		inputId=NS(id, nodeId),
-		label=lab,
-		choices=NULL,
-		options=list(placeholder='Pubkey/alias')
-	)
-}
-
-startButtonUI <- function(id) {
+startButtonUI <- function(id, lab) {
 	actionBttn(
 		inputId=NS(id, 'launch_sim_button'),
-		label=paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"),
+		label=lab,
 		style='fill',
 		color='success',
 		block=FALSE
@@ -76,11 +58,11 @@ rebalsimUI <- function(id) {
 					conditionalPanel(
 						"output.sim_type_choice == 1", ns=ns,
 						# simulating a rebalance
-						nodeSelectUI(NS(id, "node_select"), nodeId="subject", lab="Enter a pubkey/alias on which to simulate a circular rebalance")
+						nodeSelectUI(NS(id, "node_select"), listId="subject", lab="Enter a pubkey/alias on which to simulate a circular rebalance")
 					),
-					nodeSelectUI(NS(id, "node_select"), nodeId="out_node", lab="Enter/choose an outgoing node"),
-					nodeSelectUI(NS(id, "node_select"), nodeId="in_node", lab="Enter/select an incoming node"),
-					column(12, align='center', startButtonUI(NS(id, "launch_sim"))),
+					nodeSelectUI(NS(id, "node_select"), listId="out_node", lab="Enter/choose an outgoing node"),
+					nodeSelectUI(NS(id, "node_select"), listId="in_node", lab="Enter/select an incoming node"),
+					column(12, align='center', startButtonUI(NS(id, "launch_sim"), lab=paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"))),
 					background='yellow', width=12,
 				),
 				do.call(tabBox,
@@ -125,32 +107,6 @@ rebalsimUI <- function(id) {
 	)
 }
 
-nodeListServer <- function(id, pubkey_list=node_ids) {
-	moduleServer(id, function(input, output, session) {
-		lapply(c("subject", "out_node", "in_node"), function(x)
-			updateSelectizeInput(
-				session,
-				inputId=x,
-				choices=c("Pubkey or alias"=NULL, pubkey_list),
-				selected=character(0),
-				server=TRUE
-			)
-		)
-	})
-}
-
-getNodePubkey <- function(id, node) {
-	moduleServer(id, function(input, output, session) {
-		reactive(fetch_pubkey(eval(parse(text=paste0('input$', node)))))
-	})
-}
-
-startButtonServer <- function(id) {
-	moduleServer(id, function(input, output, session) {
-		reactive(input$launch_sim_button)
-	})
-}
-
 simulationServer <- function(id, subject, out_node, in_node) {
 	moduleServer(id, function(input, output, session) {
 		showModal(
@@ -174,74 +130,6 @@ simulationServer <- function(id, subject, out_node, in_node) {
 		sim_resp <- content(sim_query)
 		removeModal()
 		return(reactive(sim_resp))
-	})
-}
-
-invoiceGenerator <- function(id, link, amt, desc) {
-	moduleServer(id, function(input, output, session) {
-		# build an invoice for the service
-		inv_body <- toJSON(
-			list(
-				amount=format(as.numeric(amt), scientific=FALSE),
-				description=desc,
-				expiry=360,
-				privateRouteHints=TRUE),
-			auto_unbox=TRUE)
-		inv <- content(POST(url=link, body=inv_body, config=store_headers))
-		return(inv)
-	})
-}
-
-invoiceDisplayServer <- function(id, invoice, amt) {
-	moduleServer(id, function(input, output, session) {
-		ns <- session$ns
-		output$inv_qr <- renderPlot({
-			ggqrcode(invoice$BOLT11)
-		})
-		qrModal <- function() {
-			modalDialog(
-				plotOutput(ns("inv_qr"), height='270px', width='270px'),
-				title=paste("Done! Please pay", as.numeric(amt)/1e3, "sats to view results."),
-				size='s',
-				footer=tagList(
-					rclipButton(ns("clipbtn"), "Copy", invoice$BOLT11, icon("clipboard"), modal=TRUE),
-					modalActionButton(ns("cancel"), "Cancel")
-				)
-			)
-		}
-		showModal(qrModal())
-	})
-}
-
-invoiceHandlingServer <- function(id, reactive_trigger, inv_fetch_url, inv_amt, inv_desc) {
-	moduleServer(id, function(input, output, session) {
-		invoice <- reactiveValues(details=NULL)
-		observeEvent(reactive_trigger(), {
-			invoice$details <- invoiceGenerator("rebalsim_inv", inv_fetch_url, inv_amt, inv_desc)
-			invoiceDisplayServer("rebalsim_inv", invoice$details, inv_amt)
-		})
-
-		inv_cancel <- invoiceCancel("rebalsim_inv")
-		observeEvent(inv_cancel(), {
-			invoice$details$status <- "Cancelled"
-		})
-		observe({
-			req(invoice$details)
-			if (invoice$details$status != "Cancelled" && invoice$details$status == "Unpaid") {
-				invoice$details$status <- content(GET(url=paste0(inv_fetch_url, '/', invoice$details$id), config=store_headers))$status
-				invalidateLater(2000)
-			} else {
-				removeModal()
-				return()
-			}
-		})
-		return(reactive(invoice$details$status))
-	})
-}
-
-invoiceCancel <- function(id) {
-	moduleServer(id, function(input, output, session) {
-		return(reactive(input$cancel))
 	})
 }
 
@@ -311,7 +199,7 @@ simResultServer <- function(id, resId, tabId, xvar, desc, sim_res_reactive) {
 rebalsimServer <- function(id) {
 	moduleServer(id, function(input, output, session) {
 		# build list of nodes to select from
-		nodeListServer("node_select")
+		lapply(c("subject", "out_node", "in_node"), function(x) nodeListServer("node_select", listId=x))
 		# reactive pubkey selections
 		subject <- getNodePubkey("node_select", "subject")
 		out_node <- getNodePubkey("node_select", "out_node")
@@ -321,7 +209,7 @@ rebalsimServer <- function(id) {
 		outputOptions(output, "sim_type_choice", suspendWhenHidden=FALSE)
 
 		# start simulation reactive button
-		sim_start_button <- startButtonServer("launch_sim")
+		sim_start_button <- startButtonServer("launch_sim", "launch_sim_button")
 
 		# reactive output summary stats depending on active histogram tab
 		histo_tab <- reactive({input$histo_tab})
@@ -404,7 +292,6 @@ rebalsimServer <- function(id) {
 	})
 
 }
-
 
 rebalsimApp <- function() {
   

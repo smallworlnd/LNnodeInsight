@@ -1,6 +1,6 @@
-# code adapted from https://github.com/PaulC91/shinyauthr
 #' logout UI module
-#'
+#' 
+#' code adapted from https://github.com/PaulC91/shinyauthr
 #' Shiny UI Module for use with \link{logoutServer}
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function

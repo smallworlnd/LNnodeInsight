@@ -2,8 +2,8 @@ fetch_pubkey <- function(alias_pubkey) {
 	return(tail(str_split(alias_pubkey, " - ")[[1]], 1))
 }
 
-fetch_id_from_pubkey <- function(graph, pubkey) {
-	return(graph %>% filter(pubkey==!!pubkey) %>% pull(id))
+fetch_id_from_pubkey <- function(graph, key) {
+	return(V(graph)[V(graph)$pubkey==key] %>% as.numeric)
 }
 
 perc_nonNA <- function(vec) {
@@ -68,8 +68,6 @@ build_path_flow_cost_dist <- function(graph, out_id, in_id, return_fee, max_samp
 			next
 		} else if (nrow(fs) >= max_samp || (length(untested_paths) == 0 && failed_sample >= max_fails)) {
 			break
-		} else {
-			print('proceeding')
 		}
 		# compute the mean fee of all shortest paths
 		path_fee <- lapply(untested_paths, function(x) return_fee + E(graph, path=x)$from_fee_rate %>% sum) %>% unlist

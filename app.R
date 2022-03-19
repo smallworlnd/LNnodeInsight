@@ -35,25 +35,23 @@ pool <- dbPool(
 
 # load data and functions for applications
 source('inst/graph-functions.R', local=TRUE)
-source('inst/globals.R', local=TRUE)
-
-# load in invoice management
-source('inst/store/api.R', local=TRUE)
+source('inst/lnni-vars.R')
 
 # load user account management
 source('inst/session-mgmt.R', local=TRUE)
+source('inst/invoice-mgmt.R', local=TRUE)
 source('inst/login.R', local=TRUE)
 source('inst/logout.R', local=TRUE)
 source('inst/accounts-internal.R', local=TRUE)
 
-# load in build your own chart app
+# pages
+source("inst/lnni-common.R")
+source("inst/dashboard.R", local=TRUE)
+source("inst/node-stats.R", local=TRUE)
 source('inst/byoc.R', local=TRUE)
-
-# load the channel simulator
 source('inst/chan-sim.R', local=TRUE)
-
-# load the rebalance simulator
 source('inst/rebal-sim.R', local=TRUE)
+source("inst/faq.R", local=TRUE)
 
 # load top-level shiny components
 source('inst/server.R', local=TRUE)

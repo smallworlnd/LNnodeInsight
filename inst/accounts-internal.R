@@ -1,8 +1,7 @@
-# code adapted from https://github.com/PaulC91/shinyauthr
-
 #' Generate random string
 #'
 #' This function is used to generate random session ids.
+#' code adapted from https://github.com/PaulC91/shinyauthr
 #'
 #' @param n length of string
 #'

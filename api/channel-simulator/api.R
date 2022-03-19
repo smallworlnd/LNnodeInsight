@@ -11,10 +11,10 @@ if(Sys.getenv("PORT") == "") Sys.setenv(PORT = 8000)
 simulate_channel <- function(subject_pubkey, target_pubkeys, indel, amount=5e6) {
 	nodes <- pool %>% tbl("nodes_current") %>% as_tibble
 	links <- pool %>% tbl("edges_current") %>% filter(direction==1) %>% as_tibble
-	graph <- as_tbl_graph(links, directed=FALSE) %>%
-		rename('id'='name') %>%
-		mutate(id=as.numeric(id)) %>%
-		left_join(., nodes, by='id')
+	graph <- as_tbl_graph(links, directed=FALSE, node_key='pubkey') %>%
+		rename('pubkey'='name') %>%
+		left_join(., nodes, by='pubkey') %>%
+		mutate(id=row_number())
 	# gather simulation parameters to modify the graph
 	target_pubkeys_req <- data.frame(target_pubkeys, indel)
 	s_id <- graph %>%
@@ -47,8 +47,12 @@ simulate_channel <- function(subject_pubkey, target_pubkeys, indel, amount=5e6) 
 	}
 
 	# recompute centralities on this modified graph
+	heuristics <- graph %>%
+		as_tibble %>%
+		dplyr::select(tot.capacity, num.channels) %>%
+		summarise(q1capacity=quantile(tot.capacity, 0.25, na.rm=TRUE), q1num.channels=quantile(num.channels, 0.25, na.rm=TRUE))
 	graph_mod_filt <- graph_mod %>%
-		filter(act.channels>0, tot.capacity>70e3, num.channels>1) %>%
+		filter(act.channels>0, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
 		mutate(id=row_number()) %>%
 		dplyr::select(-c(cent.between, cent.close, cent.eigen)) %>%
 		mutate(

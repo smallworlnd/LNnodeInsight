@@ -1,137 +1,139 @@
-nodeStatsUI <- function(id) {
-	useShinyjs()
+# needs nodeSelectUI, nodeListServer, getNodePubkey, modalActionButton,
+# startButtonServer
+
+ambossLinkUI <- function(id) {
+	uiOutput(NS(id, 'amboss'))
+}
+
+nodeRanksUI <- function(id, rankId, desc) {
+	valueBoxOutput(NS(id, rankId), width=3) %>% bs_embed_tooltip(title=desc, placement='top')
+}
+
+ranksButtonUI <- function(id) {
+	actionBttn(
+		inputId=NS(id, 'past_ranks_button'),
+		label=paste('View historical ranks of this node for', as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats"),
+		style='fill',
+		color='success',
+		block=FALSE
+	)
+}
+
+plotOutputUI <- function(id, plotTitle, plotId, plotType) {
+	tabPanel(
+		plotTitle,
+		withSpinner(
+			eval(
+				parse(text=paste0(plotType, "(NS(id, \"", plotId, "\"))"))
+			)
+		),
+		value=plotId,
+		id=NS(id, paste0(plotId, '_tab')),
+		width=NULL
+	)
+}
+
+nodeStatHeaderUI <- function(id, txtId) {
+	uiOutput(NS(id, txtId))
+}
+
+nodestatsUI <- function(id) {
+	ns <- NS(id)
 	fluidRow(
+		useShinyjs(),
+		rclipboardSetup(),
 		column(8,
 			fluidRow(
-				box(selectizeInput(inputId="nodestats_subject", label='Enter pubkey/alias to view stats', choices=NULL, options=list(placeholder='Pubkey/alias')), background='yellow', width=12),
+				box(background='yellow', width=12,
+					nodeSelectUI(NS(id, "node_select"), listId="subject", lab='Enter pubkey/alias to view stats')
+				),
 			)
 		),
 		column(4,
 			tags$br(),
 			tags$div("Also see node stats on"),
-			uiOutput('ambossnodestats')
-		)),
-#				column(6,
-#					uiOutput('table_vars')),
-	h3('Current ranks'),
-	fluidRow(
-		valueBoxOutput('nodestats.cent.between', width=3) %>% bs_embed_tooltip(title="Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.", placement='top'),
-		valueBoxOutput('nodestats.cent.eigen', width=3) %>% bs_embed_tooltip(title="Eigenvector/hubness centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.", placement='top'),
-		valueBoxOutput('nodestats.cent.close', width=3) %>% bs_embed_tooltip(title="Closeness/hopness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.", placement='top'),
-		valueBoxOutput('nodestats.nd', width=3) %>% bs_embed_tooltip(title="Rank according to the system designed by Lightning Labs.", placement='top')),
-	fluidRow(
-		valueBoxOutput('nodestats.cent.between.weight', width=3) %>% bs_embed_tooltip(title="Betweenness centrality but using channel capacities as weights.", placement='top'),
-		valueBoxOutput('nodestats.cent.eigen.weight', width=3) %>% bs_embed_tooltip(title="Eigenvector/hubness centrality but using channel capacities as weights.", placement='top'),
-		valueBoxOutput('nodestats.cent.close.weight', width=3) %>% bs_embed_tooltip(title="Closeness/hopness centrality but using channel capacities as weights.", placement='top'),
-		valueBoxOutput('nodestats.bos', width=3) %>% bs_embed_tooltip(title="Rank according to the system designed by Alex Bosworth.", placement='top')),
-	h3("Historical ranks"),
-	conditionalPanel(
-		condition="input.nodestats_subject != ''",
-		conditionalPanel(
-			condition="output.histranks_inv_settled==TRUE",
-			withSpinner(plotlyOutput("rank_change", width=NULL)),
+			ambossLinkUI(NS(id, "link_to_amboss_page"))
+		),
+		column(12,
+			h3('Current ranks')
+		),
+		column(12,
+			lapply(
+				data.frame(
+					rankId=c("cent.between.rank", "cent.eigen.rank", "cent.close.rank", "nd.rank"),
+					desc=c(
+						"Betweenness centrality measures how many shortest paths a node sits in between any two other nodes. Higher ranking nodes tend to be in more shortest paths between other nodes and are thus more likely to be in a potential route.",
+						"Eigenvector/hubness centrality is a node's influence in the network. Higher ranking nodes tend to have more channels, and are also connected to other high ranking nodes who themselves have many channels.",
+						"Closeness/hopness centrality measures the distance from a node to any other in the network. Higher ranking nodes have to make fewer hops to reach any other node on the network.",
+						"Rank according to the system designed by Lightning Labs.")
+				) %>% t %>% as.data.frame,
+				function(x) nodeRanksUI(NS(id, "node_ranks"), rankId=x[1], desc=x[2])
+			)
+		),
+		column(12,
+			lapply(
+				data.frame(
+					rankId=c("cent.between.weight.rank", "cent.eigen.weight.rank", "cent.close.weight.rank", "bos.score"),
+					desc=c(
+						"Betweenness centrality but using channel capacities as weights.",
+						"Eigenvector/hubness centrality but using channel capacities as weights.",
+						"Closeness/hopness centrality but using channel capacities as weights.",
+						"Rank according to the system designed by Alex Bosworth.")
+				) %>% t %>% as.data.frame,
+				function(x) nodeRanksUI(NS(id, "node_ranks"), rankId=x[1], desc=x[2])
+			)
+		),
+		column(12, h3("Historical ranks")),
+		column(12,
+			conditionalPanel(
+				"output.invoice_status == 'Paid'", ns=ns,
+				box(
+					width=12,
+					plotOutputUI(NS(id, "past_ranks"), "Historical ranks", "past_ranks_plot", "plotlyOutput")
+				)
+			)
 		),
 		hr(),
 		column(12, align='center',
-			actionBttn(inputId='show_hist_ranks', label=paste('View historical ranks for', as.numeric(histranks_msat)/1e3, 'sats'), style='fill', color='success', block=FALSE)),
-	),
-	h3(uiOutput('lncompare')),
-	fluidRow(
-		tabBox(id='nodestats_cap_change_tab', side='left', selected='node_cap_change', width=12,
-			tabPanel('Total capacity', withSpinner(plotlyOutput("node_cap_change")), value='node_cap_change', id='node_cap_change', width=NULL),
-			tabPanel('Channel capacity ', withSpinner(plotlyOutput("node_chansize_change")), value='node_chansize_change', id='node_chansize_change', width=NULL),
-			tabPanel('Fees ', withSpinner(plotlyOutput("node_fee_change")), value='node_fee_change', id='node_fee_change', width=NULL),
+			conditionalPanel(
+				"output.invoice_status != 'Paid'", ns=ns,
+				ranksButtonUI(NS(id, "show_past_ranks"))
+			)
+		),
+		column(12, h3(nodeStatHeaderUI(NS(id, 'section_headers'), "node_stats"))),
+		do.call(tabBox,
+			c(id=NS(id, 'node_evol'), side='left', width=12,
+				lapply(
+					data.frame(
+						plotTitle=c('Total capacity', 'Channel capacity', 'Fees'),
+						plotId=paste0(c("cap_change", "chansize_change", "fee_change"), "_plot"),
+						plotType=rep("plotlyOutput", 3)) %>% t %>% as.data.frame,
+					function(x) plotOutputUI(NS(id, "evol_tab_selected"), plotTitle=x[1], plotId=x[2], plotType=x[3])
+				) %>% unname
+			)
+		),
+		column(12,
+			h3(nodeStatHeaderUI(NS(id, 'section_headers'), "peer_compare"))
+		),
+		do.call(tabBox,
+			c(id=NS(id, 'peer_tab'), side='left', width=12,
+				lapply(
+					data.frame(
+						plotTitle=c("Fee comparison", "Peers of peers in common", "Terminal Web stats", "Peer network"),
+						plotId=paste0(c("node_vs_peer_fees", "peer_overlap", "peer_ranks", "localnet"), "_plot"),
+						plotType=c(rep("plotlyOutput", 3), "forceNetworkOutput")) %>% t %>% as.data.frame,
+					function(x) plotOutputUI(NS(id, "peer_tab_selected"), plotTitle=x[1], plotId=x[2], plotType=x[3])
+				) %>% unname
+			)
 		)
-	),
-	h3(uiOutput('peercompare')),
-	fluidRow(
-		tabBox(id='peer_chancap_change_tab', side='left', selected='fee_comp', width=12,
-			tabPanel('Fee comparison', withSpinner(plotlyOutput("node_vs_peer_fees", height="750px")), value='fee_comp', id='fee_comp', width=NULL),
-			tabPanel('Peers of peers in common', withSpinner(plotlyOutput("peer_overlap", height="750px")), value='peer_overlap', id='peer_overlap', width=NULL),
-			tabPanel('Terminal Web stats', withSpinner(plotlyOutput("peer_ranks", height="750px")), value='peer_ranks', id='peer_ranks', width=NULL),
-			tabPanel('Peer network', withSpinner(forceNetworkOutput("net", height="750px")), value='forcenet', id='forcenet', width=NULL),
-		)
-	),
+	)
 }
 
-nodeStatsServer <- function(id) {
+ambossLinkServer <- function(id, pubkey) {
 	moduleServer(id, function(input, output, session) {
-		# node statistics/graph rendering
-		output$nodestats.cent.between <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				cent.between.rank <- nodestats$data$cent.between.rank
-				val <- prettyNum(cent.between.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "Betweenness rank", color='blue')
-		})
-		output$nodestats.cent.between.weight <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				cent.between.weight.rank <- nodestats$data$cent.between.weight.rank
-				val <- prettyNum(cent.between.weight.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "Capacity-weighted betweenness rank", color='blue')
-		})
-		output$nodestats.cent.eigen <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				cent.eigen.rank <- nodestats$data$cent.eigen.rank
-				val <- prettyNum(cent.eigen.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "Eigenvector/hubness rank", color='blue')
-		})
-		output$nodestats.cent.eigen.weight <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				cent.eigen.weight.rank <- nodestats$data$cent.eigen.weight.rank
-				val <- prettyNum(cent.eigen.weight.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "Capacity-weighted eigenvector/hubness rank", color='blue')
-		})
-		output$nodestats.cent.close <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				cent.close.rank <- nodestats$data$cent.close.rank
-				val <- prettyNum(cent.close.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "Closeness/hopness rank", color='blue')
-		})
-		output$nodestats.cent.close.weight <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				cent.close.weight.rank <- nodestats$data$cent.close.weight.rank
-				val <- prettyNum(cent.close.weight.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "Capacity-weighted closeness/hopness rank", color='blue')
-		})
-		output$nodestats.nd <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				nd.rank <- nodestats$data$nd.rank
-				val <- prettyNum(nd.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "Terminal rank", color='blue')
-		})
-		output$nodestats.bos <- renderValueBox({
-			if (!is.null(nodestats$data$pubkey)) {
-				bos.rank <- nodestats$data$bos.rank
-				val <- prettyNum(bos.rank, big.mark=',')
-			} else {
-				val <- ''
-			}
-			valueBox(val, "BOS rank", color='blue')
-		})
-		output$ambossnodestats <- renderUI({
-			if (!is.null(nodestats$data)){
-				link <- paste0("https://amboss.space/node/", nodestats$data %>% pull(pubkey))
+		output$amboss <- renderUI({
+			if (pubkey() != "") {
+				link <- paste0("https://amboss.space/node/", pubkey())
 			} else {
 				link <- "https://amboss.space"
 			}
@@ -143,75 +145,83 @@ nodeStatsServer <- function(id) {
 				target="_blank")
 
 		})
-		# peer network rendering
-		nodestats <- reactiveValues(data=NULL)
-		observeEvent(input$nodestats_subject, {
-			req(input$nodestats_subject)
-			subject <- fetch_pubkey(input$nodestats_subject)
-			nodestats$data <- pool %>% tbl('nodes_current') %>% filter(pubkey==subject) %>% as_tibble
-			subject_nd <- pool %>% tbl('nd') %>% arrange(desc(time)) %>% filter(pubkey==subject) %>% head(1) %>% dplyr::select(pubkey, score, rank) %>% rename(c('nd.score'='score', 'nd.rank'='rank')) %>% as_tibble
-			subject_bos <- pool %>% tbl('bos') %>% arrange(desc(time)) %>% filter(pubkey==subject) %>% head(1) %>% rename(c('bos.score'='score')) %>% dplyr::select(-time) %>% as_tibble
-			nodestats$data <- left_join(nodestats$data, subject_nd, by='pubkey') %>% left_join(., subject_bos, by='pubkey')
-			peers <- adjacent_vertices(undir_graph, subject, mode='all') %>% unlist %>% names %>% strsplit("\\.") %>% lapply(function(x) x[2]) %>% unlist
-			nodestats$peers <- pool %>% tbl("nodes_historical") %>% filter(pubkey %in% peers) %>% mutate(tot.capacity=tot.capacity/1e8)
-			nodestats$entries <- nodestats$peers %>% pull(time) %>% unique %>% length
-			nodestats$lnsummary <- pool %>% tbl("nodes_historical") %>% filter(mean.rate.ppm<20e3) %>% group_by(time) %>% summarise(avg.node.cap=mean(tot.capacity, na.rm=TRUE), avg.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE), avg.chan.size=mean(avg.capacity, na.rm=TRUE))
-			nodestats$historical <- pool %>% tbl("nodes_historical") %>% filter(pubkey==local(nodestats$data$pubkey))
-			nodesummary <- nodestats$historical %>% dplyr::select(time, tot.capacity, mean.rate.ppm, avg.capacity)
-			nodestats$lnsummary <- left_join(nodestats$lnsummary, nodesummary) %>% as_tibble %>% drop_na
+	})
+}
+
+nodeRankServer <- function(id, rankId, desc, node_stats_reactive) {
+	moduleServer(id, function(input, output, session) {
+		ranks <- reactiveValues(node=NULL)
+		observeEvent(node_stats_reactive$node, {
+			ranks$node <- node_stats_reactive$node
 		})
-		output$node_cap_change <- renderPlotly({
-			nodestats$lnsummary %>%
-				plot_ly(x=~time, y=~avg.node.cap, type='scatter', mode='lines', name='LN average') %>%
-					add_trace(y=~tot.capacity, type='scatter', mode='lines', name=nodestats$data$alias) %>%
-					layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Capacity (sat)"))
+		output[[rankId]] <- renderValueBox({
+			if (!is.null(ranks$node)) {
+				val <- ranks$node %>%
+					pull(eval(parse(text=rankId))) %>%
+					round(0) %>%
+					format(scientific=FALSE) %>%
+					prettyNum(big.mark=",")
+			} else {
+				val <- ''
+			}
+			valueBox(val, desc, color='blue')
 		})
-		output$node_fee_change <- renderPlotly({
-			nodestats$lnsummary %>%
-				plot_ly(x=~time, y=~avg.rate.ppm, type='scatter', mode='lines', name='LN average') %>%
-					add_trace(y=~mean.rate.ppm, type='scatter', mode='lines', name=nodestats$data$alias) %>%
-					layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Average fee rate (ppm)"))
-		})
-		output$node_chansize_change <- renderPlotly({
-			nodestats$lnsummary %>%
-				plot_ly(x=~time, y=~avg.chan.size, type='scatter', mode='lines', name='LN average') %>%
-					add_trace(y=~avg.capacity, type='scatter', mode='lines', name=nodestats$data$alias) %>%
-					layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title="Average channel size (sat)"))
-		})
-		output$peer_overlap <- renderPlotly({
-			common_peers <- fetch_peer_overlaps(nodestats$data %>% pull(pubkey))
-			plot_ly(common_peers, x=~alias, y=~num_common_peers, size=~num.channels, type='scatter', mode='markers') %>%
-				layout(
-					xaxis=list(title="Peer alias", tickangle=45, categoryorder="array", categoryarray=common_peers$alias),
-					yaxis=list(title="Number of peers in common")
-				)
-		})
-		output$peer_ranks <- renderPlotly({
-			pool %>%
-				tbl('nd') %>%
-				filter(time==max(time)) %>%
-				filter(pubkey %in% local(nodestats$peers %>% pull(pubkey))) %>%
+	})
+}
+
+pastRankServer <- function(id, stats) {
+	moduleServer(id, function(input, output, session) {
+		output$past_ranks_plot <- renderPlotly({
+			req(stats$node)
+			bos <- pool %>% tbl('bos') %>%
+				filter(pubkey==!!stats$node$pubkey) %>%
+				arrange(time) %>%
+				as_tibble
+			nd <- pool %>% tbl('nd') %>%
+				filter(pubkey==!!stats$node$pubkey) %>%
+				arrange(time) %>%
+				as_tibble
+			plt <- stats$historical %>%
 				as_tibble %>%
-				left_join(., undir_graph %>% dplyr::select(name, alias) %>% as_tibble, by=c('pubkey'='name')) %>%
-				mutate(state=ifelse(
-					state=="healthy", "Healthy", ifelse(
-					state=="stable", "Stable", ifelse(
-					state=="fail_min_median_capacity", "Median channel capacity less than 500k sat", ifelse(
-					state=="fail_max_disable_ratio", "More than 25% of channels are disabled", ifelse(
-					state=="fail_uptime_ratio", "Uptime less than 99.9%", ifelse(
-					state=="fail_min_chan_count", "Node has less than 10 channels", state))))))) %>%
-				plot_ly(
-					x=~rank, y=~good_peers, color=~state,
-					type='scatter', mode='markers', size=20, alpha=0.9, text=~alias, hovertemplate=paste0("%{text}\n", "Rank: %{x}\n", "Number of good peers: %{y}")) %>%
-					layout(
-						xaxis=list(title="Terminal Web rank", type='log'),
-						yaxis=list(title="Number of good peers"),
-						legend=list(orientation='h', y=-0.15))
+				plot_ly(x=~time, y=~cent.between.rank, name="Betweenness", type='scatter', mode='lines', hovertemplate="%{y}") %>%
+				add_trace(y=~cent.close.rank, name="Closeness/hopness") %>%
+				add_trace(y=~cent.eigen.rank, name="Eigenvector/hubness") %>%
+				add_trace(y=~cent.between.weight.rank, name="Capacity-weighted betweenness") %>%
+				add_trace(y=~cent.close.weight.rank, name="Capacity-weighted closeness/hopness") %>%
+				add_trace(y=~cent.eigen.weight.rank, name="Capacity-weighted eigenvector/hubness") %>%
+				layout(yaxis=list(title="Rank", type='log'), xaxis=list(title="Date"), hovermode='x')
+			if (nrow(bos) > 0) {
+				plt <- plt %>% add_trace(data=bos, x=~time, y=~rank, name="BOS rank", type='scatter', mode='lines')
+			}
+			if (nrow(nd) > 0) {
+				plt <- plt %>% add_trace(data=nd, x=~time, y=~rank, name="Terminal Web rank", type='scatter', mode='lines')
+			}
+			plt
 		})
-		output$node_vs_peer_fees <- renderPlotly({
-			fees <- fetch_peer_fees(undir_graph, nodestats$data %>%
-				pull(pubkey)) %>%
-				mutate(diff=ifelse(subject_fee>peer_fee, "Outbound fee is more than the inbound fee", ifelse(subject_fee==peer_fee, "Outbound is the same as inbound", "Outbound fee is less than the inbound fee"))) %>%
+	})
+}
+
+nodevsLNServer <- function(id, plotTitle, plotId, xvar, stats) {
+	moduleServer(id, function(input, output, session) {
+		output[[plotId]] <- renderPlotly({
+			req(stats$historical)
+			stats$ln %>%
+				plot_ly(x=~time, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name='LN average') %>%
+					add_trace(data=stats$historical, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name=stats$node$alias) %>%
+					layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title=plotTitle))
+		})
+	})
+}
+
+peerFeeServer <- function(id, graph=undir_graph, stats) {
+	moduleServer(id, function(input, output, session) {
+		output$node_vs_peer_fees_plot <- renderPlotly({
+			req(stats$node)
+			fees <- fetch_peer_fees(pubkey=stats$node$pubkey) %>%
+				mutate(
+					diff=ifelse(
+						subject_fee>peer_fee, "Outbound fee is more than the inbound fee", ifelse(
+							subject_fee==peer_fee, "Outbound is the same as inbound", "Outbound fee is less than the inbound fee"))) %>%
 				arrange(diff) %>%
 				mutate(diff=factor(diff))
 			min_fee <- fees %>% dplyr::select(subject_fee, peer_fee) %>% unlist %>% min
@@ -227,96 +237,62 @@ nodeStatsServer <- function(id) {
 				layout(
 					xaxis=list(title="Incoming peer fee (ppm)", size=10),
 					yaxis=list(title="Outgoing fee (ppm)", size=10),
-					legend=list(orientation='h', y=-0.15))
+					legend=list(orientation='v', x=-0.15, y=-0.15))
 		})
-		output$lncompare <- renderUI({
-			txt <- ifelse(!is.null(nodestats$data), paste(nodestats$data %>% pull(alias), "vs the Network"), "Node vs the Network")
-		})
-		output$peercompare <- renderUI({
-			txt <- ifelse(!is.null(nodestats$data), paste(nodestats$data %>% pull(alias), "peers"), "Node peers")
-		})
-		histranks_inv <- reactiveValues(invoice=NULL, cancel=FALSE, status=NULL, settled=FALSE)
-		observeEvent(input$show_hist_ranks, {
-			disable('show_hist_ranks')
-			histranks_inv$cancel <- FALSE
-			histranks_inv$settled <- FALSE
-			histranks_inv$invoice <- content(POST(url=store_url, body=histranks_inv_body, config=store_headers))
-			histranks_inv$status <- "Unpaid"
-			showModal(
-				modalDialog(
-					plotOutput("histranks_qr", height='400px', width='400px'),
-					title=paste("Done! Please pay", as.numeric(histranks_msat)/1e3, "sats to view results."),
-					size='s',
-					footer=tagList(
-						rclipButton("clipbtn", "Copy", histranks_inv$invoice$BOLT11, icon("clipboard"), modal=TRUE),
-						modalActionButton("histranks_cancel", "Cancel")
-					)
+	})
+}
+
+peerOverlapServer <- function(id, graph=undir_graph, stats) {
+	moduleServer(id, function(input, output, session) {
+		output$peer_overlap_plot <- renderPlotly({
+			req(stats$node)
+			common_peers <- fetch_peer_overlaps(pubkey=stats$node$pubkey)
+			plot_ly(common_peers, x=~peers, y=~num_common_peers, type='scatter', mode='lines+markers') %>%
+				layout(
+					hovermode='x',
+					xaxis=list(title="Peer alias", tickangle=45, categoryorder="array", categoryarray=common_peers$peers),
+					yaxis=list(title="Number of peers in common")
 				)
-			)
-			enable('show_hist_ranks')
 		})
-		observeEvent(input$nodestats_subject, {
-			histranks_inv$settled <- FALSE
-		})
-		observeEvent(histranks_inv$status, {
-			if (histranks_inv$cancel == TRUE ) {
-				histranks_inv$status <- NULL
-				removeModal()
-			}
-			else if (histranks_inv$status == "Unpaid") {
-				delay(2000, histranks_inv$status <- 'Try again')
-			}
-			else if (histranks_inv$status == "Try again") {
-				delay(2000, histranks_inv$status <- content(GET(url=paste0(store_url, '/', histranks_inv$invoice$id), config=store_headers))$status)
-			}
-			else if (histranks_inv$status == "Paid") {
-				histranks_inv$settled <- TRUE
-				removeModal()
-			}
-			else if (histranks_inv$status == "Expired") {
-				removeModal()
-			}
-		})
-		observeEvent(input$nodestats_subject, {
-			histranks_inv$cancel <- TRUE
-		})
-		output$rank_change <- renderPlotly({
-			if (histranks_inv$settled == TRUE) {
-				bos <- pool %>% tbl('bos') %>% filter(time==max(time)) %>% filter(pubkey==local(nodestats$data %>% pull(pubkey))) %>% as_tibble
-				nd <- pool %>% tbl('nd') %>% filter(time==max(time), pubkey==local(nodestats$data %>% pull(pubkey))) %>% as_tibble
-				plt <- nodestats$historical %>%
-					as_tibble %>%
-					plot_ly(x=~time, y=~cent.between.rank, name="Betweenness", type='scatter', mode='lines', hovertemplate="%{y}") %>%
-					add_trace(y=~cent.close.rank, name="Closeness/hopness") %>%
-					add_trace(y=~cent.eigen.rank, name="Eigenvector/hubness") %>%
-					add_trace(y=~cent.between.weight.rank, name="Capacity-weighted betweenness") %>%
-					add_trace(y=~cent.close.weight.rank, name="Capacity-weighted closeness/hopness") %>%
-					add_trace(y=~cent.eigen.weight.rank, name="Capacity-weighted eigenvector/hubness") %>%
-					layout(yaxis=list(title="Rank", type='log'), xaxis=list(title="Date"), hovermode='x')
-				if (nrow(bos) > 0) {
-					plt <- plt %>% add_trace(data=bos, x=~time, y=~rank, name="BOS rank", type='scatter', mode='lines')
-				}
-				if (nrow(nd) > 0) {
-					plt <- plt %>% add_trace(data=nd, x=~time, y=~rank, name="Terminal Web rank", type='scatter', mode='lines')
-				}
-				plt
-			}
-		})
-		output$chancap_change <- renderPlotly({
-			nodestats$peers %>%
+	})
+}
+
+peerRankServer <- function(id, stats) {
+	moduleServer(id, function(input, output, session) {
+		output$peer_ranks_plot <- renderPlotly({
+			dat <- pool %>% tbl('nd') %>%
+				filter(time==max(time) && pubkey %in% !!stats$peers$pubkey) %>%
 				as_tibble %>%
-				arrange(time, pubkey) %>%
-				plot_ly(x=~num.channels, y=~tot.capacity, frame=~time, type='scatter', mode='text', text=~alias, showlegend=FALSE, hovertemplate=paste0("%{text}\n", "Capacity: %{y}\n", "Channels: %{x}")) %>%
-					layout(xaxis=list(title="Number of channels", type='log'), yaxis=list(title="Total capacity (BTC)", type='log'))
+				left_join(., stats$peers %>% dplyr::select(pubkey, alias) %>% as_tibble) %>%
+				mutate(state=ifelse(
+					state=="healthy", "Healthy", ifelse(
+					state=="stable", "Stable", ifelse(
+					state=="fail_min_median_capacity", "Median channel capacity less than 500k sat", ifelse(
+					state=="fail_max_disable_ratio", "More than 25% of channels are disabled", ifelse(
+					state=="fail_uptime_ratio", "Uptime less than 99.9%", ifelse(
+					state=="fail_min_chan_count", "Node has less than 10 channels", state)))))))
+			plt <- plot_ly(dat, x=~rank, y=~good_peers, color=~state,
+				type='scatter', mode='markers', size=20, alpha=0.9, text=~alias,
+				hovertemplate=paste0("%{text}\n", "Rank: %{x}\n", "Number of good peers: %{y}")) %>%
+				layout(
+					xaxis=list(title="Terminal Web rank", type='log'),
+					yaxis=list(title="Number of good peers"),
+					legend=list(orientation='h', y=-0.15))
+			plt
 		})
-		output$net <- renderForceNetwork({
-			req(input$nodestats_subject)
-			reduce_graph <- peer_graph(undir_graph, nodestats$data %>% pull(pubkey))
-			node <- reduce_graph %>%
+	})
+}
+
+localNetServer <- function(id, customjs=customjs, graph=undir_graph, stats) {
+	moduleServer(id, function(input, output, session) {
+		output$localnet_plot <- renderForceNetwork({
+			req(stats$node)
+			local_graph <- peer_graph(graph, stats$node$pubkey)
+			node <- local_graph %>%
 				mutate(id=row_number()-1) %>%
 				as_tibble %>%
-				mutate(group=ifelse(name==nodestats$data$pubkey, 1, 2), nodesize=tot.capacity/1e8)
-			links <- reduce_graph %>%
+				mutate(group=ifelse(pubkey==stats$node$pubkey, 1, 2), nodesize=tot.capacity/1e8)
+			links <- local_graph %>%
 				activate(edges) %>%
 				as_tibble %>%
 				mutate(from=from-1, to=to-1) %>%
@@ -327,60 +303,129 @@ nodeStatsServer <- function(id) {
 				NodeID='alias', Group='group', opacity=1, fontSize=16, Value='capacity',
 				bounded=FALSE, fontFamily='sans-serif', zoom=TRUE, charge=-1000, opacityNoHover=1,
 				colourScale = JS("d3.scaleOrdinal(d3.schemeCategory10);"))
-			fn$x$nodes$pubkey <- node$name
-			fn$x$nodes$amboss <- paste0("https://amboss.space/node/", node$name)
+			fn$x$nodes$pubkey <- node$pubkey
+			fn$x$nodes$amboss <- paste0("https://amboss.space/node/", node$pubkey)
 			onRender(fn, customjs)
 		})
-		# summarise peer info in a table
-		output$nodetable <- renderDataTable({
-			req(nodestats$subject)
-			req(input$show_columns)
-			subject <- fetch_pubkey(nodestats$subject)
-			peer_table <- peer_graph(undir_graph, subject) %>%
-				mutate(id=row_number()-1) %>%
-				as_tibble %>%
-				mutate(group=ifelse(name==subject, 1, 2)) %>%
-				dplyr::select(-c(ipv4:onion_v2), -c(amboss, oneml), -mean.delta, -c(id:cent.close)) %>%
-				mutate(tot.capacity=round(tot.capacity/1e8, 2),
-					avg.capacity=round(avg.capacity/1e8, 3),
-					age=round(age, 0),
-					mean.base.msat=round(mean.base.msat, 0),
-					mean.rate.ppm=round(mean.rate.ppm, 0),
-					median.base.msat=round(median.base.msat, 0),
-					median.rate.ppm=round(median.rate.ppm, 0))
-			peer_table_reduc <- peer_table[input$show_columns]
-			col_names <- names(table_vars[which(table_vars %in% input$show_columns)])
-			datatable(peer_table_reduc, colnames=col_names, options=list(pageLength=50))
-		})
-
-		output$table_vars <- renderUI({
-			req(nodestats$subject)
-			req(input$peerinfotab == "tablenet")
-			box(width=NULL,
-				checkboxGroupInput("show_columns", "Select columns to show", choices=table_vars, inline=TRUE,
-					selected=table_vars[c(
-						'Alias', 'Total capacity', 'Number of channels', 'Average channel capacity', 'Median base fee (msat)',
-						'Median fee rate (ppm)', 'BOS score', 'Terminal Web score')]))
-		})
-		output$histranks_qr <- renderPlot({
-			bolt11 <- histranks_inv$invoice$BOLT11
-			ggqrcode(bolt11)
-		})
-
-		updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey or alias"=NULL, node_ids), selected=character(0), server=TRUE)
 	})
 }
 
-nodeStatsApp <- function() {
-  
-	ui <- dashboardPage(
-		dashboardHeader(title='Rebalance Simulator'),
-		dashboardSidebar(),
-		dashboardBody(nodeStatsUI('x')),
-		skin='yellow',
-	)
+nodeStatHeader <- function(id, headerId, stats, activeTxt, inactiveTxt) {
+	moduleServer(id, function(input, output, session) {
+		output[[headerId]] <- renderUI({
+			txt <- ifelse(!is.null(stats$node), paste(stats$node$alias, activeTxt), inactiveTxt)
+		})
+	})
+}
+
+nodestatsServer <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		nodeListServer("node_select", listId="subject")
+		pubkey <- getNodePubkey("node_select", "subject")
+		ambossLinkServer("link_to_amboss_page", pubkey)
+		stats <- reactiveValues()
+
+		observeEvent(pubkey(), {
+			req(pubkey())
+			stats$node <- nodes_current %>% filter(pubkey==pubkey())
+			subject_nd <- nd_current %>%
+				filter(pubkey==pubkey()) %>%
+				dplyr::select(pubkey, score, rank) %>%
+				rename(c('nd.score'='score', 'nd.rank'='rank'))
+			subject_bos <- bos_current %>%
+				filter(pubkey==pubkey()) %>%
+				rename(c('bos.score'='score')) %>%
+				dplyr::select(-time)
+			stats$node <- left_join(stats$node, subject_nd, by='pubkey') %>%
+				left_join(., subject_bos, by='pubkey')
+			peer_ids <- adjacent_vertices(undir_graph, fetch_id(pubkey=pubkey()), mode='all') %>% unlist
+			stats$peers <- undir_graph %>% as_tibble %>% filter(id %in% peer_ids) %>% mutate(tot.capacity=tot.capacity/1e8)
+			stats$historical <- pool %>% tbl("nodes_historical") %>%
+				filter(pubkey==!!pubkey()) %>%
+				as_tibble %>%
+				arrange(time)
+			stats$ln <- pool %>% tbl("nodes_historical") %>%
+				filter(mean.rate.ppm<20e3) %>%
+				group_by(time) %>%
+				summarise(
+					tot.capacity=mean(tot.capacity, na.rm=TRUE),
+					mean.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE),
+					avg.capacity=mean(avg.capacity, na.rm=TRUE)) %>%
+				arrange(time) %>%
+				as_tibble
+		}, ignoreNULL=TRUE)
+		lapply(
+			data.frame(
+				rankId=c(
+					"cent.between.rank", "cent.eigen.rank", "cent.close.rank", "nd.rank",
+					"cent.between.weight.rank", "cent.eigen.weight.rank", "cent.close.weight.rank", "bos.score"
+				),
+				subtitle=c(
+					"Betweenness rank", "Eigenvector/hubness rank", "Closeness/hopness rank", "Terminal rank",
+					"Capacity-weighted betweenness rank", "Capacity-weighted eigenvector/hubness rank", "Capacity-weighted closeness/hopness rank", "BOS score"
+				)
+			) %>% t %>% as.data.frame,
+			function(x) nodeRankServer("node_ranks", x[1], x[2], stats)
+		)
+		lapply(
+			data.frame(
+				plotTitle=c("Total capacity (sat)", "Average fee rate (ppm)", "Average channel size (sat)"),
+				plotId=paste0(c("cap_change", "fee_change", "chansize_change"), "_plot"),
+				xvar=c("tot.capacity", "mean.rate.ppm", "avg.capacity")
+			) %>% t %>% as.data.frame,
+			function(x) nodevsLNServer("evol_tab_selected", x[1], x[2], x[3], stats)
+		)
+		peerFeeServer("peer_tab_selected", undir_graph, stats)
+		peerOverlapServer("peer_tab_selected", undir_graph, stats)
+		peerRankServer("peer_tab_selected", stats)
+		localNetServer("peer_tab_selected", customjs, undir_graph, stats)
+		nodeStatHeader("section_headers", "node_stats", stats, "vs the Network", "Node vs the Network")
+		nodeStatHeader("section_headers", "peer_compare", stats, "peers", "Node peers")
+		
+		past_ranks_button <- startButtonServer("show_past_ranks", buttonId="past_ranks_button")
+
+		invoice_status <- reactiveVal("Unpaid")
+		output$invoice_status <- reactive({invoice_status()})
+
+		invoice <- invoiceHandlingServer(
+			"past_ranks",
+			reactive_trigger=past_ranks_button,
+			inv_fetch_url=Sys.getenv("STORE_URL"),
+			inv_amt=Sys.getenv("PASTRANKS_MSAT"),
+			inv_desc="historical ranks")
+
+		observeEvent(invoice(), {
+			req(invoice() == "Paid")
+			invoice_status(invoice())
+		})
+
+		observeEvent(pubkey(), {
+			invoice_status("Unpaid")
+			pastRankServer("past_ranks", NULL)
+		})
+
+		observeEvent(invoice_status(), {
+			req(invoice_status() == "Paid")
+			pastRankServer("past_ranks", stats)
+		})
+
+		outputOptions(output, "invoice_status", suspendWhenHidden=FALSE)
+	})
+}
+
+nodestatsApp <- function() {
+
+	addResourcePath('www', 'www')
+	ui <- function() {
+		dashboardPage(
+			dashboardHeader(title='Node Stats'),
+			dashboardSidebar(),
+			dashboardBody(nodestatsUI('x')),
+			skin='yellow',
+		)
+	}
 	server <- function(input, output, session) {
-		nodeStatsServer('x', reactive_show=reactive(FALSE))
+		nodestatsServer('x')
 	}
 	shinyApp(ui, server)
   
