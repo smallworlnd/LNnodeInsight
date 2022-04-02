@@ -1,0 +1,52 @@
+version: "3.3"
+
+services:
+  shiny:
+    build: ./app
+    restart: unless-stopped
+    expose:
+      - "3838"
+    depends_on:
+      - db
+      - chansim-backend
+      - rebalsim-backend
+  centralities-api:
+    build: ./app/api/centralities
+    restart: unless-stopped
+    expose:
+      - "8080"
+    depends_on:
+      - db
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lnd}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdbpassword}
+    ports:
+      - '5432:5432'
+    volumes: 
+      - ./lnd.sql:/docker-entrypoint-initdb.d/lnd.sql
+      - postgres:/var/lib/postgresql/data
+  shiny-proxy:
+    image: caddy:alpine
+    restart: unless-stopped
+    environment:
+      - SERVER_NAME=${SERVER_NAME:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - $PWD/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - shiny
+      - db
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres:

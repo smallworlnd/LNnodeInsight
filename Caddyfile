@@ -1,0 +1,7 @@
+{$SERVER_NAME} {
+	reverse_proxy shiny:3838
+}
+
+centralities.api.{$SERVER_NAME} {
+	reverse_proxy centralities-api:8080
+}

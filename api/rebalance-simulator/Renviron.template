@@ -1,5 +1,0 @@
-DB_HOST=<IP to your postgres DB>
-DB_PORT=<port of your postgres DB>
-DB_NAME=<DB name>
-DB_USER=<DB user name)
-DB_PW=<DB password for DB_USER>

@@ -1,0 +1,17 @@
+version: "3.3"
+
+services:
+  chansim-backend:
+    build: ./app/api/channel-simulator
+    restart: unless-stopped
+    expose:
+      - "8080"
+    depends_on:
+      - db
+  rebalsim-backend:
+    build: ./app/api/rebalance-simulator
+    restart: unless-stopped
+    expose:
+      - "8080"
+    depends_on:
+      - db
