@@ -30,6 +30,7 @@ RUN install2.r --error \
 	DBI \
 	RPostgreSQL \
 	pool \
+	callr \
 	## install Github packages
 	## clean up
 	&& rm -rf /tmp/downloaded_packages/ /tmp/*.rds

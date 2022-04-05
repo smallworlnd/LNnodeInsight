@@ -145,34 +145,30 @@ rebalsimUI <- function(id) {
 #' @export
 simulationServer <- function(id, subject, out_node, in_node, api_info) {
 	moduleServer(id, function(input, output, session) {
-		showModal(
-			modalDialog(
-				"Running simulation, please wait...",
-				size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'
-			)
+		subject <- subject()
+		out_node <- out_node()
+		in_node <- in_node()
+
+		# poorman's async request to chansim api by sending process to background
+		# and avoid session locks
+		sim_request <- callr::r_bg(
+			func = function(subject_pubkey, out_pubkey, in_pubkey, api_info) {
+				req_body <- jsonlite::toJSON(
+					list(subject_pubkey=subject_pubkey, out_pubkey=out_pubkey, in_pubkey=in_pubkey),
+					auto_unbox=TRUE)
+				if ("token" %in% names(api_info)) {
+					api_request <- googleCloudRunner::cr_jwt_with_httr(
+						httr::POST(url=api_info$url, body=req_body, encode="json"),
+						api_info$token)
+				} else {
+					api_request <- httr::POST(url=api_info$url, body=req_body, encode="json")
+				}
+				return(httr::content(api_request))
+			},
+			args=list(subject_pubkey=subject, out_pubkey=out_node, in_pubkey=in_node, api_info=api_info),
+			supervise=TRUE
 		)
-		sim_req_body <- toJSON(
-			list(
-				subject_pubkey=subject(),
-				out_pubkey=out_node(),
-				in_pubkey=in_node()),
-			auto_unbox=TRUE)
-		if ("token" %in% names(api_info)) {
-			sim_query <- cr_jwt_with_httr(
-				POST(
-					url=api_info$url,
-					body=sim_req_body,
-					encode="json"),
-				api_info$token)
-		} else {
-			sim_query <- POST(
-				url=api_info$url,
-				body=sim_req_body,
-				encode="json")
-		}
-		sim_resp <- content(sim_query)
-		removeModal()
-		return(reactive(sim_resp))
+		return(sim_request)
 	})
 }
 
@@ -371,10 +367,27 @@ rebalsimServer <- function(id, api_info) {
 				scatterPlotServer(id="scatter_tab_selected", plotId=x[1], xlab=x[2], ylab=x[3], xvar=x[4], yvar=x[5], sim_output)
 		)
 		# start the simulation when the start button is selected
-		sim_result <- eventReactive(sim_start_button(), {
+		sim_run <- eventReactive(sim_start_button(), {
 			req(out_node() != "")
 			req(in_node() != "")
-			simulationServer("launch_sim", subject, out_node, in_node, api_info)() %>% filter(path_fee<10e3)
+			showModal(
+				modalDialog(
+					"Running simulation, please wait...",
+					size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'
+				)
+			)
+			simulationServer("launch_sim", subject, out_node, in_node, api_info)
+		})
+		# ping the background process and fetch results when done
+		sim_result <- reactiveVal()
+		observe({
+			req(sim_run())
+			if (isolate(sim_run()$is_alive())) {
+				invalidateLater(1000)
+			} else {
+				sim_result(sim_run()$get_result())
+				removeModal()
+			}
 		})
 		# generate and manage invoice once simulation is done
 		invoice <- invoiceHandlingServer(
@@ -396,7 +409,11 @@ rebalsimServer <- function(id, api_info) {
 #'
 #' for dev/testing purposes
 rebalsimApp <- function() {
-  
+	rebalsim_api_info <- if (Sys.getenv("LOCAL")) {
+			list(url=Sys.getenv("REBALSIM_LOCAL_API_URL"))
+		} else {
+			get_api_info("rebalsim-api")
+		}
 	ui <- dashboardPage(
 		dashboardHeader(title='Rebalance Simulator'),
 		dashboardSidebar(),
@@ -404,7 +421,7 @@ rebalsimApp <- function() {
 		skin='yellow',
 	)
 	server <- function(input, output, session) {
-		rebalsimServer('x')
+		rebalsimServer('x', rebalsim_api_info)
 	}
 	shinyApp(ui, server)
   

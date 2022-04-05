@@ -306,18 +306,18 @@ resetFiltersServer <- function(id, subject, filters=chansim_filters, db=con) {
 #' @param subject subject pubkey to pull centrality rank information
 #' @param metric the given centrality metric, chosen from 'between', 'close' or
 #' 'eigen'
-#' @param sim_output reactive graph from a simulation run which includes the
+#' @param sim_results_reactive reactive graph from a simulation run which includes the
 #' modified centralities
 #' @return return centrality ranks, either current or simulated
 #' @export
-centralityRankServer <- function(id, graph=undir_graph, subject, metric, sim_output=NULL) {
+centralityRankServer <- function(id, graph=undir_graph, subject, metric, sim_results_reactive=NULL) {
 	moduleServer(id, function(input, output, session) {
 		result_metric <- paste0('cent.', metric, '.rank')
 		label <- ifelse(metric == "between", "Betweenness",
 			ifelse(metric == "close", "Closeness/hopness",
 			"Eigenvector/hubness"))
-		if (!is.null(sim_output)) {
-			data <- sim_output() %>%
+		if (!is.null(sim_results_reactive)) {
+			data <- sim_results_reactive %>%
 				filter(pubkey==subject())
 			cent.rank <- eval(parse(text=paste0('data$sim.cent.', metric, '.rank')))
 			delta <- eval(parse(text=paste0('data$cent.', metric, '.rank.delta')))
@@ -420,35 +420,30 @@ peerVennServer <- function(id, subject, targets) {
 #' @export
 channelSimulationServer <- function(id, subject, targets, add_or_del, api_info) {
 	moduleServer(id, function(input, output, session) {
+		subject <- subject()
 		targets <- targets()[targets() != ""]
 		indels <- add_or_del()[which(targets() != '')]
 
-		showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
-		# build request to chansim api
-		sim_req_body <- toJSON(
-			list(
-				subject_pubkey=subject(),
-				target_pubkeys=targets,
-				indel=indels
-			),
-			auto_unbox=TRUE)
-		if ("token" %in% names(api_info)) {
-			sim_query <- cr_jwt_with_httr(
-				POST(
-					url=api_info$url,
-					body=sim_req_body,
-					encode="json"),
-				api_info$token)
-		} else {
-			sim_query <- POST(
-				url=api_info$url,
-				body=sim_req_body,
-				encode="json")
-		}
-		sim_resp <- content(sim_query)
-		removeModal()
-
-		return(reactive(sim_resp))
+		# poorman's async request to chansim api by sending process to background
+		# and avoid session locks
+		sim_request <- callr::r_bg(
+			func = function(subject_pubkey, target_pubkeys, indel, api_info) {
+				req_body <- jsonlite::toJSON(
+					list(subject_pubkey=subject_pubkey, target_pubkeys=target_pubkeys, indel=indel),
+					auto_unbox=TRUE)
+				if ("token" %in% names(api_info)) {
+					api_request <- googleCloudRunner::cr_jwt_with_httr(
+						httr::POST(url=api_info$url, body=req_body, encode="json"),
+						api_info$token)
+				} else {
+					api_request <- httr::POST(url=api_info$url, body=req_body, encode="json")
+				}
+				return(httr::content(api_request))
+			},
+			args=list(subject_pubkey=subject, target_pubkeys=targets, indel=indels, api_info=api_info),
+			supervise=TRUE
+		)
+		return(sim_request)
 	})
 }
 
@@ -660,7 +655,6 @@ chansimServer <- function(id, reactive_show, api_info) {
 		subject <- getNodePubkey('subject_select', "subject")
 		targets <- getTargets('target_select')
 		available_choices <- reactiveVal()
-		sim_output <- reactiveValues()
 		channel_actions <- getChannelActions('target_select')
 		launch_sim <- startButtonServer('launch_sim', buttonId="launch_sim_button")
 		output$chansim_venn <- peerVennServer('chansim_venn', subject, targets)
@@ -689,44 +683,57 @@ chansimServer <- function(id, reactive_show, api_info) {
 
 		# if the launch button is clicked, then run a simulation on the subject
 		# with the given targets
-		sim_output <- eventReactive(launch_sim(), {
+		sim_run <- eventReactive(launch_sim(), {
 			req(subject() != "")
 			req(length(unique(targets())) != 1 && unique(targets()) != "")
+			showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
 			channelSimulationServer('launch_sim', subject, targets, channel_actions, api_info)
 		})
 
 		# if a previous run has been completed, and a new target is selected,
 		# then push this value to the client side to display previous results
 		output$previous_results <- eventReactive(targets(), {
-			req(sim_output())
+			req(sim_result())
 			1
 		})
 		outputOptions(output, "previous_results", suspendWhenHidden=FALSE)
 
 		# accumulate previous results
 		observeEvent(targets(), {
-			req(sim_output())
+			req(sim_result())
 			formatUserChoices("past_action", previous_targets(), channel_actions)
 			simulated_centralities <- lapply(
 				c('between', 'close', 'eigen'),
 				function(x)
-					centralityRankServer('past_result', undir_graph, subject, x, sim_output())
+					centralityRankServer('past_result', undir_graph, subject, x, sim_result())
 				)
 			lapply(simulated_centralities, function(x) centralityRankOutput('past_result', x))
 		})
 
+		# ping the background process and fetch results when done
+		sim_result <- reactiveVal()
+		observe({
+			req(sim_run())
+			if (isolate(sim_run()$is_alive())) {
+				invalidateLater(1000)
+			} else {
+				sim_result(sim_run()$get_result())
+				removeModal()
+			}
+		})
+
 		# update centrality valueboxes with simulation results
-		observeEvent(sim_output(), {
+		observeEvent(sim_result(), {
+			req(!is.null(sim_result()))
 			previous_targets(targets())
 			simulated_centralities <- lapply(
 				c('between', 'close', 'eigen'),
 				function(x)
-					centralityRankServer('cents', undir_graph, subject, x, sim_output())
+					centralityRankServer('cents', undir_graph, subject, x, sim_result())
 				)
 			lapply(simulated_centralities, function(x) centralityRankOutput('cents', x))
 		})
 	})
-
 }
 
 #' channel simulation app standalone
