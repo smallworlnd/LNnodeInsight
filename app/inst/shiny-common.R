@@ -6,9 +6,9 @@
 #' @param lab label displayed in the middle of the button, e.g. "Start"
 #' @return returns a small and simple rectangular UI element
 #' @export
-startButtonUI <- function(id, lab) {
+startButtonUI <- function(id, buttonId="launch_sim_button", lab) {
 	actionBttn(
-		inputId=NS(id, 'launch_sim_button'),
+		inputId=NS(id, buttonId),
 		label=lab,
 		style='fill',
 		color='success',
@@ -108,6 +108,57 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 startButtonServer <- function(id, buttonId) {
 	moduleServer(id, function(input, output, session) {
 		reactive(eval(parse(text=paste0("input$", buttonId))))
+	})
+}
+
+#' fetch account status
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI element, \link{startButtonUI}
+#' @param credentials login status from \link{loginServer}
+#' @param users users (sql) table containing account information
+#' @return returns character string "true" or "false" (instead of boolean, for
+#' server->client outputOptions
+#' @export
+premiumAccountReactive <- function(id, credentials, users) {
+	moduleServer(id, function(input, output, session) {
+		reactive({
+			if (!credentials()$user_auth) {
+				return("false")
+			} else {
+				account <- users %>%
+					filter(pubkey==!!pull(credentials()$info[1])) %>%
+					filter(sub_date==max(sub_date)) %>%
+					as_tibble
+				if (nrow(account) > 0 && account$subscription == "Premium" && account$sub_expiration_date>=now()) {
+					return("true")
+				} else {
+					return("false")
+				}
+			}
+		})
+	})
+}
+
+#' account upgrade button UI ielement
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @return returns ui element for action button
+#' @export
+upgradeButtonUI <- function(id) {
+	uiOutput(NS(id, "upgrade_button"))
+}
+
+#' account upgrade button server
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param msg message to show in action button label
+#' @return returns infobox rendering
+#' @export
+upgradeButtonServer <- function(id, msg) {
+	moduleServer(id, function(input, output, session) {
+		output$upgrade_button <- renderUI({
+			actionBttn(inputId='upgrade_button', label=msg, style='fill', color='success', block=FALSE, size='sm')
+		})
 	})
 }
 

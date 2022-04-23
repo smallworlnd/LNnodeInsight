@@ -44,7 +44,7 @@ nodeRanksUI <- function(id, rankId, desc) {
 ranksButtonUI <- function(id) {
 	actionBttn(
 		inputId=NS(id, 'past_ranks_button'),
-		label=paste('View historical ranks of this node for', as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats"),
+		label=paste('View historical ranks of this node for', as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats or sign up and get unlimited access"),
 		style='fill',
 		color='success',
 		block=FALSE
@@ -341,6 +341,7 @@ peerFeeServer <- function(id, graph=undir_graph, stats) {
 				scale_color_manual(values = c("dodgerblue3", "orange", "darkgray")) +
 				xlim(min_fee, max_fee) +
 				ylim(min_fee, max_fee) +
+				theme(legend.title=element_blank()) +
 				theme_minimal()
 			ggplotly(plt, tooltip="text") %>%
 				layout(
@@ -493,9 +494,10 @@ nodeStatHeader <- function(id, headerId, stats, activeTxt, inactiveTxt) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @return returns backend for the app UI
 #' @export
-nodestatsServer <- function(id) {
+nodestatsServer <- function(id, credentials) {
 	moduleServer(id, function(input, output, session) {
 		# initialize the node list from which to select
+		users <- pool %>% tbl("users")
 		nodeListServer("node_select", listId="subject")
 		pubkey <- getNodePubkey("node_select", "subject")
 		ambossLinkServer("link_to_amboss_page", pubkey)
@@ -577,6 +579,7 @@ nodestatsServer <- function(id) {
 			reactive_trigger=past_ranks_button,
 			inv_fetch_url=Sys.getenv("STORE_URL"),
 			inv_amt=Sys.getenv("PASTRANKS_MSAT"),
+			display_desc=paste("Done! Please pay", as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats to view results."),
 			inv_desc="historical ranks")
 
 		# modify invoice status reactiveVal to "Paid" if the
@@ -600,6 +603,20 @@ nodestatsServer <- function(id) {
 
 		# send invoice status to the client side
 		outputOptions(output, "invoice_status", suspendWhenHidden=FALSE)
+
+		# determine if account is premium
+		is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		# if account is premium, short-circuit button click/invoice creation
+		# process by settting invoice status to always "paid"
+		observe({
+			req(is_premium() == "true")
+			invoice_status("Paid")
+			if (pubkey() == "") {
+				pastRankServer("past_ranks", NULL)
+			} else {
+				pastRankServer("past_ranks", stats)
+			}
+		})
 	})
 }
 
@@ -617,8 +634,11 @@ nodestatsApp <- function() {
 			skin='yellow',
 		)
 	}
+	credentials <- reactiveValues(
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		user_auth=TRUE)
 	server <- function(input, output, session) {
-		nodestatsServer('x')
+		nodestatsServer('x', reactive(credentials))
 	}
 	shinyApp(ui, server)
   

@@ -25,8 +25,6 @@ tryCatch({
 	}
 )
 
-nodes <- pool %>% tbl("nodes_current") %>% as_tibble
-
 pr("api.R") %>%
 	pr_hook("exit", function() { poolClose(pool) }) %>%
 	pr_run(host="0.0.0.0", port=as.numeric(Sys.getenv("PORT")))

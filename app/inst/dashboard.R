@@ -55,7 +55,9 @@ dashboardUI <- function(id) {
 			tags$style(type = 'text/css', '.bg- {background-color: #FFFFFF !important; }'),
 			tags$style(HTML(".info-box-icon .img-local {position: absolute; top: auto; left: 15px; }")),
 			h2("Develop your own data-driven Lightning Network insight", align='center'),
-			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network. Login to access additional features!", align='center'),
+			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network.", align='center'),
+			h4(HTML(paste(icon("check"), "Log in to access additional features in the Build-Your-Own-Chart and Channel Simulator tools")), align="center"),
+			h4(HTML(paste(icon("check"), "Upgrade your account to have us automate channel simulations to find optimal peers and to get unlimited access to all LNnodeInsight tools")), align="center"),
 			h3('Visuals'),
 			fluidRow(
 				lapply(c("byoc", "nodestats"), function(x) appLinkUI(NS(id, "local_apps"), x))
@@ -107,7 +109,7 @@ externalAppServer <- function(id, boxId, appLink, boxTitle, boxSubtitle, linkIco
 localAppServer <- function(id, boxId, boxTitle, boxSubtitle, linkIcon) {
 	moduleServer(id, function(input, output, session) {
 		output[[boxId]] <- renderInfoBox({
-			infoBox(a(boxTitle, onclick=paste0("openTab('", boxId, "')"), href="#"), subtitle=boxSubtitle, icon=icon(linkIcon), color='yellow')
+			infoBox(a(boxTitle, onclick=paste0("openTab('", boxId, "')")), subtitle=boxSubtitle, icon=icon(linkIcon), color='yellow')
 		})
 	})
 }

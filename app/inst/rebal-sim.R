@@ -64,6 +64,15 @@ simResultUI <- function(id, resId) {
 	valueBoxOutput(NS(id, resId), width=12)
 }
 
+#' start/action button label UI element
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @return returns text label for action button depending on account status
+#' @export
+startButtonLabel <- function(id) {
+	textOutput(NS(id, "account_is_premium"))
+}
+
 #' main layout UI for various rebalance-simulator app elements
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function
@@ -85,7 +94,11 @@ rebalsimUI <- function(id) {
 					),
 					nodeSelectUI(NS(id, "node_select"), listId="out_node", lab="Enter/choose an outgoing node"),
 					nodeSelectUI(NS(id, "node_select"), listId="in_node", lab="Enter/select an incoming node"),
-					column(12, align='center', startButtonUI(NS(id, "launch_sim"), lab=paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"))),
+					column(12, align='center',
+						startButtonUI(
+							NS(id, "launch_sim"),
+							lab=startButtonLabel(NS(id, "start_sim")))
+					),
 					background='yellow', width=12,
 				),
 				do.call(tabBox,
@@ -124,7 +137,13 @@ rebalsimUI <- function(id) {
 						function(x)
 							simResultUI(NS(id, "sim_result"), x)
 					)
-				)
+				),
+			)
+		),
+		column(4, align="center",
+			conditionalPanel(
+				"output.is_premium == 'false'", ns=ns,
+				upgradeButtonUI(NS(id, "ad_upgrade"))
 			)
 		)
 	)
@@ -283,6 +302,24 @@ simResultServer <- function(id, resId, tabId, xvar, desc, sim_res_reactive) {
 	})
 }
 
+#' start/action button label server
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param account_check_reactive reactive element to verify account status
+#' @return returns render text element depending on account status
+startButtonLabelServer <- function(id, account_check_reactive) {
+	moduleServer(id, function(input, output, session) {
+		output$account_is_premium <- renderText({
+			if (account_check_reactive() == "true") {
+				paste("Start")
+			} else {
+				paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats")
+			}
+		})
+	})
+}
+
+
 #' main rebalance/payment simulation server
 #'
 #' backend handling of all inputs/outputs for rebalance simulation
@@ -291,8 +328,9 @@ simResultServer <- function(id, resId, tabId, xvar, desc, sim_res_reactive) {
 #' @param api_info api url and auth token to POST rebalance simulation information
 #' to local (if no auth token present) or remote backend
 #' @export
-rebalsimServer <- function(id, api_info) {
+rebalsimServer <- function(id, api_info, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
+		users <- db %>% tbl("users")
 		# build list of nodes to select from
 		lapply(c("subject", "out_node", "in_node"), function(x) nodeListServer("node_select", listId=x))
 		# reactive pubkey selections
@@ -373,34 +411,55 @@ rebalsimServer <- function(id, api_info) {
 			showModal(
 				modalDialog(
 					"Running simulation, please wait...",
-					size='s', footer='It should take a few seconds. An invoice will be displayed when the results are ready.'
+					size='s', footer=NULL
 				)
 			)
 			simulationServer("launch_sim", subject, out_node, in_node, api_info)
 		})
 		# ping the background process and fetch results when done
-		sim_result <- reactiveVal()
+		sim_result_nosub <- reactiveVal() # reactive for non-premium
+		sim_result_sub <- reactiveVal() # reactive for premium
 		observe({
 			req(sim_run())
 			if (isolate(sim_run()$is_alive())) {
 				invalidateLater(1000)
 			} else {
-				sim_result(sim_run()$get_result())
+				# short-circuit invoicing if account is premium
+				if (is_premium() == "true") {
+					sim_result_sub(sim_run()$get_result())
+				} else {
+					sim_result_nosub(sim_run()$get_result())
+				}
 				removeModal()
 			}
 		})
-		# generate and manage invoice once simulation is done
+		# generate and manage invoice once simulation is done if not premium
 		invoice <- invoiceHandlingServer(
 			"rebalsim_inv",
-			reactive_trigger=sim_result,
+			reactive_trigger=sim_result_nosub,
 			inv_fetch_url=Sys.getenv("STORE_URL"),
 			inv_amt=Sys.getenv("REBALSIM_MSAT"),
+			display_desc=paste("Done! Please pay", as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats to view results."),
 			inv_desc="rebalance simulator")
-		# require that the invoice be paid to reactively show simulation results
-		sim_output <- eventReactive(invoice(), {
-			req(invoice() == "Paid")
-			sim_result()
+		# display results if premium, else require that the invoice be paid to
+		# reactively show simulation results
+		sim_output <- eventReactive(c(invoice(), sim_result_sub()), {
+			if (is_premium() == "true") {
+				sim_result_sub()
+			} else {
+				req(invoice() == "Paid")
+				sim_result_nosub()
+			}
 		})
+
+		# determine if account is premium
+		is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		upgradeButtonServer("ad_upgrade",
+			p(HTML("Want to get unlimited access to this tool?<br/>Sign up!"), onclick="openTab('account')"))
+		output$is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
+		# change start button label depending on account status
+		startButtonLabelServer("start_sim", is_premium)
 	})
 
 }
@@ -420,8 +479,11 @@ rebalsimApp <- function() {
 		dashboardBody(rebalsimUI('x')),
 		skin='yellow',
 	)
+	credentials <- reactiveValues(
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		user_auth=TRUE)
 	server <- function(input, output, session) {
-		rebalsimServer('x', rebalsim_api_info)
+		rebalsimServer('x', rebalsim_api_info, reactive(credentials))
 	}
 	shinyApp(ui, server)
   

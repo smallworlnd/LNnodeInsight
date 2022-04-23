@@ -202,9 +202,9 @@ chansimUI <- function(id) {
 		column(4,
 			fluidRow(
 				box(id=NS(id, 'cent.box'), title="Node centrality ranks",
-					solidHeader=TRUE, collapsible=TRUE, width=NULL,
+					solidHeader=TRUE, collapsible=TRUE, width=12,
 					centralityUI(NS(id, 'cents'))
-				)
+				),
 			)
 		),
 		conditionalPanel(
@@ -219,7 +219,13 @@ chansimUI <- function(id) {
 					)
 				)
 			)
-		)
+		),
+		column(4, align="center",
+			conditionalPanel(
+				"output.is_premium == 'false'", ns=ns,
+				upgradeButtonUI(NS(id, "ad_upgrade"))
+			)
+		),
 	)
 
 }
@@ -564,14 +570,14 @@ targetUpdateServer <- function(id, pubkey_list) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param db db from which we pull community information (maybe should be a
 #' vector instead)
-#' @param logged_in make community filter accessible if user is logged in
+#' @param credentials make community filter accessible if user is logged in
 #' @return returns list of amboss communities from which to filter target node
 #' pubkeys
 #' @export
-dropdownFilterSelectServer <- function(id, db=pool, logged_in=FALSE) {
+dropdownFilterSelectServer <- function(id, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		shiny::observe({
-			shinyjs::toggle('community', condition=logged_in())
+			shinyjs::toggle('community', condition=credentials()$user_auth)
 		})
 		comms <- tbl(pool, 'communities') %>% pull(community) %>% unique %>% sort
 		updateSelectizeInput(
@@ -644,14 +650,15 @@ formatUserChoices <- function(id, targets, actions) {
 #' backend handling of all inputs/outputs for channel simulation
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @param reactive_show reactively hide/show some filters depending on user
+#' @param credentials reactively hide/show some filters depending on user
 #' account
 #' @param api_info api url and auth token to POST channel simulation information
 #' to local (if no auth token present) or remote backend
 #' @export
-chansimServer <- function(id, reactive_show, api_info) {
+chansimServer <- function(id, api_info, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		# initializ reactive values
+		users <- db %>% tbl('users')
 		subject <- getNodePubkey('subject_select', "subject")
 		targets <- getTargets('target_select')
 		available_choices <- reactiveVal()
@@ -677,7 +684,7 @@ chansimServer <- function(id, reactive_show, api_info) {
 			lapply(centralities, function(x) centralityRankOutput('cents', x))
 		})
 
-		dropdownFilterSelectServer('filters', db=pool, logged_in=reactive_show)
+		dropdownFilterSelectServer('filters', credentials)
 		resetFiltersServer('filters', subject)
 		subjectSelectServer('subject_select')
 
@@ -697,6 +704,11 @@ chansimServer <- function(id, reactive_show, api_info) {
 			1
 		})
 		outputOptions(output, "previous_results", suspendWhenHidden=FALSE)
+
+		upgradeButtonServer("ad_upgrade",
+			p(HTML("Want us to find nodes that increase your centralities the most?<br/>Sign up!"), onclick="openTab('account')"))
+		output$is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
 
 		# accumulate previous results
 		observeEvent(targets(), {
@@ -751,8 +763,11 @@ chansimApp <- function() {
 		dashboardBody(chansimUI('x')),
 		skin='yellow',
 	)
+	credentials <- reactiveValues(
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		user_auth=TRUE)
 	server <- function(input, output, session) {
-		chansimServer('x', reactive_show=reactive(FALSE), chansim_api_info)
+		chansimServer('x', chansim_api_info, reactive(credentials))
 	}
 	shinyApp(ui, server)
 }

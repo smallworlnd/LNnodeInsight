@@ -1,10 +1,12 @@
 if(Sys.getenv("PORT") == "") Sys.setenv(PORT = 8080)
 
 #* returns both unweighted and weighted node betweenness, closeness and eigenvector centralities
+#* @param db db connection to fetch node information
 #* @get /
 
-function() {
-	nodes %>%
+function(db=pool) {
+	db %>%
+		tbl("nodes_current") %>%
 		dplyr::select(
 			time,
 			pubkey,

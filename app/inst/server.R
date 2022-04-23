@@ -33,24 +33,6 @@ server <- function(input, output, session) {
 		actionBttn(inputId='login_nav', label='Login', style='fill', color='success', block=FALSE, size='sm')
 	})
 	onclick('login_nav', updateTabItems(session, "sidebar", "account"))
-	output$account_page <- renderUI({
-		req(credentials()$user_auth)
-		acc <- users %>% filter(pubkey==!!pull(credentials()$info[1])) %>% as_tibble
-		column(8, offset=2,
-			box(title=NULL, background='yellow', width=12,
-				p(style="text-align: left; font-size: 20px", strong(paste(acc$alias, "account page"))),
-				hr(),
-				fluidRow(
-					column(6, align='left',
-						p('Subscription')
-					),
-					column(6, align='right',
-						p(acc$permissions)
-					),
-				)
-			)
-		)
-	})
 
     runjs("
       $('.box').on('click', '.box-header h3', function() {
@@ -86,8 +68,9 @@ server <- function(input, output, session) {
 		}
 	})
 	dashboardServer('dashboard')
-	byocServer('byoc', reactive_show=reactive(credentials()$user_auth))
-	nodestatsServer('nodestats')
-	rebalsimServer('rebalsim', rebalsim_api_info)
-	chansimServer('chansim', reactive(credentials()$user_auth), chansim_api_info)
+	accountServer("account", credentials)
+	byocServer('byoc', credentials)
+	nodestatsServer('nodestats', credentials)
+	rebalsimServer('rebalsim', rebalsim_api_info, credentials)
+	chansimServer('chansim', chansim_api_info, credentials)
 }

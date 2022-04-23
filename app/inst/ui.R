@@ -46,7 +46,7 @@ dashboardbody <- dashboardBody(
 	tabItems(
 		tabItem(tabName='account',
 			loginUI("login", additional_ui=a('Not sure how to sign a message?', onclick="openTab('faq')", href=NULL, style="cursor: pointer;")),
-			uiOutput("account_page"),
+			accountUI("account")
 		),
 		tabItem(tabName='dashboard',
 			dashboardUI('dashboard')

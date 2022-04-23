@@ -226,7 +226,7 @@ loginServer <- function(id,
             
             credentials$user_auth <- TRUE
             credentials$info <- dplyr::bind_cols(
-              dplyr::filter(data, {{pubkey_col}} == .userid) %>% as_tibble,
+              dplyr::filter(data, {{pubkey_col}} == .userid) %>% as_tibble %>% arrange(desc(sub_date)) %>% distinct(pubkey, .keep_all=TRUE),
               dplyr::select(cookie_data, -{{pubkey_col}})
             )
           }

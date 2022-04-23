@@ -28,7 +28,7 @@ services:
     ports:
       - '5432:5432'
     volumes: 
-      - ./lnd.sql:/docker-entrypoint-initdb.d/lnd.sql
+      - ./${POSTGRES_SCHEMA:-schema.sql}:/docker-entrypoint-initdb.d/lnd.sql
       - postgres:/var/lib/postgresql/data
   shiny-proxy:
     image: caddy:alpine

@@ -29,22 +29,27 @@ invoiceGenerator <- function(id, link, amt, desc) {
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param invoice invoice generated with \link{invoiceGenerator}
+#' @param desc descriptive header for the modal shown above the qr
 #' @param amt amount (in sats) the invoice is for
 #' @return returns modal dialog UI element displaying qr of the bolt11 invoice
 #' @export
-invoiceDisplayServer <- function(id, invoice, amt) {
+invoiceDisplayServer <- function(id, invoice, desc, amt) {
 	moduleServer(id, function(input, output, session) {
 		ns <- session$ns
 		output$inv_qr <- renderPlot({
 			ggqrcode(invoice$BOLT11)
 		})
+		output$inv_text <- renderText({
+			invoice$BOLT11
+		})
 		qrModal <- function() {
 			modalDialog(
-				plotOutput(ns("inv_qr"), height='272px', width='272px'),
-				title=paste("Done! Please pay", as.numeric(amt)/1e3, "sats to view results."),
-				size='s',
+				plotOutput(ns("inv_qr"), height='400px', width='400px'),
+				br(),
+				div(style="width: 400px;", verbatimTextOutput(ns("inv_text"))),
+				title=desc,
 				footer=tagList(
-					rclipButton(ns("clipbtn"), "Copy", invoice$BOLT11, icon("clipboard"), modal=TRUE),
+					#rclipButton(ns("clipbtn"), "Copy", invoice$BOLT11, icon("clipboard"), modal=TRUE),
 					modalActionButton(ns("cancel"), "Cancel")
 				)
 			)
@@ -63,15 +68,17 @@ invoiceDisplayServer <- function(id, invoice, amt) {
 #' @param reactive_trigger trigger to start the invoice handling process
 #' @param inv_fetch_url url to the btcpay server api
 #' @param inv_amt amount (in sats) the invoice is for
+#' @param display_desc description given to \link{invoiceDisplayServer} to
+#' display in the modal header
 #' @param inv_desc invoice description
 #' @return returns a reactive of the invoice status
 #' @export
-invoiceHandlingServer <- function(id, reactive_trigger, inv_fetch_url, inv_amt, inv_desc) {
+invoiceHandlingServer <- function(id, reactive_trigger, inv_fetch_url, inv_amt, display_desc, inv_desc) {
 	moduleServer(id, function(input, output, session) {
 		invoice <- reactiveValues(details=NULL)
 		observeEvent(reactive_trigger(), {
 			invoice$details <- invoiceGenerator(paste0(id, "_inv"), inv_fetch_url, inv_amt, inv_desc)
-			invoiceDisplayServer(paste0(id, "_inv"), invoice$details, inv_amt)
+			invoiceDisplayServer(paste0(id, "_inv"), invoice$details, display_desc, inv_amt)
 		})
 
 		inv_cancel <- invoiceCancel(paste0(id, "_inv"))

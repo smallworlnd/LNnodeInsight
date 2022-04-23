@@ -345,9 +345,11 @@ if (!graph_error) {
 		new_users <- setdiff(users_in_graph$pubkey, users_in_db$pubkey)
 		if (length(new_users) > 0) {
 			users_to_add <- users_in_graph %>% filter(pubkey %in% new_users) %>% dplyr::select(pubkey, alias)
-			permissions <- 'standard'
-			new_users_df <- data.frame(users_to_add, permissions)
-			names(new_users_df) <- c('pubkey', 'alias', 'permissions')
+			subscription <- 'Standard'
+			sub_date <- now()
+			sub_expiration_date <- NA
+			new_users_df <- data.frame(users_to_add, subscription, sub_date, sub_expiration_date)
+			names(new_users_df) <- c('pubkey', 'alias', 'subscription', 'sub_date', 'sub_expiration_date')
 			dbWriteTable(con, 'users', new_users_df, row.names=FALSE, overwrite=FALSE, append=TRUE)
 		}
 

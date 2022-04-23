@@ -85,7 +85,7 @@ scatterplotUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 #'
 #' backend to build plot_ly histogram output depending on user input from
 #' \link{histogramUI} and conditionally filter histogram data by community if
-#' user logged_in=TRUE
+#' user is logged in
 #'
 #' TODO: separate out the updateSelectizeInput functions like with
 #' \link{nodeListServer}
@@ -93,18 +93,18 @@ scatterplotUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param vars named vector of chart variables included in this file
 #' @param communities_list vector of amboss communities
-#' @param logged_in reactive for checking if user is logged in to conditionally
+#' @param credentials reactive for checking if user is logged in to conditionally
 #' show filter by community
 #' @return returns plot_ly output of a histogram
 #' @export
-histogramServer <- function(id, db=pool, vars=chart_vars, communities_list=comms_list, logged_in=FALSE) {
+histogramServer <- function(id, credentials, db=pool, vars=chart_vars, communities_list=comms_list) {
 	moduleServer(id, function(input, output, session) {
 		shiny::observe({
-			shinyjs::toggle('histo_comm', condition=logged_in())
+			shinyjs::toggle('histo_comm', condition=credentials()$user_auth)
 		})
 		output$histo <- renderPlotly({
 			req(input$histo_var != "")
-			if (logged_in() && input$histo_comm != "") {
+			if (credentials()$user_auth && input$histo_comm != "") {
 				pubkeys <- db %>% tbl('communities') %>%
 					filter(community %in% !!input$histo_comm) %>%
 					pull(pubkey)
@@ -140,26 +140,26 @@ histogramServer <- function(id, db=pool, vars=chart_vars, communities_list=comms
 #'
 #' backend to build plot_ly scatterplot output depending on user input from
 #' \link{scatterplotUI} and conditionally filter scatterplot data by community if
-#' user logged_in=TRUE
+#' user is logged in
 #'
 #' TODO: separate out the updateSelectizeInput functions like with
 #' \link{nodeListServer}
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param credentials reactive for checking if user is logged in to conditionally
 #' @param vars named vector of chart variables included in this file
 #' @param communities_list vector of amboss communities
-#' @param logged_in reactive for checking if user is logged in to conditionally
 #' show filter by community
 #' @return returns plot_ly output of a scatterplot
 #' @export
-scatterplotServer <- function(id, db=pool, vars=chart_vars, communities_list=comms_list, logged_in=FALSE) {
+scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communities_list=comms_list) {
 	moduleServer(id, function(input, output, session) {
 		shiny::observe({
-			shinyjs::toggle('scatter_comm', condition=logged_in())
+			shinyjs::toggle('scatter_comm', condition=credentials()$user_auth)
 		})
 		output$scatter <- renderPlotly({
 			req(input$scatter_xvar != "" && input$scatter_yvar != "")
-			if (logged_in() && input$scatter_comm != "") {
+			if (credentials()$user_auth && input$scatter_comm != "") {
 				pubkeys <- db %>% tbl('communities') %>%
 					filter(community %in% !!input$scatter_comm) %>%
 					pull(pubkey)
@@ -218,14 +218,14 @@ byocUI <- function(id) {
 #' module running histogram and scatterplot outputs
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @param reactive_show reactively show additional filters conditional on user
+#' @param credentials reactively show additional filters conditional on user
 #' being logged in
 #' @return returns backend for the app UI
 #' @export
-byocServer <- function(id, reactive_show) {
+byocServer <- function(id, credentials) {
 	moduleServer(id, function(input, output, session) {
-		histogramServer('ln_histo', logged_in=reactive_show)
-		scatterplotServer('ln_scatter', logged_in=reactive_show)
+		histogramServer('ln_histo', credentials)
+		scatterplotServer('ln_scatter', credentials)
 	})
 }
 
@@ -240,8 +240,11 @@ byocApp <- function() {
 		dashboardBody(byocUI('x')),
 		skin='yellow',
 	)
+	credentials <- reactiveValues(
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		user_auth=TRUE)
 	server <- function(input, output, session) {
-		byocServer("x", reactive_show=reactive(TRUE))
+		byocServer("x", reactive(credentials))
 	}
 	shinyApp(ui, server)
   
