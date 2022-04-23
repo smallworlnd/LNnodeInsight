@@ -288,7 +288,6 @@ accountServer <- function(id, credentials) {
 			inv_desc=paste("subscription", credentials()$info[1], "for", sub_period(), "months"))
 
 		# if invoice gets paid then modify subscription status in users db
-		sub_added <- reactiveVal(FALSE)
 		observeEvent(invoice(), {
 			req(invoice() == "Paid")
 			node_alias <- fetch_alias(pubkey=credentials()$info[1]$pubkey)
@@ -300,14 +299,8 @@ accountServer <- function(id, credentials) {
 					sub_date=now(), sub_expiration_date=now()+months(sub_period())
 				),
 				row.names=FALSE, append=TRUE)
-			sub_added(TRUE)
-		})
-		observeEvent(sub_added(), {
-			req(sub_added())
-			ns <- session$ns
 			showModal(
 				modalDialog(
-					"Thanks, we appreciate your support!",
 					HTML(
 						"<ul>
 						<li>Your first centrality optimisation report will appear on your account page within 24 hours</li>
@@ -315,13 +308,10 @@ accountServer <- function(id, credentials) {
 						<li>Reach out to us if you ever have any issues!</li>
 						</ul>"),
 					footer=tagList(
-						modalActionButton(ns("done"), "Done"),
+						modalActionButton("done", "Done"),
 					)
 				)
 			)
-		})
-		observeEvent(input$done, {
-			refresh()
 		})
 	})
 }
