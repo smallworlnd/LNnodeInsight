@@ -4,6 +4,10 @@ header <- dashboardHeader(title=title,
 	tags$li(
 		class="dropdown",
 		style="padding-top: 8px; padding-left: 8px;",
+		uiOutput('is_premium_account')),
+	tags$li(
+		class="dropdown",
+		style="padding-top: 8px; padding-left: 8px;",
 		uiOutput('login_nav')),
 	tags$li(
 		class="dropdown",

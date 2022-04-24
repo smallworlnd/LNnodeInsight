@@ -33,6 +33,12 @@ server <- function(input, output, session) {
 		actionBttn(inputId='login_nav', label='Login', style='fill', color='success', block=FALSE, size='sm')
 	})
 	onclick('login_nav', updateTabItems(session, "sidebar", "account"))
+	account_is_premium <- premiumAccountReactive("prem_account", credentials, users)
+	output$is_premium_account <- renderUI({
+		req(credentials()$user_auth)
+		req(account_is_premium() == "true")
+		actionBttn(inputId='is_premium_account', label='Premium account', style='fill', color='success', block=FALSE, size='sm')
+	})
 
     runjs("
       $('.box').on('click', '.box-header h3', function() {

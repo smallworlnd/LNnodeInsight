@@ -258,7 +258,7 @@ accountServer <- function(id, credentials) {
 					"By upgrading, you get:",
 					HTML(
 						"<ul>
-						<li>A weekly breakdown of automated channel simulations to show you economically<br/>active nodes that improve your centralities the most</li>
+						<li>A weekly breakdown of automated channel simulations to show you economically<br/>active nodes that improve your centralities the most (first report shows up within 24 hours)</li>
 						<li>Unlimited access to the rebalance simulator</li>
 						<li>Unlimited access to the past centrality ranks and Terminal Web ranks</li>
 						<li>Automatic access to new features</li>
@@ -299,19 +299,7 @@ accountServer <- function(id, credentials) {
 					sub_date=now(), sub_expiration_date=now()+months(sub_period())
 				),
 				row.names=FALSE, append=TRUE)
-			showModal(
-				modalDialog(
-					HTML(
-						"<ul>
-						<li>Your first centrality optimisation report will appear on your account page within 24 hours</li>
-						<li>Just visit your account page every week to see updated results</li>
-						<li>Reach out to us if you ever have any issues!</li>
-						</ul>"),
-					footer=tagList(
-						modalActionButton("done", "Done"),
-					)
-				)
-			)
+			refresh()
 		})
 	})
 }
