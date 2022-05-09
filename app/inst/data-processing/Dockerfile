@@ -13,7 +13,7 @@ RUN apt-get update \
 RUN install2.r --error \ 
 	-r 'http://cran.rstudio.com' \
 	intergraph \
-	ghql
+	ghql \
+	pool
 
-COPY ["add-latest-data-to-db.R", "/opt"]
-COPY [".Renviron", "/opt"]
+COPY [".", "/opt"]

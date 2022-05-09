@@ -55,7 +55,7 @@ simulate_channel <- function(subject_pubkey, target_pubkeys, indel, amount=5e6) 
 		dplyr::select(tot.capacity, num.channels) %>%
 		summarise(q1capacity=quantile(tot.capacity, 0.25, na.rm=TRUE), q1num.channels=quantile(num.channels, 0.25, na.rm=TRUE))
 	graph_mod_filt <- graph_mod %>%
-		filter(act.channels>0, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
+		filter(act.channels>0, act.channels/(act.channels+inact.channels)>0.66, tot.capacity>heuristics$q1capacity, num.channels>heuristics$q1num.channels) %>%
 		mutate(id=row_number()) %>%
 		dplyr::select(-c(cent.between, cent.close, cent.eigen)) %>%
 		mutate(

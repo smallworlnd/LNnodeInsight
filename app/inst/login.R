@@ -244,7 +244,7 @@ loginServer <- function(id,
         # if signed message resolves to a valid pubkey, then credentials are valid
         if (signed_msg_output$valid) {
           credentials$user_auth <- TRUE
-          credentials$info <- signed_msg_output$pubkey
+          credentials$info$pubkey <- signed_msg_output$pubkey
           
           if (cookie_logins) {
             .sessionid <- randomString()

@@ -46,15 +46,17 @@ nodeSelectUI <- function(id, listId, lab) {
 #' @param pubkey_list full list of nodes to serve
 #' @return returns updateSelectizeInput server element with node list
 #' @export
-nodeListServer <- function(id, listId, pubkey_list=node_ids) {
+nodeListServer <- function(id, listId, pubkey_list=node_ids, default_selected=character(0)) {
 	moduleServer(id, function(input, output, session) {
-		updateSelectizeInput(
-			session,
-			inputId=listId,
-			choices=c("Pubkey or alias"=NULL, pubkey_list),
-			selected=character(0),
-			server=TRUE
-		)
+		observe({
+			isolate(updateSelectizeInput(
+				session,
+				inputId=listId,
+				choices=c("Pubkey or alias"=NULL, pubkey_list),
+				selected=default_selected,
+				server=TRUE
+			))
+		})
 	})
 }
 

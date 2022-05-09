@@ -2,7 +2,7 @@ source("inst/shiny-common.R")
 
 #' global variable useful for this app only
 chansim_filters <- data.frame(
-	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops"),
+	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "max.lnplus.rank"),
 	filter_max=tbl(pool, 'nodes_current') %>%
 		summarise(
 			max.cap=round(max(tot.capacity)/1e8, 0),
@@ -12,7 +12,8 @@ chansim_filters <- data.frame(
 			max.between=max(cent.between.rank),
 			max.close=max(cent.close.rank),
 			max.eigen=max(cent.eigen.rank),
-			max.hops=11) %>%
+			max.hops=11,
+			max.lnplus.rank=10) %>%
 		as_tibble %>%
 		unlist(use.names=FALSE),
 	filter_descr=c(
@@ -23,9 +24,10 @@ chansim_filters <- data.frame(
 		'Filter by range of betweenness centrality ranks',
 		'Filter by range of closeness centrality ranks',
 		'Filter by range of eigenvector centrality ranks',
-		'Only show nodes that fall within a range of hops away from the node selected in Step 1'),
-	filter_min=c(0.01, 0.001, 0, 1, 1, 1, 1, 0),
-	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1)
+		'Only show nodes that fall within a range of hops away from the node selected in Step 1',
+		"Filter by range of LightningNetwork+ ranks"),
+	filter_min=c(0.01, 0.001, 0, 1, 1, 1, 1, 0, 1),
+	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1)
 	) %>% t %>% as.data.frame
 
 #' UI element for node operator's pubkey selection
@@ -181,6 +183,22 @@ chansimUI <- function(id) {
 							lab='Filter nodes by Amboss community',
 							placehold='Community'
 						)
+					),
+					shinyjs::hidden(
+						buttonFilterSelectUI(
+							id=NS(id, 'filters'),
+							filtId='lnplus_pending',
+							lab='Filter for nodes currently participating in pending LN+ swaps',
+							inLine=TRUE,
+							choice_labels=c('Yes', 'No'), choice_vals=c(1, 2),
+							default_choice=2
+						)
+					),
+					shinyjs::hidden(
+						sliderFilterSelectUI(
+							id=NS(id, 'filters'),
+							filtId="lnplus_rank", lab="Filter for nodes participating in pending swaps by LN+ rank (filtered by swaps that the pubkey selected in Step 1 is eligible for)",
+							minVal=1, maxVal=10, stepVal=1)
 					)
 				),
 				column(12, align='center',
@@ -218,6 +236,12 @@ chansimUI <- function(id) {
 						centralityUI(NS(id, "past_result"))
 					)
 				)
+			)
+		),
+		conditionalPanel(
+			"output.filter_by_lnplus_swaps == 1", ns=ns,
+			column(4, 
+				uiOutput(NS(id, "show_qualifying_swaps"))
 			)
 		),
 		column(4, align="center",
@@ -279,7 +303,7 @@ centralityUI <- function(id) {
 #' @param db backend database for accessing amboss community list
 #' @return reset filters
 #' @export
-resetFiltersServer <- function(id, subject, filters=chansim_filters, db=con) {
+resetFiltersServer <- function(id, subject, filters=chansim_filters, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		observeEvent(subject(), {
 			lapply(chansim_filters, function(x)
@@ -287,8 +311,10 @@ resetFiltersServer <- function(id, subject, filters=chansim_filters, db=con) {
 			)
 			updateSliderInput(session, inputId='max.hops', value=c(0, 11))
 			updateSliderInput(session, inputId='peers.of.peers', value=2)
+			updateSliderInput(session, inputId='lnplus_pending', value=2)
+			updateSliderInput(session, inputId='lnplus_rank', value=c(1, 10))
 
-			comms <- tbl(pool, 'communities') %>%
+			comms <- tbl(db, 'communities') %>%
 				distinct(community) %>%
 				pull(community) %>%
 				sort
@@ -465,9 +491,12 @@ channelSimulationServer <- function(id, subject, targets, add_or_del, api_info) 
 #' vector of communities rather than a db connection?)
 #' @return returns filtered list of node pubkeys for choosing from
 #' @export
-applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list=node_ids, db=con) {
+applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list=node_ids, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		if (pubkey != "") {
+			# filter out peers of pubkey
+			peer_ids <- adjacent_vertices(graph, fetch_id(pubkey=pubkey), mode='all') %>% unlist
+			# apply user-defined filters
 			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
 				as_tbl_graph %>%
 				filter(
@@ -478,20 +507,36 @@ applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list
 					cent.between.rank>=input$max.between[1], cent.between.rank<=input$max.between[2],
 					cent.close.rank>=input$max.close[1], cent.close.rank<=input$max.close[2],
 					cent.eigen.rank>=input$max.eigen[1], cent.eigen.rank<=input$max.eigen[2]) %>%
+				filter(!id %in% peer_ids) %>%
 				mutate(target=paste(alias, "-", pubkey))
-				if (input$community != "") {
-					members <- tbl(pool, 'communities') %>%
-						filter(community==local(input$community)) %>%
-						pull(pubkey)
-					vals <- vals %>% filter(pubkey %in% members)
-				}
+			# apply amboss community filter if user selected
+			if (input$community != "") {
+				members <- tbl(db, 'communities') %>%
+					filter(community==local(input$community)) %>%
+					pull(pubkey)
+				vals <- vals %>% filter(pubkey %in% members)
+			}
+			# apply peers of peers filter if user selected
 			if (as.numeric(input$peers.of.peers) == 1) {
 				peers_of_peers <- fetch_peers_of_peers(pubkey=pubkey) %>% unlist %>% unique
-				vals <- vals %>% as_tibble %>% filter(!(alias %in% peers_of_peers)) %>% pull(target)
-			} else {
-				vals <- vals %>% as_tibble %>% pull(target)
+				vals <- vals %>% as_tibble %>% filter(!(alias %in% peers_of_peers))
 			}
-			return(vals)
+			# apply lnplus pending swap node filter if user selected
+			if (as.numeric(input$lnplus_pending) == 1) {
+				pubkey_stats <- as_tibble(graph) %>%
+					filter(pubkey==!!pubkey)
+				nodes_in_swaps <- tbl(db, "lnplus_pending") %>%
+					filter(
+						lnplus_rank_number>=!!input$lnplus_rank[1],
+						lnplus_rank_number<=!!input$lnplus_rank[2],
+						min_cap<=!!pubkey_stats$tot.capacity,
+						min_channels<=!!pubkey_stats$num.channels) %>%
+					as_tibble %>%
+					pull(pubkey) %>%
+					unique
+				vals <- vals %>% filter(pubkey %in% nodes_in_swaps)
+			}
+			return(pull(vals, target))
 		}
 	})
 }
@@ -563,6 +608,67 @@ targetUpdateServer <- function(id, pubkey_list) {
 	})
 }
 
+#' toggle hidden elements depending on account status
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param credentials make community filter accessible if user is logged in
+#' @return returns toggled/hidden UI elements depending on account status
+#' @export
+toggleHiddenElements <- function(id, credentials) {
+	moduleServer(id, function(input, output, session) {
+		shiny::observe({
+			req(credentials()$user_auth)
+			shinyjs::toggle('community')
+			shinyjs::toggle('lnplus_pending')
+		})
+		shiny::observeEvent(input$lnplus_pending, {
+			if (input$lnplus_pending == 1) {
+				shinyjs::toggle('lnplus_rank', condition=credentials()$user_auth)
+			} else {
+				shinyjs::hide('lnplus_rank')
+			}
+		})
+	})
+}
+
+#' LN+ swap UI element
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param qualifying_swaps swaps a node is eligible for
+#' @return returns valueboxes summarizing all eligible swaps a target pubkey is
+#' currently participating in
+#' @export
+lnplusSwapUIServer <- function(id, qualifying_swaps) {
+	moduleServer(id, function(input, output, session) {
+		output$qualifying_swaps <- renderUI({
+			box(id=NS(id, "swaps_box"), title="Open swaps on LN+", width=NULL, collapsible=TRUE,
+				lapply(
+					qualifying_swaps %>% collect %>% t %>% as.data.frame,
+					function(x)
+						a(href=x[15], target="_blank",
+							valueBox(
+								paste(prettyNum(x[12], big.mark=","), "sats"), paste0("Swap #", x[13]),
+								icon=icon("exchange-alt"), color="purple", width=12
+							)
+						)
+				)
+			)
+		})
+	})
+}
+
+#' LN+ filter activation reactive
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @return returns input reactive if LN+ filter is selected
+#' @export
+lnplusFilterActivate <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		reactive(input$lnplus_pending)
+	})
+}
+
+
 #' dropdown filter selection server
 #'
 #' module for dropdown menu filters, like for filtering by amboss community
@@ -574,12 +680,9 @@ targetUpdateServer <- function(id, pubkey_list) {
 #' @return returns list of amboss communities from which to filter target node
 #' pubkeys
 #' @export
-dropdownFilterSelectServer <- function(id, credentials, db=pool) {
+dropdownFilterSelectServer <- function(id, db=pool) {
 	moduleServer(id, function(input, output, session) {
-		shiny::observe({
-			shinyjs::toggle('community', condition=credentials()$user_auth)
-		})
-		comms <- tbl(pool, 'communities') %>% pull(community) %>% unique %>% sort
+		comms <- tbl(db, 'communities') %>% pull(community) %>% unique %>% sort
 		updateSelectizeInput(
 			session, 
 			inputId="community",
@@ -659,6 +762,7 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		# initializ reactive values
 		users <- db %>% tbl('users')
+		pending_swaps <- db %>% tbl("lnplus_pending")
 		subject <- getNodePubkey('subject_select', "subject")
 		targets <- getTargets('target_select')
 		available_choices <- reactiveVal()
@@ -684,9 +788,10 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 			lapply(centralities, function(x) centralityRankOutput('cents', x))
 		})
 
-		dropdownFilterSelectServer('filters', credentials)
+		dropdownFilterSelectServer('filters')
 		resetFiltersServer('filters', subject)
 		subjectSelectServer('subject_select')
+		toggleHiddenElements("filters", credentials)
 
 		# if the launch button is clicked, then run a simulation on the subject
 		# with the given targets
@@ -745,6 +850,25 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 				)
 			lapply(simulated_centralities, function(x) centralityRankOutput('cents', x))
 		})
+		
+		# filter by LN+ swaps
+		filter_by_lnplus_swaps <- lnplusFilterActivate("filters")
+		output$filter_by_lnplus_swaps <- eventReactive(filter_by_lnplus_swaps(), {
+			filter_by_lnplus_swaps()
+		})
+		# pass the filter state to the client side to determine whether to show
+		# swaps UI element
+		outputOptions(output, "filter_by_lnplus_swaps", suspendWhenHidden=FALSE)
+		# fetch qualifying swaps for the subject pubkey
+		qualifying_swaps <- eventReactive(targets(), {
+			req(filter_by_lnplus_swaps() == 1)
+			pending_swaps %>% filter(pubkey %in% !!targets())
+		})
+		# update the swaps UI element depending on selected targets
+		observeEvent(targets(), {
+			req(filter_by_lnplus_swaps() == 1)
+			output$show_qualifying_swaps <- lnplusSwapUIServer("show_qualifying_swaps", qualifying_swaps())
+		})
 	})
 }
 
@@ -765,9 +889,11 @@ chansimApp <- function() {
 	)
 	credentials <- reactiveValues(
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE)
+		user_auth=TRUE, cookie_already_checked=FALSE)
+		#info=NULL,
+		#user_auth=FALSE, cookie_already_checked=FALSE)
 	server <- function(input, output, session) {
-		chansimServer('x', chansim_api_info, reactive(credentials))
+		chansimServer('x', chansim_api_info, reactive(reactiveValuesToList(credentials)))
 	}
 	shinyApp(ui, server)
 }

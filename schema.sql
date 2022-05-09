@@ -65,6 +65,67 @@ CREATE TABLE public.edges_current (
 ALTER TABLE public.edges_current OWNER TO postgres;
 
 --
+-- Name: lnplus_minmax; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.lnplus_minmax (
+    "time" timestamp with time zone,
+    pubkey text,
+    top_swaps double precision,
+    swap_amt double precision,
+    num_participants double precision,
+    participant_max_count double precision,
+    "cent.between.rank.delta" double precision,
+    "cent.close.rank.delta" double precision,
+    "cent.eigen.rank.delta" double precision
+);
+
+
+ALTER TABLE public.lnplus_minmax OWNER TO postgres;
+
+--
+-- Name: lnplus_pending; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.lnplus_pending (
+    pubkey text,
+    alias text,
+    participant_identifier text,
+    opening_to_participant_identifier text,
+    receiving_from_participant_identifier text,
+    lnplus_rank_number integer,
+    lnplus_rank_name text,
+    positive_ratings_count integer,
+    negative_ratings_count integer,
+    min_channels integer,
+    min_cap integer,
+    swap_amt integer,
+    swap_id integer,
+    participant_max_count integer,
+    url text
+);
+
+
+ALTER TABLE public.lnplus_pending OWNER TO postgres;
+
+--
+-- Name: minmax; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.minmax (
+    "time" timestamp with time zone,
+    "pubkey.x" text,
+    "pubkey.y" text,
+    alias text,
+    "cent.between.rank.delta" double precision,
+    "cent.close.rank.delta" double precision,
+    "cent.eigen.rank.delta" double precision
+);
+
+
+ALTER TABLE public.minmax OWNER TO postgres;
+
+--
 -- Name: nd; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -199,7 +260,10 @@ ALTER TABLE public.sessions OWNER TO postgres;
 CREATE TABLE public.users (
     pubkey text,
     alias text,
-    permissions text
+    subscription text,
+    sub_date timestamp without time zone,
+    sub_expiration_date timestamp without time zone,
+    permissions character varying
 );
 
 

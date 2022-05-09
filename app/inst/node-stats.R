@@ -494,11 +494,11 @@ nodeStatHeader <- function(id, headerId, stats, activeTxt, inactiveTxt) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @return returns backend for the app UI
 #' @export
-nodestatsServer <- function(id, credentials) {
+nodestatsServer <- function(id, credentials, url_pubkey_search) {
 	moduleServer(id, function(input, output, session) {
 		# initialize the node list from which to select
 		users <- pool %>% tbl("users")
-		nodeListServer("node_select", listId="subject")
+		nodeListServer("node_select", listId="subject", default_selected=url_pubkey_search)
 		pubkey <- getNodePubkey("node_select", "subject")
 		ambossLinkServer("link_to_amboss_page", pubkey)
 		stats <- reactiveValues()

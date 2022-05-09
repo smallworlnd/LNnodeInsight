@@ -68,7 +68,7 @@ dashboardUI <- function(id) {
 			),
 			h3('Community tools'),
 			fluidRow(
-				lapply(c("amboss", "lnrouter"), function(x) appLinkUI(NS(id, "external_apps"), x))
+				lapply(c("amboss", "lnrouter", "lnplus"), function(x) appLinkUI(NS(id, "external_apps"), x))
 			)
 		)
 	)
@@ -127,11 +127,11 @@ dashboardServer <- function(id) {
 	moduleServer(id, function(input, output, session) {
 		lapply(
 			data.frame(
-				boxId=c("amboss", "lnrouter"),
-				appLink=c("https://amboss.space", "https://lnrouter.app"),
-				boxTitle=c("amboss", "lnrouter"),
-				boxSubtitle=c("Explore a node's channels, fees and all the most useful summary stats at Amboss", "Explore channel balancedness with LnRouter to help identify well-managed nodes"),
-				linkIcon=c("amboss.png", "lnrouter.png")
+				boxId=c("amboss", "lnrouter", "lnplus"),
+				appLink=c("https://amboss.space", "https://lnrouter.app", "https://lightningnetwork.plus/"),
+				boxTitle=c("amboss", "lnrouter", "lightningnetwork+"),
+				boxSubtitle=c("Explore a node's channels, fees and all the most useful summary stats at Amboss", "Explore channel balancedness with LnRouter to help identify well-managed nodes", "Looking to open balanced channels? Find liquidity swaps at LightningNetwork+"),
+				linkIcon=c("amboss.png", "lnrouter.png", "lnplus.png")
 			) %>% t %>% as.data.frame,
 			function(x) externalAppServer("external_apps", x[1], x[2], x[3], x[4], x[5])
 		)

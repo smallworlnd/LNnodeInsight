@@ -27,6 +27,7 @@ bos_current <- pool %>% tbl('bos') %>% filter(time==max(time)) %>% as_tibble
 undir_graph <- build_graph(nodes_current, edges_current)
 
 node_ids <- nodes_current %>%
+	filter(act.channels>0 & act.channels/(act.channels+inact.channels)>0.66) %>%
 	mutate(alias_pubkey=paste(alias, "-", pubkey)) %>%
 	pull(alias_pubkey)
 

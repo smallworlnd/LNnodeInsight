@@ -1,5 +1,5 @@
 server <- function(input, output, session) {
-	users <- pool %>% tbl("users")
+	users <- pool %>% tbl("users") %>% as_tibble
 	credentials <- loginServer(
 		id="login",
 		data=users,
@@ -23,6 +23,11 @@ server <- function(input, output, session) {
 			list(url=Sys.getenv("REBALSIM_LOCAL_API_URL"))
 		} else {
 			get_api_info("rebalsim-api")
+		}
+	lnplus_swap_minmax_api_info <- if (Sys.getenv("LOCAL")) {
+			list(url=Sys.getenv("LNPLUS_MINMAX_LOCAL_API_URL"))
+		} else {
+			get_api_info("lnplus-swap-minmax")
 		}
 	logout_init <- logoutServer(
 		id="logout",
@@ -62,21 +67,22 @@ server <- function(input, output, session) {
 			)
 		)
 	})
+	query_pubkey <- reactiveVal(character(0))
 	observeEvent(session$clientData$url_search, {
 		query <- parseQueryString(session$clientData$url_search)
 		if (length(query)>0) {
 			pubkey <- str_split(names(query), '/')[[1]][2]
-			pubkey_search <- node_ids[grepl(pubkey, node_ids)]
-			if (length(pubkey_search) > 0) {
+			alias_pubkey <- node_ids[grepl(pubkey, node_ids)]
+			if (length(alias_pubkey) > 0) {
 				updateTabItems(session, "sidebar", "nodestats")
-				updateSelectizeInput(session, "nodestats_subject", choices=c("Pubkey/alias"="", node_ids), selected=pubkey_search, server=TRUE)
+				query_pubkey(alias_pubkey)
 			}
 		}
 	})
 	dashboardServer('dashboard')
-	accountServer("account", credentials)
+	accountServer("account", credentials, lnplus_swap_minmax_api_info)
 	byocServer('byoc', credentials)
-	nodestatsServer('nodestats', credentials)
+	nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
 	rebalsimServer('rebalsim', rebalsim_api_info, credentials)
 	chansimServer('chansim', chansim_api_info, credentials)
 }

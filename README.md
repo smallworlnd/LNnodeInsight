@@ -9,12 +9,9 @@ A dockerized `R` Shiny application to interact with Lightning Network graph data
 ```
 git clone https://github.com/smallworlnd/LNnodeInsight
 cd LNnodeInsight
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+docker-compose up --build
 ```
-- Load in the given DB schema
-```
-docker exec -i LNnodeInsight_db_1 psql -U postgres -d lnd < schema.sql
-```
+### Load graph data
 * If you don't have a BTCPayServer setup, you can optionally use a graph file generated from your `lnd` instance using `lncli describegraph > ln-graph.json`. Load that file into your DB (assuming it's running according to `docker-compose.yml`):
 ```
 # under the LNnodeInsight directory

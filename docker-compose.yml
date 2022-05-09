@@ -8,8 +8,6 @@ services:
       - "3838"
     depends_on:
       - db
-      - chansim-backend
-      - rebalsim-backend
   centralities-api:
     build: ./app/api/centralities
     restart: unless-stopped
