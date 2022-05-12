@@ -104,16 +104,27 @@ histogramServer <- function(id, credentials, db=pool, vars=chart_vars, communiti
 		})
 		output$histo <- renderPlotly({
 			req(input$histo_var != "")
+			nd <- tbl(db, "nd") %>%
+				filter(time==max(time)) %>%
+				dplyr::select(pubkey, score) %>%
+				rename('tweb.score'='score')
+			bos <- tbl(db, "bos") %>%
+				filter(time==max(time)) %>%
+				dplyr::select(pubkey, score) %>%
+				rename('bos'='score')
+			dat <- tbl(pool, "nodes_current") %>%
+				left_join(., nd, by='pubkey') %>%
+				left_join(., bos, by='pubkey')
 			if (credentials()$user_auth && input$histo_comm != "") {
 				pubkeys <- db %>% tbl('communities') %>%
 					filter(community %in% !!input$histo_comm) %>%
 					pull(pubkey)
-				dat <- db %>% tbl('nodes_current') %>%
+				dat <- dat %>%
 					filter(pubkey %in% !!pubkeys) %>%
 					dplyr::select(local(chart_vars[input$histo_var] %>% as.vector)) %>%
 					as_tibble
 			} else {
-				dat <- db %>% tbl('nodes_current') %>%
+				dat <- dat %>%
 					dplyr::select(local(chart_vars[input$histo_var] %>% as.vector)) %>%
 					as_tibble
 			}
@@ -159,11 +170,22 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 		})
 		output$scatter <- renderPlotly({
 			req(input$scatter_xvar != "" && input$scatter_yvar != "")
+			nd <- tbl(db, "nd") %>%
+				filter(time==max(time)) %>%
+				dplyr::select(pubkey, score) %>%
+				rename('tweb.score'='score')
+			bos <- tbl(db, "bos") %>%
+				filter(time==max(time)) %>%
+				dplyr::select(pubkey, score) %>%
+				rename('bos'='score')
+			dat <- tbl(pool, "nodes_current") %>%
+				left_join(., nd, by='pubkey') %>%
+				left_join(., bos, by='pubkey')
 			if (credentials()$user_auth && input$scatter_comm != "") {
 				pubkeys <- db %>% tbl('communities') %>%
 					filter(community %in% !!input$scatter_comm) %>%
 					pull(pubkey)
-				dat <- db %>% tbl('nodes_current') %>%
+				dat <- dat %>%
 					filter(pubkey %in% !!pubkeys) %>%
 					dplyr::select(
 						alias,
@@ -171,7 +193,7 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 						local(chart_vars[input$scatter_yvar] %>% as.vector)) %>%
 					as_tibble
 			} else {
-				dat <- db %>% tbl('nodes_current') %>%
+				dat <- dat %>%
 					dplyr::select(
 						alias,
 						local(chart_vars[input$scatter_xvar] %>% as.vector),
