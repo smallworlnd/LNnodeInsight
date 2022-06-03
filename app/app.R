@@ -38,6 +38,7 @@ source('inst/accounts-internal.R', local=TRUE)
 # pages
 source("inst/dashboard.R", local=TRUE)
 source("inst/account-page.R", local=TRUE)
+source("inst/reports.R", local=TRUE)
 source("inst/node-stats.R", local=TRUE)
 source('inst/byoc.R', local=TRUE)
 source('inst/chan-sim.R', local=TRUE)

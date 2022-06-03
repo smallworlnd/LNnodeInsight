@@ -23,7 +23,8 @@ sidebar <- dashboardSidebar(
 		id='sidebar', icon=NULL,
 		menuItem("Start", startExpanded=TRUE, tabName="home", icon=icon('arrow-right', lib='font-awesome'),
 			menuSubItem("Dashboard", tabName="dashboard", icon=NULL),
-			menuSubItem("Account", tabName="account", icon=NULL)
+			menuSubItem("Account", tabName="account", icon=NULL),
+			menuSubItem("Reports", tabName="reports", icon=NULL)
 		),
 		menuItem("Visuals", tabName="visuals", icon=icon('eye-open', lib='glyphicon'),
 			menuSubItem("Build your own chart", tabName="byoc", icon=NULL),
@@ -51,6 +52,9 @@ dashboardbody <- dashboardBody(
 		tabItem(tabName='account',
 			loginUI("login", additional_ui=a('Not sure how to sign a message?', onclick="openTab('faq')", href=NULL, style="cursor: pointer;")),
 			accountUI("account")
+		),
+		tabItem(tabName='reports',
+			reportsUI("reports")
 		),
 		tabItem(tabName='dashboard',
 			dashboardUI('dashboard')

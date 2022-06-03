@@ -1,7 +1,7 @@
 source("inst/shiny-common.R", local=TRUE)
 
 #' global variable useful for this app only
-chart_vars <- c('Total capacity (sat)'='tot.capacity',
+chart_vars <- c('Total capacity (BTC)'='tot.capacity',
 	'Number of channels'='num.channels',
 	'Average channel capacity (sat)'='avg.capacity',
 	'Median channel capacity (sat)'='med.capacity',
@@ -11,7 +11,6 @@ chart_vars <- c('Total capacity (sat)'='tot.capacity',
 	'Median fee rate (ppm)'='median.rate.ppm',
 	'Number of active channels'='act.channels',
 	'Number of inactive channels'='inact.channels',
-	'Approximate node age (days)'='age',
 	'Betweenness centrality'='cent.between',
 	'Eigenvector centrality'='cent.eigen',
 	'Closeness centrality'='cent.close',
@@ -35,6 +34,9 @@ histogramUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 				box(width=NULL,
 					selectizeInput(inputId=ns('histo_var'), label='Choose a node variable', choices=c('', names(vars))),
 					selectizeInput(inputId=ns('histo_comm'), label='Filter by Amboss community', choices=c('', communities_list)),
+					checkboxGroupInput(inputId=ns('histo_log_scale'), label=NULL, c("Log-transform x-axis"="logx", "Log-transform y-axis"="logy"), selected="logy"),
+					numericInput(inputId=ns("histo_min"), label="Set minimum value:", value=NULL),
+					numericInput(inputId=ns("histo_max"), label="Set maximum value:", value=NULL),
 				column(12, offset=3,
 					actionBttn(inputId=ns('histo_clear'), label='Clear', style='fill', color='danger', block=FALSE)),
 				)
@@ -42,7 +44,7 @@ histogramUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 		),
 		column(10,
 			fluidRow(
-				box(withSpinner(plotlyOutput(ns('histo'))), width=NULL),
+				box(withSpinner(plotlyOutput(ns('histo'), height="700px")), width=NULL),
 			),
 		)
 	)
@@ -68,6 +70,11 @@ scatterplotUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 					shinyjs::hidden(
 						selectizeInput(inputId=ns('scatter_comm'), label='Filter by Amboss community', choices=c('', communities_list))
 					),
+					checkboxGroupInput(inputId=ns('scatter_log_scale'), label=NULL, c("Log-transform x-axis"="logx", "Log-transform y-axis"="logy"), selected=c("logx", "logy")),
+					numericInput(inputId=ns("scatter_xmin"), label="Set minimum X-axis value:", value=NULL),
+					numericInput(inputId=ns("scatter_xmax"), label="Set maximum X-axis value:", value=NULL),
+					numericInput(inputId=ns("scatter_ymin"), label="Set minimum Y-axis value:", value=NULL),
+					numericInput(inputId=ns("scatter_ymax"), label="Set maximum Y-axis value:", value=NULL),
 					column(12, offset=3,
 						actionBttn(inputId=ns('scatter_clear'), label='Clear', style='fill', color='danger', block=FALSE)),
 				),
@@ -75,7 +82,7 @@ scatterplotUI <- function(id, vars=chart_vars, communities_list=comms_list) {
 		),
 		column(10,
 			fluidRow(
-				box(withSpinner(plotlyOutput(ns('scatter'))), width=NULL),
+				box(withSpinner(plotlyOutput(ns('scatter'), height="700px")), width=NULL),
 			)
 		)
 	)
@@ -102,8 +109,29 @@ histogramServer <- function(id, credentials, db=pool, vars=chart_vars, communiti
 		shiny::observe({
 			shinyjs::toggle('histo_comm', condition=credentials()$user_auth)
 		})
-		output$histo <- renderPlotly({
+		min_max <- eventReactive(input$histo_var, {
 			req(input$histo_var != "")
+			chart_var <- chart_vars[input$histo_var] %>% as.vector
+			min_max <- tbl(db, "nodes_current") %>%
+				left_join(., dplyr::select(tbl(db, "bos"), pubkey, score), by="pubkey") %>%
+				rename("bos"="score") %>%
+				left_join(., dplyr::select(tbl(db, "nd"), pubkey, score), by="pubkey") %>%
+				rename("tweb.score"="score") %>%
+				dplyr::select(local(chart_var)) %>%
+				summarise_all(c("min", "max")) %>%
+				collect
+			if (chart_var=="tot.capacity") {
+				min_max <- min_max %>% mutate(min=min/1e8, max=max/1e8)
+			} else {
+				min_max
+			}
+		})
+		observeEvent(min_max(), {
+			updateNumericInput(session, "histo_min", label="Set minimum value:", value=min_max()$min)
+			updateNumericInput(session, "histo_max", label="Set maximum value:", value=min_max()$max)
+		})
+		output$histo <- renderPlotly({
+			req(min_max())
 			nd <- tbl(db, "nd") %>%
 				filter(time==max(time)) %>%
 				dplyr::select(pubkey, score) %>%
@@ -112,7 +140,7 @@ histogramServer <- function(id, credentials, db=pool, vars=chart_vars, communiti
 				filter(time==max(time)) %>%
 				dplyr::select(pubkey, score) %>%
 				rename('bos'='score')
-			dat <- tbl(pool, "nodes_current") %>%
+			dat <- tbl(db, "nodes_current") %>%
 				left_join(., nd, by='pubkey') %>%
 				left_join(., bos, by='pubkey')
 			if (credentials()$user_auth && input$histo_comm != "") {
@@ -128,11 +156,19 @@ histogramServer <- function(id, credentials, db=pool, vars=chart_vars, communiti
 					dplyr::select(local(chart_vars[input$histo_var] %>% as.vector)) %>%
 					as_tibble
 			}
+			xscale <- ifelse("logx" %in% input$histo_log_scale, "log", "linear")
+			yscale <- ifelse("logy" %in% input$histo_log_scale, "log", "linear")
+			if (vars[input$histo_var]=="tot.capacity") {
+				dat <- dat %>% mutate(tot.capacity=tot.capacity/1e8)
+			}
+			dat <- dat %>%
+				filter(eval(parse(text=vars[input$histo_var]))>=input$histo_min) %>%
+				filter(eval(parse(text=vars[input$histo_var]))<=input$histo_max)
 			plot_ly(dat,
 				x=as.formula(paste0('~', vars[input$histo_var]))) %>%
 					layout(
-						xaxis=list(title=input$histo_var, type='linear'),
-						yaxis=list(title="Number of nodes with", type='log')) %>%
+						xaxis=list(title=input$histo_var, type=xscale),
+						yaxis=list(title="Number of nodes with", type=yscale)) %>%
 					add_annotations(
 						xref="paper", yref="paper",
 						x=1, y=1, text="LNnodeinsight.com",
@@ -143,6 +179,8 @@ histogramServer <- function(id, credentials, db=pool, vars=chart_vars, communiti
 		observeEvent(input$histo_clear, {
 			updateSelectizeInput(session, inputId='histo_var', label='Choose a node variable', choices=c('', names(vars)))
 			updateSelectizeInput(session, inputId='histo_comm', label='Filter by Amboss community', choices=c('', communities_list))
+			updateNumericInput(session, "histo_min", label="Set minimum value:", value=NULL)
+			updateNumericInput(session, "histo_max", label="Set maximum value:", value=NULL)
 		})
 	})
 }
@@ -168,8 +206,50 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 		shiny::observe({
 			shinyjs::toggle('scatter_comm', condition=credentials()$user_auth)
 		})
+		x_min_max <- eventReactive(input$scatter_xvar, {
+			req(input$scatter_xvar != "")
+			xvar <- chart_vars[input$scatter_xvar] %>% as.vector
+			min_max <- tbl(db, "nodes_current") %>%
+				left_join(., dplyr::select(tbl(db, "bos"), pubkey, score), by="pubkey") %>%
+				rename("bos"="score") %>%
+				left_join(., dplyr::select(tbl(db, "nd"), pubkey, score), by="pubkey") %>%
+				rename("tweb.score"="score") %>%
+				dplyr::select(local(xvar)) %>%
+				summarise_all(c("min", "max")) %>%
+				collect
+			if (xvar=="tot.capacity") {
+				min_max <- min_max %>% mutate(min=min/1e8, max=max/1e8)
+			} else {
+				min_max
+			}
+		})
+		y_min_max <- eventReactive(input$scatter_yvar, {
+			req(input$scatter_yvar != "")
+			yvar <- chart_vars[input$scatter_yvar] %>% as.vector
+			min_max <- tbl(db, "nodes_current") %>%
+				left_join(., dplyr::select(tbl(db, "bos"), pubkey, score), by="pubkey") %>%
+				rename("bos"="score") %>%
+				left_join(., dplyr::select(tbl(db, "nd"), pubkey, score), by="pubkey") %>%
+				rename("tweb.score"="score") %>%
+				dplyr::select(local(yvar)) %>%
+				summarise_all(c("min", "max")) %>%
+				collect
+			if (yvar=="tot.capacity") {
+				min_max <- min_max %>% mutate(min=min/1e8, max=max/1e8)
+			} else {
+				min_max
+			}
+		})
+		observeEvent(x_min_max(), {
+			updateNumericInput(session, "scatter_xmin", label="Set minimum X-axis value:", value=x_min_max()$min)
+			updateNumericInput(session, "scatter_xmax", label="Set maximum X-axis value:", value=x_min_max()$max)
+		})
+		observeEvent(y_min_max(), {
+			updateNumericInput(session, "scatter_ymin", label="Set minimum Y-axis value:", value=y_min_max()$min)
+			updateNumericInput(session, "scatter_ymax", label="Set maximum Y-axis value:", value=y_min_max()$max)
+		})
 		output$scatter <- renderPlotly({
-			req(input$scatter_xvar != "" && input$scatter_yvar != "")
+			req(x_min_max(), y_min_max())
 			nd <- tbl(db, "nd") %>%
 				filter(time==max(time)) %>%
 				dplyr::select(pubkey, score) %>%
@@ -178,7 +258,7 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 				filter(time==max(time)) %>%
 				dplyr::select(pubkey, score) %>%
 				rename('bos'='score')
-			dat <- tbl(pool, "nodes_current") %>%
+			dat <- tbl(db, "nodes_current") %>%
 				left_join(., nd, by='pubkey') %>%
 				left_join(., bos, by='pubkey')
 			if (credentials()$user_auth && input$scatter_comm != "") {
@@ -200,14 +280,24 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 						local(chart_vars[input$scatter_yvar] %>% as.vector)) %>%
 					as_tibble
 			}
+			xscale <- ifelse("logx" %in% input$scatter_log_scale, "log", "linear")
+			yscale <- ifelse("logy" %in% input$scatter_log_scale, "log", "linear")
+			if (vars[input$scatter_xvar]=="tot.capacity" || vars[input$scatter_yvar]=="tot.capacity") {
+				dat <- dat %>% mutate(tot.capacity=tot.capacity/1e8)
+			}
+			dat <- dat %>%
+				filter(eval(parse(text=vars[input$scatter_xvar]))>=input$scatter_xmin) %>%
+				filter(eval(parse(text=vars[input$scatter_xvar]))<=input$scatter_xmax) %>%
+				filter(eval(parse(text=vars[input$scatter_yvar]))>=input$scatter_ymin) %>%
+				filter(eval(parse(text=vars[input$scatter_yvar]))<=input$scatter_ymax)
 			plot_ly(dat,
 				type='scatter', text=~alias,
 				hovertemplate=paste0("%{text}\n", "%{x}, %{y}"),
 				x=as.formula(paste0('~', vars[input$scatter_xvar])),
 				y=as.formula(paste0('~', vars[input$scatter_yvar]))) %>%
 					layout(
-						xaxis=list(title=input$scatter_xvar, type='log'),
-						yaxis=list(title=input$scatter_yvar, type='log')) %>%
+						xaxis=list(title=input$scatter_xvar, type=xscale),
+						yaxis=list(title=input$scatter_yvar, type=yscale)) %>%
 					add_annotations(
 						xref="paper", yref="paper",
 						x=1, y=1, text="LNnodeinsight.com",
@@ -219,6 +309,10 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 			updateSelectizeInput(session, inputId='scatter_xvar', label='Choose an X-axis variable', choices=c('', names(vars)))
 			updateSelectizeInput(session, inputId='scatter_yvar', label='Choose a Y-axis variable', choices=c('', names(vars)))
 			updateSelectizeInput(session, inputId='scatter_comm', label='Color by Amboss community', choices=c('', communities_list))
+			updateNumericInput(session, "scatter_xmin", label="Set minimum X-axis value:", value=NULL)
+			updateNumericInput(session, "scatter_xmax", label="Set maximum X-axis value:", value=NULL)
+			updateNumericInput(session, "scatter_ymin", label="Set minimum Y-axis value:", value=NULL)
+			updateNumericInput(session, "scatter_ymax", label="Set maximum Y-axis value:", value=NULL)
 		})
 	})
 }
@@ -229,7 +323,7 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 #' @return returns app UI element
 #' @export
 byocUI <- function(id) {
-	tabBox(id='charting', side='left', selected='histo', width=NULL, height='500px',
+	tabBox(id='charting', side='left', selected='histo', width=NULL, height='800px',
 		histogramUI(NS(id, 'ln_histo')),
 		scatterplotUI(NS(id, 'ln_scatter'))
 	)

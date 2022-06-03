@@ -134,7 +134,7 @@ nodestatsUI <- function(id) {
 						"Betweenness centrality but using channel capacities as weights.",
 						"Eigenvector/hubness centrality but using channel capacities as weights.",
 						"Closeness/hopness centrality but using channel capacities as weights.",
-						"Rank according to the system designed by Alex Bosworth.")
+						"The first ranking system designed by Lightning Labs.")
 				) %>% t %>% as.data.frame,
 				function(x) nodeRanksUI(NS(id, "node_ranks"), rankId=x[1], desc=x[2])
 			)
@@ -638,7 +638,7 @@ nodestatsApp <- function() {
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
 		user_auth=TRUE)
 	server <- function(input, output, session) {
-		nodestatsServer('x', reactive(credentials))
+		nodestatsServer('x', reactive(credentials), NULL)
 	}
 	shinyApp(ui, server)
   

@@ -44,7 +44,7 @@ dataTableUI <- function(id, tableId) {
 #' @return returns infobox output containing subscription information
 #' @export
 subInfoBox <- function(id) {
-	infoBoxOutput(NS(id, "sub_info"), width=12)
+	infoBoxOutput(NS(id, "sub_info"), width=4)
 }
 
 #' subscription period slider UI element
@@ -81,87 +81,8 @@ accountUI <- function(id) {
 					)
 				)
 			)
-		),
-		column(12,
-			conditionalPanel(
-				condition="output.account_is_premium == 'true'", ns=ns,
-				h3('Automated weekly channel simulation optimization report', align="center"),
-				column(12,
-					dataTableUI(NS(id, "account_minmax_report"), "minmax"),
-					style="height:500px; overflow-y: scroll;overflow-x: scroll;"
-				),
-				h5('*Results can take up to 24 hours to display after successfully paying subscription invoice', align="left"),
-				br(),
-				h3('LightningNetwork+ swap optimization report', align="center"),
-				column(12,
-					dataTableUI(NS(id, "lnplus_minmax_report"), "lnplus_minmax"),
-					style="overflow-x: scroll;"
-				),
-				column(12, align="center",
-					startButtonUI(NS(id, "get_swap_minmax_report"),
-						buttonId="start_lnplus_minmax",
-						lab=swapRefreshButtonUI(NS(id, "swap_minmax_label")))
-				),
-			)
 		)
 	)
-}
-
-swapRefreshButtonUI <- function(id) {
-	textOutput(NS(id, "swap_minmax_button_label"))
-}
-
-swapRefreshButtonLabel <- function(id, credentials, lnplus_minmax_results) {
-	moduleServer(id, function(input, output, session) {
-		output$swap_minmax_button_label <- renderText({
-			prev_res <- lnplus_minmax_results %>%
-				filter(pubkey==!!credentials()$info[1]$pubkey) %>%
-				collect %>%
-				nrow
-			if (prev_res > 0) {
-				return("Refresh optimal swaps")
-			} else {
-				return("Find optimal swaps")
-			}
-		})
-	})
-}
-
-#' lnplus swap optimization server
-#'
-#' module for computing optimal swaps to join based on centralities
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @param subject subject pubkey on which simulations are run
-#' @param targets vector of target nodes with which we're adding/removing channels
-#' @param add_or_del vector of choices whether to add/remove
-#' @param api_info url and auth token (if present) of channel simulation
-#' api/backend
-#' @return return a data.frame/tibble from the graph containing the simulation
-#' results
-#' @export
-lnplusSwapMinmax <- function(id, subject, api_info) {
-	moduleServer(id, function(input, output, session) {
-		# poorman's async request to chansim api by sending process to background
-		# and avoid session locks
-		sim_request <- callr::r_bg(
-			func = function(subject_pubkey, api_info) {
-				req_body <- jsonlite::toJSON(
-					list(subject_pubkey=subject_pubkey), auto_unbox=TRUE)
-				if ("token" %in% names(api_info)) {
-					googleCloudRunner::cr_jwt_with_httr(
-						httr::POST(url=api_info$url, body=req_body, encode="json"),
-						api_info$token)
-				} else {
-					httr::POST(url=api_info$url, body=req_body, encode="json")
-				}
-				return(TRUE)
-			},
-			args=list(subject_pubkey=subject, api_info=api_info),
-			supervise=TRUE
-		)
-		return(sim_request)
-	})
 }
 
 #' account table information server
@@ -207,64 +128,6 @@ accountHeaderServer <- function(id, credentials, users) {
 	})
 }
 
-#' minmax result server
-#'
-#' displays results obtained from centrality optimization
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @param credentials login status from \link{loginServer}
-#' @param users users (sql) table containing account information
-#' @return returns data table output server containing minmax results
-#' @export
-minmaxServer <- function(id, credentials, users, minmax_results) {
-	moduleServer(id, function(input, output, session) {
-		output$minmax <- renderDataTable({
-			req(credentials$user_auth)
-			user_results <- minmax_results %>%
-				filter(pubkey.x==!!pull(credentials$info[1])) %>%
-				filter(time==max(time)) %>%
-				dplyr::select(-pubkey.x) %>%
-				as_tibble %>%
-				rename(c(
-					"Run date"="time", "Target pubkey"="pubkey.y", "Target alias"="alias",
-					"Gain in betweenness rank"="cent.between.rank.delta",
-					"Gain in closeness/hopness rank"="cent.close.rank.delta",
-					"Gain in eigenvector/hubness rank"="cent.eigen.rank.delta"))
-		})
-	})
-}
-
-#' lnplus minmax result server
-#'
-#' displays results obtained from lnplus swap optimization on centralities
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @param credentials login status from \link{loginServer}
-#' @param users users (sql) table containing account information
-#' @return returns data table output server containing minmax results
-#' @export
-lnplusMinmaxServer <- function(id, credentials, users, lnplus_minmax_results) {
-	moduleServer(id, function(input, output, session) {
-		output$lnplus_minmax <- renderDataTable({
-			req(credentials$user_auth)
-			user_results <- lnplus_minmax_results %>%
-				filter(pubkey==!!pull(credentials$info[1])) %>%
-				filter(time==max(time)) %>%
-				dplyr::select(-pubkey) %>%
-				as_tibble %>%
-				mutate(
-					top_swaps=paste0("<a href='https://lightningnetwork.plus/swaps/", top_swaps, "' target='_blank'>", top_swaps, "</a>"),
-					swap_amt=prettyNum(swap_amt, big.mark=",")) %>%
-				rename(c(
-					"Run date"="time", "Swap ID"="top_swaps", "Swap amount"="swap_amt",
-					"Currently enrolled"="num_participants", "Maximum participants"="participant_max_count",
-					"Gain in betweenness rank"="cent.between.rank.delta",
-					"Gain in closeness/hopness rank"="cent.close.rank.delta",
-					"Gain in eigenvector/hubness rank"="cent.eigen.rank.delta"))
-		}, escape=FALSE)
-	})
-}
-
 #' subcription infobox server
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
@@ -274,7 +137,7 @@ subInfoServer <- function(id) {
 	moduleServer(id, function(input, output, session) {
 		output$sub_info <- renderInfoBox({
 			infoBox(
-				"", "Upgrade to get weekly centrality optimization reports for your node and get unlimited access to all LNnodeInsight tools", icon=icon("exclamation"),
+				"", "Upgrade to get weekly centrality optimization reports for your node, on-demand LN+ swap recommendations, and get unlimited access to all LNnodeInsight tools", icon=icon("exclamation"),
 				color = "yellow", fill=TRUE
 			)
 		})
@@ -334,15 +197,11 @@ subPeriodDisplayServer <- function(id, amt) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param credentials login status from \link{loginServer}
 #' @export
-accountServer <- function(id, credentials, api_info) {
+accountServer <- function(id, credentials) {
 	moduleServer(id, function(input, output, session) {
 		users <- pool %>% tbl("users")
-		minmax_results <- pool %>% tbl("minmax")
-		lnplus_minmax_results <- pool %>% tbl("lnplus_minmax")
 		accountHeaderServer("account_header", credentials(), users)
 		accountTableServer("account_status", credentials(), users)
-		minmaxServer("account_minmax_report", credentials(), users, minmax_results)
-		lnplusMinmaxServer("lnplus_minmax_report", credentials(), users, lnplus_minmax_results)
 		subInfoServer("show_sub_info")
 		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, users)
 		output$account_is_auth <- reactive({
@@ -419,7 +278,7 @@ accountServer <- function(id, credentials, api_info) {
 					"Invoice paid, thanks for subscribing! What happens next?",
 					HTML(
 						"<ul>
-						<li>The first centrality optimization report should appear on the account page within 24 hours</li>
+						<li>The first centrality optimization report should appear on the Reports page within 24 hours</li>
 						<li>That list will be updated each week</li>
 						<li>The page will be refreshed after closing this box to reflect your account changes</li>
 						</ul>"),
@@ -433,32 +292,6 @@ accountServer <- function(id, credentials, api_info) {
 		observeEvent(input$done, {
 			refresh()
 		})
-		# set up ln+ swap minmax button
-		lnplus_minmax_button <- startButtonServer("get_swap_minmax_report", buttonId="start_lnplus_minmax")
-		# on button press, compute latest lnplus swap minmax
-		lnplus_minmax_run <- eventReactive(lnplus_minmax_button(), {
-			showModal(
-				modalDialog(
-					title="Started LN+ swap recommender",
-					"Running simulations, should take several minutes. The page will refresh when results are in.",
-					footer=NULL
-				)
-			)
-			lnplusSwapMinmax("get_swap_minmax", credentials()$info[1]$pubkey, api_info)
-		})
-		lnplus_minmax_result <- reactiveVal()
-		# wait for result to come in
-		observe({
-			req(lnplus_minmax_run())
-			if (isolate(lnplus_minmax_run()$is_alive())) {
-				invalidateLater(2000)
-			} else {
-				isolate(lnplus_minmax_result(TRUE))
-				removeModal()
-				refresh()
-			}
-		})
-		swapRefreshButtonLabel("swap_minmax_label", credentials, lnplus_minmax_results)
 	})
 }
 
@@ -466,11 +299,6 @@ accountServer <- function(id, credentials, api_info) {
 #'
 #' for dev/testing purposes
 accountApp <- function() {
-	lnplus_minmax_api_info <- if (Sys.getenv("LOCAL")) {
-			list(url=Sys.getenv("LNPLUS_MINMAX_LOCAL_API_URL"))
-		} else {
-			get_api_info("lnplus-swap-minmax")
-		}
 	ui <- dashboardPage(
 		dashboardHeader(title='Account Page'),
 		dashboardSidebar(),
@@ -481,8 +309,7 @@ accountApp <- function() {
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
 		user_auth=TRUE)
 	server <- function(input, output, session) {
-		accountServer('x', reactive(credentials), lnplus_minmax_api_info)
+		accountServer('x', reactive(credentials))
 	}
 	shinyApp(ui, server)
-  
 }

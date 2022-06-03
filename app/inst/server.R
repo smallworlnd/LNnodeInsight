@@ -80,7 +80,8 @@ server <- function(input, output, session) {
 		}
 	})
 	dashboardServer('dashboard')
-	accountServer("account", credentials, lnplus_swap_minmax_api_info)
+	accountServer("account", credentials)
+	reportServer('reports', credentials, lnplus_swap_minmax_api_info)
 	byocServer('byoc', credentials)
 	nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
 	rebalsimServer('rebalsim', rebalsim_api_info, credentials)

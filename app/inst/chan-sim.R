@@ -5,7 +5,7 @@ chansim_filters <- data.frame(
 	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "max.lnplus.rank"),
 	filter_max=tbl(pool, 'nodes_current') %>%
 		summarise(
-			max.cap=round(max(tot.capacity)/1e8, 0),
+			max.cap=round(max(tot.capacity)/1e8+1, 0),
 			max.avg.capacity=max(avg.capacity)/1e8,
 			max.fee.rate=6000,
 			max.num.channels=max(num.channels)+1,
@@ -55,15 +55,16 @@ subjectSelectUI <- function(id) {
 #' @return return selectize UI for target pubkey selections and whether they are
 #' added or removed
 #' @export
-targetSelectUI <- function(id, targetId, add_or_del) {
+targetSelectUI <- function(id, targetId, add_or_del, clip_pubkey) {
 	fluidRow(
-		column(10, selectizeInput(
+		column(9, selectizeInput(
 			inputId=NS(id, targetId),
 			label=NULL,
 			choices=NULL,
 			options=list(placeholder='Pubkey/alias'))
 		),
-		column(2, prettyRadioButtons(
+		column(1, align="center", uiOutput(NS(id, clip_pubkey))),
+		column(1, align="left", prettyRadioButtons(
 			inputId=NS(id, add_or_del),
 			label=NULL,
 			selected='add',
@@ -73,21 +74,20 @@ targetSelectUI <- function(id, targetId, add_or_del) {
 	)
 }
 
-#' UI slider element for the various node filters
+#' UI numeric range element for the various node filters
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function
 #' @param filtId filter-specific short ID
 #' @param lab descriptive label for the ui element
 #' @param minVal minimum value for the filter
 #' @param maxVal maximum value for the filter
-#' @param stepVal slider step increments
-#' @return return slider filt UI element
+#' @param stepVal step increments
+#' @return return filt UI element
 #' @export
-sliderFilterSelectUI <- function(id, filtId, lab, minVal, maxVal, stepVal) {
-	sliderInput(
+numRangeFilterSelectUI <- function(id, filtId, lab, minVal, maxVal, stepVal) {
+	numericRangeInput(
 		inputId=NS(id, filtId),
 		label=lab,
-		ticks=FALSE,
 		min=minVal, max=maxVal, step=stepVal,
 		value=c(minVal, maxVal)
 	)
@@ -147,11 +147,14 @@ chansimUI <- function(id) {
 				),
 
 				h4(p(strong('Step 2: enter or select pubkey/alias of up to 3 nodes with which to simulate adding or removing channels'))),
+				h5(p(strong("*Existing peers of the node selected in Step 1 will only appear if 'Remove' is selected"))),
+				rclipboardSetup(),
 				lapply(c(1:3), function(x)
 					targetSelectUI(
 						NS(id, 'target_select'),
 						paste0('target', x),
-						paste0('add_or_del', x)
+						paste0('add_or_del', x),
+						paste0('clip_pubkey', x)
 					)
 				),
 
@@ -162,7 +165,7 @@ chansimUI <- function(id) {
 					lapply(
 						chansim_filters,
 						function(x)
-							sliderFilterSelectUI(
+							numRangeFilterSelectUI(
 								id=NS(id, 'filters'),
 								filtId=x[1], lab=x[3],
 								minVal=as.numeric(x[4]), maxVal=as.numeric(x[2]),
@@ -195,7 +198,7 @@ chansimUI <- function(id) {
 						)
 					),
 					shinyjs::hidden(
-						sliderFilterSelectUI(
+						numRangeFilterSelectUI(
 							id=NS(id, 'filters'),
 							filtId="lnplus_rank", lab="Filter for nodes participating in pending swaps by LN+ rank (filtered by swaps that the pubkey selected in Step 1 is eligible for)",
 							minVal=1, maxVal=10, stepVal=1)
@@ -292,9 +295,33 @@ centralityUI <- function(id) {
 	)
 }
 
+#' target pubkey clipboard
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param subject reactively reset filters on subject pubkey change
+#' @param filters data.frame of peer filters specified in global.R
+#' @param db backend database for accessing amboss community list
+#' @return reset filters
+#' @export
+pubkeyClipboardServer <- function(id, targets) {
+	moduleServer(id, function(input, output, session) {
+		lapply(seq_along(targets),
+			function(x)
+			output[[paste0("clip_pubkey", x)]] <- renderUI({
+				rclipButton(
+					inputId=paste0("clip_pubkey", x),
+					label=NULL,
+					clipText=targets[x],
+					icon=icon('clipboard')
+				)
+			})
+		)
+	})
+}
+
 #' pubkey filter resetting server
 #'
-#' module for resetting \link{sliderFilterSelectUI},
+#' module for resetting \link{numRangeFilterSelectUI},
 #' \link{dropdownFilterSelectUI}, \link{buttonFilterSelectUI}
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
@@ -307,12 +334,12 @@ resetFiltersServer <- function(id, subject, filters=chansim_filters, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		observeEvent(subject(), {
 			lapply(chansim_filters, function(x)
-				updateSliderInput(session, inputId=x[1], value=c(x[4], x[2]))
+				updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[4], x[2])))
 			)
-			updateSliderInput(session, inputId='max.hops', value=c(0, 11))
-			updateSliderInput(session, inputId='peers.of.peers', value=2)
-			updateSliderInput(session, inputId='lnplus_pending', value=2)
-			updateSliderInput(session, inputId='lnplus_rank', value=c(1, 10))
+			updateNumericRangeInput(session, inputId='max.hops', value=c(0, 11))
+			updatePrettyRadioButtons(session, inputId='peers.of.peers', selected=2)
+			updatePrettyRadioButtons(session, inputId='lnplus_pending', selected=2)
+			updateNumericRangeInput(session, inputId='lnplus_rank', value=c(1, 10))
 
 			comms <- tbl(db, 'communities') %>%
 				distinct(community) %>%
@@ -494,8 +521,6 @@ channelSimulationServer <- function(id, subject, targets, add_or_del, api_info) 
 applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list=node_ids, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		if (pubkey != "") {
-			# filter out peers of pubkey
-			peer_ids <- adjacent_vertices(graph, fetch_id(pubkey=pubkey), mode='all') %>% unlist
 			# apply user-defined filters
 			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
 				as_tbl_graph %>%
@@ -507,7 +532,6 @@ applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list
 					cent.between.rank>=input$max.between[1], cent.between.rank<=input$max.between[2],
 					cent.close.rank>=input$max.close[1], cent.close.rank<=input$max.close[2],
 					cent.eigen.rank>=input$max.eigen[1], cent.eigen.rank<=input$max.eigen[2]) %>%
-				filter(!id %in% peer_ids) %>%
 				mutate(target=paste(alias, "-", pubkey))
 			# apply amboss community filter if user selected
 			if (input$community != "") {
@@ -594,16 +618,14 @@ subjectSelectServer <- function(id, pubkey_list=node_ids) {
 #' select
 #' @return returns list of pubkeys for up to 3 targets
 #' @export
-targetUpdateServer <- function(id, pubkey_list) {
+targetUpdateServer <- function(id, selector_number, pubkey_list) {
 	moduleServer(id, function(input, output, session) {
-		lapply(c(1:3), function(x)
-			updateSelectizeInput(
-				session,
-				inputId=paste0('target', x),
-				choices=c("Pubkey or alias"="", pubkey_list),
-				selected=character(0),
-				server=TRUE
-			)
+		updateSelectizeInput(
+			session,
+			inputId=paste0('target', selector_number),
+			choices=c("Pubkey or alias"="", pubkey_list),
+			selected=character(0),
+			server=TRUE
 		)
 	})
 }
@@ -765,6 +787,9 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 		pending_swaps <- db %>% tbl("lnplus_pending")
 		subject <- getNodePubkey('subject_select', "subject")
 		targets <- getTargets('target_select')
+		observeEvent(targets(), {
+			pubkeyClipboardServer("target_select", targets())
+		})
 		available_choices <- reactiveVal()
 		channel_actions <- getChannelActions('target_select')
 		launch_sim <- startButtonServer('launch_sim', buttonId="launch_sim_button")
@@ -775,7 +800,21 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 		observe({
 			available_choices <- applyFiltersToTargetsServer('filters', pubkey=subject())
 			output$targets_num <- renderFilterBarServer('filterbar', available_choices)
-			isolate(targetUpdateServer('target_select', available_choices))
+			lapply(
+				seq(channel_actions()),
+				function(x) {
+					peer_ids <- adjacent_vertices(undir_graph, fetch_id(pubkey=subject()), mode='all') %>% unlist
+					peer_alias_pubkeys <- undir_graph %>%
+						filter(id %in% peer_ids) %>%
+						mutate(alias_pubkey=paste0(alias, " - ", pubkey)) %>%
+						pull(alias_pubkey)
+					if (channel_actions()[x] == "add") {
+						targetUpdateServer('target_select', x, available_choices[!available_choices %in% peer_alias_pubkeys])
+					} else {
+						targetUpdateServer('target_select', x, available_choices)
+					}
+				}
+			)
 		})
 		# reset centralities valueboxes to current values on subject/target
 		# selection
