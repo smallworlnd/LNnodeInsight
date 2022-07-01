@@ -618,13 +618,13 @@ subjectSelectServer <- function(id, pubkey_list=node_ids) {
 #' select
 #' @return returns list of pubkeys for up to 3 targets
 #' @export
-targetUpdateServer <- function(id, selector_number, pubkey_list) {
+targetUpdateServer <- function(id, selector_number, pubkey_list, previous_selection, graph=undir_graph) {
 	moduleServer(id, function(input, output, session) {
 		updateSelectizeInput(
 			session,
 			inputId=paste0('target', selector_number),
 			choices=c("Pubkey or alias"="", pubkey_list),
-			selected=character(0),
+			selected=undir_graph %>% filter(pubkey==previous_selection) %>% mutate(alias_pubkey=paste0(alias, " - ", pubkey)) %>% pull(alias_pubkey),
 			server=TRUE
 		)
 	})
@@ -809,9 +809,9 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 						mutate(alias_pubkey=paste0(alias, " - ", pubkey)) %>%
 						pull(alias_pubkey)
 					if (channel_actions()[x] == "add") {
-						targetUpdateServer('target_select', x, available_choices[!available_choices %in% peer_alias_pubkeys])
+						isolate(targetUpdateServer('target_select', x, available_choices[!available_choices %in% peer_alias_pubkeys], targets()[x]))
 					} else {
-						targetUpdateServer('target_select', x, available_choices)
+						isolate(targetUpdateServer('target_select', x, available_choices, targets()[x]))
 					}
 				}
 			)
