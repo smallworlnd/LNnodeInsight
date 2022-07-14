@@ -15,8 +15,8 @@ report_filters <- data.frame(
 		as_tibble %>%
 		unlist(use.names=FALSE),
 	filter_descr=c(
-		'Filter by range of total capacity (in bitcoin)',
-		'Filter by range of median channel capacity (in bitcoin)',
+		'Filter by range of total capacity (in BTC)',
+		'Filter by range of median channel capacity (in BTC)',
 		'Filter by range of median channel fee rates (ppm)',
 		'Filter by range of total channels',
 		'Filter by range of betweenness centrality ranks',
@@ -347,11 +347,12 @@ getPredefinedFilters <- function(id, user_pubkey, db=pool) {
 #' vector of communities rather than a db connection?)
 #' @return returns filtered list of node pubkeys for choosing from
 #' @export
-applyInputFiltersServer <- function(id, graph=undir_graph, pubkey, node_list=node_ids, db=pool) {
+applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_list=node_ids, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		vals <- eventReactive(c(input$max.cap, input$max.med.capacity, input$max.fee.rate, input$max.num.channels, input$max.between, input$max.close, input$max.eigen, input$max.hops), {
+			req(credentials$user_auth)
 			# apply user-defined filters
-			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
+			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=credentials$info[1]$pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
 				as_tbl_graph %>%
 				filter(
 					act.channels>0,
@@ -425,10 +426,11 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 		swapRefreshButtonLabel("swap_minmax_label", credentials, lnplus_minmax_results)
 		
 		observe({
+			req(credentials()$info[1]$pubkey != "")
 			isolate(getPredefinedFilters("filters", user_pubkey=credentials()$info[1]$pubkey))
 		})
 		userChangeFilters <- getFilterInput("filters")
-		filterOutput <- applyInputFiltersServer("filters", pubkey=credentials()$info[1]$pubkey)
+		filterOutput <- applyInputFiltersServer("filters", credentials=credentials())
 		output$targets_num <- renderUI({paste("Optional: expand this bar to apply node filters at the time the optimization engine runs*")})
 		observeEvent(filterOutput(), {
 			output$targets_num <- renderFilterBarServer('filterbar', filterOutput())

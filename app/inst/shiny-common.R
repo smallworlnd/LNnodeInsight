@@ -128,7 +128,7 @@ premiumAccountReactive <- function(id, credentials, users) {
 				return("false")
 			} else {
 				account <- users %>%
-					filter(pubkey==!!pull(credentials()$info[1])) %>%
+					filter(pubkey==!!credentials()$info[1]$pubkey) %>%
 					filter(sub_date==max(sub_date)) %>%
 					as_tibble
 				if (nrow(account) > 0 && account$subscription == "Premium" && account$sub_expiration_date>=now()) {

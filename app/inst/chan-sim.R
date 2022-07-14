@@ -17,8 +17,8 @@ chansim_filters <- data.frame(
 		as_tibble %>%
 		unlist(use.names=FALSE),
 	filter_descr=c(
-		'Filter by range of total capacity (in bitcoin)',
-		'Filter by range of average channel capacity (in bitcoin)',
+		'Filter by range of total capacity (in BTC)',
+		'Filter by range of average channel capacity (in BTC)',
 		'Filter by range of average channel fee rates (ppm)',
 		'Filter by range of total channels',
 		'Filter by range of betweenness centrality ranks',
