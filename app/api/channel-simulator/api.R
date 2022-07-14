@@ -69,9 +69,14 @@ simulate_channel <- function(subject_pubkey, target_pubkeys, indel, amount=5e6) 
 			sim.cent.close.rank=rank(-cent.close, ties.method='first')
 		) %>%
 		mutate(
-			cent.between.rank.delta=ifelse(length(rem)==0, max(cent.between.rank-sim.cent.between.rank, 0)),
-			cent.close.rank.delta=ifelse(length(rem)==0, max(cent.close.rank-sim.cent.close.rank, 0)),
-			cent.eigen.rank.delta=ifelse(length(rem)==0, max(cent.eigen.rank-sim.cent.eigen.rank, 0))
+			sim.cent.between.rank=ifelse(length(rem)==0 & sim.cent.between.rank>cent.between.rank, cent.between.rank, sim.cent.between.rank),
+			sim.cent.eigen.rank=ifelse(length(rem)==0 & sim.cent.eigen.rank>cent.eigen.rank, cent.eigen.rank, sim.cent.eigen.rank),
+			sim.cent.close.rank=ifelse(length(rem)==0 & sim.cent.close.rank>cent.close.rank, cent.close.rank, sim.cent.close.rank),
+		) %>%
+		mutate(
+			cent.between.rank.delta=cent.between.rank-sim.cent.between.rank,
+			cent.close.rank.delta=cent.close.rank-sim.cent.close.rank,
+			cent.eigen.rank.delta=cent.eigen.rank-sim.cent.eigen.rank
 		) %>%
 		as_tibble
 	graph_mod_filt

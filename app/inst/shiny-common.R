@@ -6,12 +6,12 @@
 #' @param lab label displayed in the middle of the button, e.g. "Start"
 #' @return returns a small and simple rectangular UI element
 #' @export
-startButtonUI <- function(id, buttonId="launch_sim_button", lab) {
+startButtonUI <- function(id, buttonId="launch_sim_button", lab, button_color="success") {
 	actionBttn(
 		inputId=NS(id, buttonId),
 		label=lab,
 		style='fill',
-		color='success',
+		color=button_color,
 		block=FALSE
 	)
 }
