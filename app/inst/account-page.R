@@ -24,18 +24,6 @@ tableUI <- function(id, tableId) {
 	tableOutput(NS(id, tableId))
 }
 
-#' data table UI element
-#'
-#' used for centrality minmax reports
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's server function
-#' @param tableId the ID string corresponding to the lower level module function
-#' @return returns interactive data table output
-#' @export
-dataTableUI <- function(id, tableId) {
-	dataTableOutput(NS(id, tableId))
-}
-
 #' infobox UI element
 #'
 #' displays info about account upgrade

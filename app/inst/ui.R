@@ -32,7 +32,8 @@ sidebar <- dashboardSidebar(
 		),
 		menuItem("Simulators", tabName="simulators", icon=icon('route'),
 			menuItem("Rebalance simulator", tabName="rebalsim", icon=NULL),
-			menuItem("Channel simulator", tabName="chansim", icon=NULL)
+			menuItem("Channel simulator", tabName="chansim", icon=NULL),
+			menuItem("Capacity-Fee simulator", tabName="capfeesim", icon=NULL)
 		),
 		menuItemOutput("recOpt"),
 		menuItem("FAQ", tabName="faq", icon=icon('question')),
@@ -71,11 +72,16 @@ dashboardbody <- dashboardBody(
 		tabItem(tabName='chansim',
 			chansimUI('chansim')
 		),
+		tabItem(tabName='capfeesim',
+			capfeesimUI('capfeesim')
+		),
 		tabItem(tabName='faq',
 			between_box,
 			close_box,
 			eigen_box,
 			maxflow_box,
+			passive_box,
+			active_box,
 			sign_msg_box
 		)
 	))

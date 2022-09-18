@@ -24,6 +24,11 @@ server <- function(input, output, session) {
 		} else {
 			get_api_info("rebalsim-api")
 		}
+	capfeesim_api_info <- if (Sys.getenv("LOCAL")) {
+			list(url=Sys.getenv("CAPFEESIM_LOCAL_API_URL"))
+		} else {
+			get_api_info("capfeesim-api")
+		}
 	lnplus_swap_minmax_api_info <- if (Sys.getenv("LOCAL")) {
 			list(url=Sys.getenv("LNPLUS_MINMAX_LOCAL_API_URL"))
 		} else {
@@ -84,6 +89,7 @@ server <- function(input, output, session) {
 	reportServer('reports', credentials, lnplus_swap_minmax_api_info)
 	byocServer('byoc', credentials)
 	nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
+	capfeesimServer('capfeesim', capfeesim_api_info, credentials)
 	rebalsimServer('rebalsim', rebalsim_api_info, credentials)
 	chansimServer('chansim', chansim_api_info, credentials)
 }

@@ -42,6 +42,7 @@ source("inst/reports.R", local=TRUE)
 source("inst/node-stats.R", local=TRUE)
 source('inst/byoc.R', local=TRUE)
 source('inst/chan-sim.R', local=TRUE)
+source('inst/capfee-sim.R', local=TRUE)
 source('inst/rebal-sim.R', local=TRUE)
 source("inst/faq.R", local=TRUE)
 

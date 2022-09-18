@@ -927,10 +927,10 @@ chansimApp <- function() {
 		skin='yellow',
 	)
 	credentials <- reactiveValues(
-		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE, cookie_already_checked=FALSE)
-		#info=NULL,
-		#user_auth=FALSE, cookie_already_checked=FALSE)
+		#info=data.frame(pubkey=test_pubkey, foo="bar"),
+		#user_auth=TRUE, cookie_already_checked=FALSE)
+		info=NULL,
+		user_auth=FALSE, cookie_already_checked=FALSE)
 	server <- function(input, output, session) {
 		chansimServer('x', chansim_api_info, reactive(reactiveValuesToList(credentials)))
 	}

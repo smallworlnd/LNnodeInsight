@@ -38,6 +38,18 @@ subInfoBox <- function(id) {
 	infoBoxOutput(NS(id, "sub_info"), width=NULL)
 }
 
+#' data table UI element
+#'
+#' used for centrality minmax reports
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @param tableId the ID string corresponding to the lower level module function
+#' @return returns interactive data table output
+#' @export
+dataTableUI <- function(id, tableId) {
+	dataTableOutput(NS(id, tableId))
+}
+
 #' UI numeric range element for the various node filters
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function
@@ -169,7 +181,7 @@ swapRefreshButtonUI <- function(id) {
 #' @param targets_list resulting list pubkeys after filters are applied
 #' @return returns reactive text on the number of nodes available for selection
 #' @export
-renderFilterBarServer <- function(id, targets_list) {
+renderMinmaxFilterServer <- function(id, targets_list) {
 	moduleServer(id, function(input, output, session) {
 		renderUI({
 			paste(length(targets_list), "nodes to be searched in the next optimization run")
@@ -247,18 +259,23 @@ minmaxServer <- function(id, credentials, db=pool) {
 				filter(pubkey.x==!!pull(credentials$info[1])) %>%
 				filter(time==max(time)) %>%
 				left_join(., tbl(pool, "nodes_current"), by=c("pubkey.y"="pubkey")) %>%
+				left_join(., tbl(pool, "capfee"), by=c("pubkey.y"="pubkey")) %>%
 				dplyr::select(c(time.x, alias.x, num.channels, tot.capacity,
-					cent.between.rank.delta, cent.close.rank.delta, cent.eigen.rank.delta, pubkey.y)) %>%
+					cent.between.rank.delta, cent.close.rank.delta, cent.eigen.rank.delta,
+					min_cap, ideal_cap, passive, active, pubkey.y)) %>%
 				as_tibble %>%
 				mutate(
 					pubkey.y=paste0("<a href='https://lnnodeinsight.com/?/", pubkey.y, "' target='_blank'>", pubkey.y, "</a>"),
-					tot.capacity=round(tot.capacity/1e8, 2)) %>%
+					min_cap=paste0(min_cap/1e6, "M"), ideal_cap=paste0(ideal_cap/1e6, "M"),
+					tot.capacity=round(tot.capacity/1e8, 2), passive=round(passive, 0), active=round(active, 0)) %>%
 				rename(c(
 					"Run date"="time.x", "Target pubkey"="pubkey.y", "Target alias"="alias.x",
 					"Number of channels"="num.channels", "Total capacity (BTC)"="tot.capacity",
 					"Gain in betweenness rank"="cent.between.rank.delta",
 					"Gain in closeness/hopness rank"="cent.close.rank.delta",
-					"Gain in eigenvector/hubness rank"="cent.eigen.rank.delta"))
+					"Gain in eigenvector/hubness rank"="cent.eigen.rank.delta",
+					"Minimally viable capacity (sat)"="min_cap", "Minimum suggested capacity (sat)"="ideal_cap",
+					"Passive rebalancing fee (ppm)"="passive", "Active rebalancing fee (ppm)"="active"))
 		}, escape=FALSE, options=list(autoWidth=TRUE, columnDefs=list(list(width='10px', targets=1))))
 	})
 }
@@ -433,7 +450,7 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 		filterOutput <- applyInputFiltersServer("filters", credentials=credentials())
 		output$targets_num <- renderUI({paste("Optional: expand this bar to apply node filters at the time the optimization engine runs*")})
 		observeEvent(filterOutput(), {
-			output$targets_num <- renderFilterBarServer('filterbar', filterOutput())
+			output$targets_num <- renderMinmaxFilterServer('report_filterbar', filterOutput())
 		})
 		node_filters_save <- startButtonServer("commit_minmax_filters", buttonId="update_minmax_filters")
 		node_filters_reset <- startButtonServer("reset_minmax_filters", buttonId="reset_minmax_filters")

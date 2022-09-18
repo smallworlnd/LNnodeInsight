@@ -178,3 +178,39 @@ get_api_info <- function(api_name) {
 	token <- cr_jwt_token(jwt, api_url)
 	return(list(url=api_url, token=token))
 }
+
+#' start/action button label UI element
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @return returns text label for action button depending on account status
+#' @export
+startButtonLabel <- function(id) {
+	textOutput(NS(id, "account_is_premium"))
+}
+
+#' start/action button label server
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param account_check_reactive reactive element to verify account status
+#' @return returns render text element depending on account status
+startButtonLabelServer <- function(id, custom_label, account_check_reactive) {
+	moduleServer(id, function(input, output, session) {
+		output$account_is_premium <- renderText({
+			if (account_check_reactive() == "true") {
+				paste("Start")
+			} else {
+				paste(custom_label)
+			}
+		})
+	})
+}
+
+#' UI element for simulation summary statistic
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @param resId summary statistic result ID, e.g., mean, median, sd, etc.
+#' @return returns value box output UI element for the given summary statistic
+#' @export
+simResultUI <- function(id, resId) {
+	valueBoxOutput(NS(id, resId), width=12)
+}

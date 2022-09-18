@@ -54,25 +54,6 @@ scatterTabUI <- function(id, plotTitle, plotId) {
 	)
 }
 
-#' UI element for simulation summary statistic
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's server function
-#' @param resId summary statistic result ID, e.g., mean, median, sd, etc.
-#' @return returns value box output UI element for the given summary statistic
-#' @export
-simResultUI <- function(id, resId) {
-	valueBoxOutput(NS(id, resId), width=12)
-}
-
-#' start/action button label UI element
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's server function
-#' @return returns text label for action button depending on account status
-#' @export
-startButtonLabel <- function(id) {
-	textOutput(NS(id, "account_is_premium"))
-}
-
 #' main layout UI for various rebalance-simulator app elements
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function
@@ -162,7 +143,7 @@ rebalsimUI <- function(id) {
 #' api/backend
 #' @return return a tibble from the graph containing the simulation results
 #' @export
-simulationServer <- function(id, subject, out_node, in_node, api_info) {
+rebalSimulationServer <- function(id, subject, out_node, in_node, api_info) {
 	moduleServer(id, function(input, output, session) {
 		subject <- subject()
 		out_node <- out_node()
@@ -272,13 +253,12 @@ scatterPlotServer <- function(id, plotId, xlab, ylab, xvar, yvar, sim_res) {
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param resId result ID, e.g., for mean, or median, etc.
-#' @param tabId id of the metric on which we're fetching summary stats, e.g., path, flow, balance
 #' @param xvar corresponding column name to tabId in the simulation result table
 #' @param desc description of the metric
 #' @param sim_res_reactive reactive simulation results
 #' @return returns a valuebox output for given summary statistic for a particular metric
 #' @export
-simResultServer <- function(id, resId, tabId, xvar, desc, sim_res_reactive) {
+rebalSimulationResultServer <- function(id, resId, xvar, desc, sim_res_reactive) {
 	moduleServer(id, function(input, output, session) {
 		sim_res <- reactiveVal(NULL)
 		observeEvent(sim_res_reactive(), {
@@ -301,24 +281,6 @@ simResultServer <- function(id, resId, tabId, xvar, desc, sim_res_reactive) {
 		})
 	})
 }
-
-#' start/action button label server
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @param account_check_reactive reactive element to verify account status
-#' @return returns render text element depending on account status
-startButtonLabelServer <- function(id, account_check_reactive) {
-	moduleServer(id, function(input, output, session) {
-		output$account_is_premium <- renderText({
-			if (account_check_reactive() == "true") {
-				paste("Start")
-			} else {
-				paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats")
-			}
-		})
-	})
-}
-
 
 #' main rebalance/payment simulation server
 #'
@@ -366,9 +328,8 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 				t %>%
 				as.data.frame,
 				function(x)
-					simResultServer(id="sim_result",
+					rebalSimulationResultServer(id="sim_result",
 						resId=x[1],
-						tabId=x[2],
 						xvar=x[3],
 						desc=x[4],
 						sim_output
@@ -414,7 +375,7 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 					size='s', footer=NULL
 				)
 			)
-			simulationServer("launch_sim", subject, out_node, in_node, api_info)
+			rebalSimulationServer("launch_sim", subject, out_node, in_node, api_info)
 		})
 		# ping the background process and fetch results when done
 		sim_result_nosub <- reactiveVal() # reactive for non-premium
@@ -459,7 +420,7 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 		output$is_premium <- premiumAccountReactive("prem_account", credentials, users)
 		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
 		# change start button label depending on account status
-		startButtonLabelServer("start_sim", is_premium)
+		startButtonLabelServer("start_sim", paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"), is_premium)
 	})
 
 }

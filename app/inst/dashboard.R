@@ -6,7 +6,7 @@
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function
 #' @param appId ID of the app for which to draw the infobox, e.g., 'byoc',
-#' 'nodestats', 'chansim', 'rebalsim', or 'amboss'/'lnrouter'
+#' 'nodestats', 'chansim', 'rebalsim', 'capfeesim', or 'amboss'/'lnrouter'
 #' @return returns infobox with the app's/link's title, short description
 #' @export
 appLinkUI <- function(id, appId) {
@@ -64,7 +64,7 @@ dashboardUI <- function(id) {
 			),
 			h3('Simulators'),
 			fluidRow(
-				lapply(c("chansim", "rebalsim"), function(x) appLinkUI(NS(id, "local_apps"), x))
+				lapply(c("chansim", "rebalsim", "capfeesim"), function(x) appLinkUI(NS(id, "local_apps"), x))
 			),
 			h3('Community tools'),
 			fluidRow(
@@ -137,14 +137,15 @@ dashboardServer <- function(id) {
 		)
 		lapply(
 			data.frame(
-				boxId=c("byoc", "nodestats", "rebalsim", "chansim"),
-				boxTitle=c("Build your own chart", "Node stats", "Payment/rebalance simulator", "Channel simulator"),
+				boxId=c("byoc", "nodestats", "rebalsim", "chansim", "capfeesim"),
+				boxTitle=c("Build your own chart", "Node stats", "Payment/rebalance simulator", "Channel simulator", "Capacity-Fee simulator"),
 				boxSubtitle=c(
 					"Explore network-wide node data and gather insight on trends and correlations",
 					"Explore your node's local network and gain insight on peers",
 					"Estimate the potential cost of a payment or rebalance to gain insight on liquidity demand and bottlenecks",
-					"Simulate opening or closing a channel on your node to measure influence in the network"),
-				linkIcon=c("chart-bar", "project-diagram", "calculator", "edit")
+					"Simulate opening or closing a channel on your node to measure influence in the network",
+					"Get recommendations on fees and capacity for a new channel or use those results to judge the value of your liquidity in existing channels"),
+				linkIcon=c("chart-bar", "project-diagram", "calculator", "edit", "bullseye")
 			) %>% t %>% as.data.frame,
 			function(x) localAppServer("local_apps", x[1], x[2], x[3], x[4])
 		)

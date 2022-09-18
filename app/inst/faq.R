@@ -14,6 +14,14 @@ maxflow_def <- "Maximum flow is the highest amount of sats that can theoreticall
 maxflow_def_title <- "Maximum liquidity flow"
 maxflow_box <- box(p(maxflow_def), title=maxflow_def_title, width=NULL, collapsible=TRUE)
 
+passive_def <- "This is a fee strategy that attempts to encourage higher liquidity volume and ideally bi-directional volume such that channel balances are passively maintained. The success of this strategy depends on multiple factors, and can often be difficult to achieve."
+passive_def_title <- "Passive rebalancing"
+passive_box <- box(p(passive_def), title=passive_def_title, width=NULL, collapsible=TRUE)
+
+active_def <- "This is a fee strategy that typically observes less volume but recovers a higher proportion in fees that should cover the cost of rebalancing to maintain adequate channel balances."
+active_def_title <- "Active rebalancing"
+active_box <- box(p(active_def), title=active_def_title, width=NULL, collapsible=TRUE)
+
 sign_msg_box <- box(
 	h4("lnd"), code('lncli signmessage "message to sign here"'),
 	h4("c-lightning"), code('lightning-cli signmessage "message to sign here"'),
