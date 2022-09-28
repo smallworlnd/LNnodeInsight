@@ -1,34 +1,5 @@
 source("inst/shiny-common.R")
 
-#' global variable useful for this app only
-chansim_filters <- data.frame(
-	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "max.lnplus.rank"),
-	filter_max=tbl(pool, 'nodes_current') %>%
-		summarise(
-			max.cap=round(max(tot.capacity)/1e8+1, 0),
-			max.avg.capacity=max(avg.capacity)/1e8,
-			max.fee.rate=6000,
-			max.num.channels=max(num.channels)+1,
-			max.between=max(cent.between.rank),
-			max.close=max(cent.close.rank),
-			max.eigen=max(cent.eigen.rank),
-			max.hops=11,
-			max.lnplus.rank=10) %>%
-		as_tibble %>%
-		unlist(use.names=FALSE),
-	filter_descr=c(
-		'Filter by range of total capacity (in BTC)',
-		'Filter by range of average channel capacity (in BTC)',
-		'Filter by range of average channel fee rates (ppm)',
-		'Filter by range of total channels',
-		'Filter by range of betweenness centrality ranks',
-		'Filter by range of closeness centrality ranks',
-		'Filter by range of eigenvector centrality ranks',
-		'Only show nodes that fall within a range of hops away from the node selected in Step 1',
-		"Filter by range of LightningNetwork+ ranks"),
-	filter_min=c(0.01, 0.001, 0, 1, 1, 1, 1, 0, 1),
-	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1)
-	) %>% t %>% as.data.frame
 
 #' UI element for node operator's pubkey selection
 #'
@@ -837,7 +808,9 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 		sim_run <- eventReactive(launch_sim(), {
 			req(subject() != "")
 			req(length(unique(targets())) != 1 && unique(targets()) != "")
-			showModal(modalDialog("Running simulation, please wait...", size='s', footer=NULL))
+			showModal(
+				modalDialog(title="Running simulation, please wait...", withSpinner(uiOutput("loading"), size=2), size='s', footer=NULL)
+			)
 			channelSimulationServer('launch_sim', subject, targets, channel_actions, api_info)
 		})
 

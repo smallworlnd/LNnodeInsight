@@ -371,7 +371,8 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 			req(in_node() != "")
 			showModal(
 				modalDialog(
-					"Running simulation, please wait...",
+					title="Running simulation, please wait...",
+					withSpinner(uiOutput("loading"), size=2),
 					size='s', footer=NULL
 				)
 			)

@@ -149,7 +149,8 @@ capfeesimServer <- function(id, api_info, credentials, db=pool) {
 			req(target() != "", subject() != "")
 			showModal(
 				modalDialog(
-					"Running simulation, this may take up to several minutes. Please wait...",
+					title="Running simulation, this may take up to several minutes. Please wait...",
+					withSpinner(uiOutput("loading"), size=2),
 					size='s', footer=NULL
 				)
 			)
