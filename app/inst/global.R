@@ -1,5 +1,26 @@
 source("inst/graph-functions.R")
 
+chansim_api_info <- if (Sys.getenv("LOCAL")) {
+		list(url=Sys.getenv("CHANSIM_LOCAL_API_URL"))
+	} else {
+		get_api_info("chansim-api")
+	}
+rebalsim_api_info <- if (Sys.getenv("LOCAL")) {
+		list(url=Sys.getenv("REBALSIM_LOCAL_API_URL"))
+	} else {
+		get_api_info("rebalsim-api")
+	}
+capfeesim_api_info <- if (Sys.getenv("LOCAL")) {
+		list(url=Sys.getenv("CAPFEESIM_LOCAL_API_URL"))
+	} else {
+		get_api_info("capfeesim-api")
+	}
+lnplus_swap_minmax_api_info <- if (Sys.getenv("LOCAL")) {
+		list(url=Sys.getenv("LNPLUS_MINMAX_LOCAL_API_URL"))
+	} else {
+		get_api_info("lnplus-swap-minmax")
+	}
+
 tryCatch({
 	pool <- dbPool(
 			drv=PostgreSQL(),

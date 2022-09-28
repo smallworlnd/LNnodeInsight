@@ -42,39 +42,24 @@ sidebar <- dashboardSidebar(
 			menuItem("Twitter", href="https://twitter.com/smallworlnd", icon=icon('twitter')),
 			menuItem("Email", href="mailto:smallworlnd@protonmail.com", icon=icon('envelope')),
 			menuItem("Node", href="https://amboss.space/node/0382b31dcff337311bf919411c5073c9c9a129890993f94f4a16eaaeffd91c7788", icon=icon('bolt')),
-			menuItem("Source", href="https://github.com/smallworlnd/LNnodeInsight", icon=icon('github'))),
-		menuItem("Support our work", tabName="support", icon=icon('heart'))
+			menuItem("Source", href="https://github.com/smallworlnd/LNnodeInsight", icon=icon('github')))
 	))
 
 
 dashboardbody <- dashboardBody(
 	useShinyjs(),
 	tabItems(
+		tabItem(tabName='dashboard', dashboardUI('dashboard')),
 		tabItem(tabName='account',
 			loginUI("login", additional_ui=a('Not sure how to sign a message?', onclick="openTab('faq')", href=NULL, style="cursor: pointer;")),
 			accountUI("account")
 		),
-		tabItem(tabName='reports',
-			reportsUI("reports")
-		),
-		tabItem(tabName='dashboard',
-			dashboardUI('dashboard')
-		),
-		tabItem(tabName='byoc',
-			byocUI('byoc')
-		),
-		tabItem(tabName='nodestats',
-			nodestatsUI('nodestats')
-		),
-		tabItem(tabName='rebalsim',
-			rebalsimUI('rebalsim')
-		),
-		tabItem(tabName='chansim',
-			chansimUI('chansim')
-		),
-		tabItem(tabName='capfeesim',
-			capfeesimUI('capfeesim')
-		),
+		tabItem(tabName='reports', reportsUI("reports")),
+		tabItem(tabName='byoc', byocUI('byoc')),
+		tabItem(tabName='nodestats', nodestatsUI('nodestats')),
+		tabItem(tabName='rebalsim', rebalsimUI('rebalsim')),
+		tabItem(tabName='chansim', chansimUI('chansim')),
+		tabItem(tabName='capfeesim', capfeesimUI('capfeesim')),
 		tabItem(tabName='faq',
 			between_box,
 			close_box,

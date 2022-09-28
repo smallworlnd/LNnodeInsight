@@ -30,25 +30,25 @@ library(googleCloudRunner)
 source('inst/global.R')
 
 # load user account management
-source('inst/session-mgmt.R', local=TRUE)
-source('inst/login.R', local=TRUE)
-source('inst/logout.R', local=TRUE)
-source('inst/accounts-internal.R', local=TRUE)
+source('inst/session-mgmt.R')
+source('inst/login.R')
+source('inst/logout.R')
+source('inst/accounts-internal.R')
 
 # pages
-source("inst/dashboard.R", local=TRUE)
-source("inst/account-page.R", local=TRUE)
-source("inst/reports.R", local=TRUE)
-source("inst/node-stats.R", local=TRUE)
-source('inst/byoc.R', local=TRUE)
-source('inst/chan-sim.R', local=TRUE)
-source('inst/capfee-sim.R', local=TRUE)
-source('inst/rebal-sim.R', local=TRUE)
-source("inst/faq.R", local=TRUE)
+source("inst/dashboard.R")
+source("inst/account-page.R")
+source("inst/reports.R")
+source("inst/node-stats.R")
+source('inst/byoc.R')
+source('inst/chan-sim.R')
+source('inst/capfee-sim.R')
+source('inst/rebal-sim.R')
+source("inst/faq.R")
 
 # load top-level shiny components
-source('inst/server.R', local=TRUE)
-source('inst/ui.R', local=TRUE)
+source('inst/server.R')
+source('inst/ui.R')
 
 onStop(function() {
 	cat("\nServer stopped, closing pool\n")

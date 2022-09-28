@@ -1,5 +1,5 @@
 server <- function(input, output, session) {
-	users <- pool %>% tbl("users") %>% as_tibble
+	users <- pool %>% tbl("users")
 	credentials <- loginServer(
 		id="login",
 		data=users,
@@ -14,26 +14,6 @@ server <- function(input, output, session) {
 		rest_content=rest_content,
 		log_out=reactive(logout_init())
 	)
-	chansim_api_info <- if (Sys.getenv("LOCAL")) {
-			list(url=Sys.getenv("CHANSIM_LOCAL_API_URL"))
-		} else {
-			get_api_info("chansim-api")
-		}
-	rebalsim_api_info <- if (Sys.getenv("LOCAL")) {
-			list(url=Sys.getenv("REBALSIM_LOCAL_API_URL"))
-		} else {
-			get_api_info("rebalsim-api")
-		}
-	capfeesim_api_info <- if (Sys.getenv("LOCAL")) {
-			list(url=Sys.getenv("CAPFEESIM_LOCAL_API_URL"))
-		} else {
-			get_api_info("capfeesim-api")
-		}
-	lnplus_swap_minmax_api_info <- if (Sys.getenv("LOCAL")) {
-			list(url=Sys.getenv("LNPLUS_MINMAX_LOCAL_API_URL"))
-		} else {
-			get_api_info("lnplus-swap-minmax")
-		}
 	logout_init <- logoutServer(
 		id="logout",
 		active=reactive(credentials()$user_auth)
@@ -57,21 +37,6 @@ server <- function(input, output, session) {
                  .click();
       });")
 	removeCssClass("ss-overlay", "ss-gray-out")
-	observeEvent(input$sidebar, {
-		req(input$sidebar == "support")
-		showModal(
-			modalDialog(
-				title="Thanks for considering supporting us!",
-				h4("Our Lightning Address:"),
-				h2(a("smallworlnd@btcpay.lnnodeinsight.com")),
-				size='l',
-				easyClose=TRUE,
-				footer=tagList(
-					modalActionButton("donate_cancel", "Cancel")
-				)
-			)
-		)
-	})
 	query_pubkey <- reactiveVal(character(0))
 	observeEvent(session$clientData$url_search, {
 		query <- parseQueryString(session$clientData$url_search)
@@ -84,12 +49,31 @@ server <- function(input, output, session) {
 			}
 		}
 	})
-	dashboardServer('dashboard')
-	accountServer("account", credentials)
-	reportServer('reports', credentials, lnplus_swap_minmax_api_info)
-	byocServer('byoc', credentials)
-	nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
-	capfeesimServer('capfeesim', capfeesim_api_info, credentials)
-	rebalsimServer('rebalsim', rebalsim_api_info, credentials)
-	chansimServer('chansim', chansim_api_info, credentials)
+
+	observeEvent(input$sidebar, {
+		if (input$sidebar == "dashboard") {
+			dashboardServer('dashboard')
+		}
+		else if (input$sidebar == "account") {
+			accountServer("account", credentials)
+		}
+		else if (input$sidebar == "reports") {
+			reportServer('reports', credentials, lnplus_swap_minmax_api_info)
+		}
+		else if (input$sidebar == "byoc") {
+			byocServer('byoc', credentials)
+		}
+		else if (input$sidebar == "nodestats") {
+			nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
+		}
+		else if (input$sidebar == "capfeesim") {
+			capfeesimServer('capfeesim', capfeesim_api_info, credentials)
+		}
+		else if (input$sidebar == "rebalsim") {
+			rebalsimServer('rebalsim', rebalsim_api_info, credentials)
+		}
+		else if (input$sidebar == "chansim") {
+			chansimServer('chansim', chansim_api_info, credentials)
+		}
+	})
 }

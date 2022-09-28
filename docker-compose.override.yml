@@ -15,3 +15,10 @@ services:
       - "8080"
     depends_on:
       - db
+  capfeesim-backend:
+    build: ./app/api/capfee-simulator
+    restart: unless-stopped
+    expose:
+      - "8080"
+    depends_on:
+      - db
