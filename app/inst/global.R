@@ -35,16 +35,6 @@ ln_summary_stats <- tbl(pool, "nodes_historical") %>%
 	arrange(time) %>%
 	as_tibble
 
-# global for byocApp
-min_max <- tbl(pool, "nodes_current") %>%
-	left_join(., dplyr::select(tbl(pool, "bos"), pubkey, score), by="pubkey") %>%
-	rename("bos"="score") %>%
-	left_join(., dplyr::select(tbl(pool, "nd"), pubkey, score), by="pubkey") %>%
-	rename("tweb.score"="score") %>%
-	summarise_all(c("min", "max"), na.rm=TRUE) %>%
-	mutate(tot.capacity_min=tot.capacity_min/1e8, tot.capacity_max=tot.capacity_max/1e8) %>%
-	as_tibble
-
 undir_graph <- build_graph(nodes_current, edges_current)
 
 node_ids <- nodes_current %>%
