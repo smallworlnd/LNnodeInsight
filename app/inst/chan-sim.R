@@ -1,5 +1,34 @@
 source("inst/shiny-common.R")
 
+chansim_filters <- data.frame(
+	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "max.lnplus.rank"),
+	filter_max=tbl(pool, 'nodes_current') %>%
+		summarise(
+			max.cap=round(max(tot.capacity)/1e8+1, 0),
+			max.avg.capacity=max(avg.capacity)/1e8,
+			max.fee.rate=6000,
+			max.num.channels=max(num.channels)+1,
+			max.between=max(cent.between.rank),
+			max.close=max(cent.close.rank),
+			max.eigen=max(cent.eigen.rank),
+			max.hops=11,
+			max.lnplus.rank=10) %>%
+		as_tibble %>%
+		unlist(use.names=FALSE),
+	filter_descr=c(
+		'Filter by range of total capacity (in BTC)',
+		'Filter by range of average channel capacity (in BTC)',
+		'Filter by range of average channel fee rates (ppm)',
+		'Filter by range of total channels',
+		'Filter by range of betweenness centrality ranks',
+		'Filter by range of closeness centrality ranks',
+		'Filter by range of eigenvector centrality ranks',
+		'Only show nodes that fall within a range of hops away from the node selected in Step 1',
+		"Filter by range of LightningNetwork+ ranks"),
+	filter_min=c(0.01, 0.001, 0, 1, 1, 1, 1, 0, 1),
+	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1)
+	) %>% t %>% as.data.frame
+
 
 #' UI element for node operator's pubkey selection
 #'
@@ -110,7 +139,7 @@ chansimUI <- function(id) {
 	ns <- NS(id)
 	fluidRow(
 		column(8,
-			box(id=NS(id, 'select.box'), background='yellow', width=NULL,
+			box(
 				fluidRow(
 					column(12,
 						subjectSelectUI(NS(id, 'subject_select'))
@@ -178,6 +207,7 @@ chansimUI <- function(id) {
 				column(12, align='center',
 					startButtonUI(NS(id, 'launch_sim'), lab="Start")
 				),
+				background='yellow', width=NULL
 			),
 			tabBox(
 				id=NS(id, 'chansim_peer_stats'),
@@ -193,9 +223,8 @@ chansimUI <- function(id) {
 		),
 		column(4,
 			fluidRow(
-				box(id=NS(id, 'cent.box'), title="Node centrality ranks",
-					solidHeader=TRUE, collapsible=TRUE, width=12,
-					centralityUI(NS(id, 'cents'))
+				box(centralityUI(NS(id, 'cents')),
+					title="Node centrality ranks", solidHeader=TRUE, collapsible=TRUE, width=12
 				),
 			)
 		),
@@ -203,11 +232,12 @@ chansimUI <- function(id) {
 			"output.previous_results == 1", ns=ns,
 			column(4,
 				fluidRow(
-					box(id=NS(id, 'prev.cent.box'), title="Previous run results",
-						solidHeader=TRUE, collapsible=TRUE, width=NULL,
+					box(
 						pastRunUI(NS(id, "past_action")),
 						br(),
-						centralityUI(NS(id, "past_result"))
+						centralityUI(NS(id, "past_result")),
+						title="Previous run results",
+						solidHeader=TRUE, collapsible=TRUE, width=NULL
 					)
 				)
 			)
@@ -634,7 +664,7 @@ toggleHiddenElements <- function(id, credentials) {
 lnplusSwapUIServer <- function(id, qualifying_swaps) {
 	moduleServer(id, function(input, output, session) {
 		output$qualifying_swaps <- renderUI({
-			box(id=NS(id, "swaps_box"), title="Open swaps on LN+", width=NULL, collapsible=TRUE,
+			box(
 				lapply(
 					qualifying_swaps %>% collect %>% t %>% as.data.frame,
 					function(x)
@@ -644,7 +674,8 @@ lnplusSwapUIServer <- function(id, qualifying_swaps) {
 								icon=icon("exchange-alt"), color="purple", width=12
 							)
 						)
-				)
+				),
+				title="Open swaps on LN+", width=NULL, collapsible=TRUE
 			)
 		})
 	})

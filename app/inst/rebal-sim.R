@@ -80,7 +80,7 @@ rebalsimUI <- function(id) {
 							NS(id, "launch_sim"),
 							lab=startButtonLabel(NS(id, "start_sim")))
 					),
-					background='yellow', width=12,
+					background='yellow', width=12
 				),
 				do.call(tabBox,
 					c(id=NS(id, 'histo_tab'), side='left', width=12,
@@ -112,12 +112,13 @@ rebalsimUI <- function(id) {
 		),
 		column(4,
 			fluidRow(
-				box(title="Summary stats", solidHeader=TRUE, collapsible=TRUE, width=NULL,
+				box(
 					lapply(
 						c("samples", "min", "max", "mean", "median", "sd"),
 						function(x)
 							simResultUI(NS(id, "sim_result"), x)
-					)
+					),
+					title="Summary stats", solidHeader=TRUE, collapsible=TRUE, width=NULL
 				),
 			)
 		),

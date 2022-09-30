@@ -11,7 +11,7 @@ capfeesimUI <- function(id) {
 	ns <- NS(id)
 	fluidRow(
 		column(8,
-			box(id=NS(id, 'select.box'), background='yellow', width=NULL,
+			box(
 				fluidRow(
 					column(12,
 						nodeSelectUI(NS(id, 'node_select'), listId="subject", lab="Enter/select your pubkey or alias"),
@@ -21,12 +21,12 @@ capfeesimUI <- function(id) {
 				column(12, align='center',
 					startButtonUI(id=NS(id, 'launch_sim'), lab=startButtonLabel(NS(id, "start_sim")))
 				),
+				id=NS(id, 'select.box'), background='yellow', width=NULL
 			),
 		),
 		column(4,
 			fluidRow(
-				box(id=NS(id, 'sim.box'), title="Capacity-Fee suggestion summary",
-					solidHeader=TRUE, collapsible=TRUE, width=12,
+				box(
 					lapply(
 						data.frame(
 							id=c("passive", "active", "min_cap", "ideal_cap"),
@@ -39,7 +39,9 @@ capfeesimUI <- function(id) {
 						) %>% t %>% as.data.frame,
 						function(x)
 							simResultUI(NS(id, "sim_result"), x[1]) %>% bs_embed_tooltip(title=x[2], placement="auto")
-					)
+					),
+					id=NS(id, 'sim.box'), title="Capacity-Fee suggestion summary",
+					solidHeader=TRUE, collapsible=TRUE, width=12
 				),
 				column(12, align="center",
 					conditionalPanel(

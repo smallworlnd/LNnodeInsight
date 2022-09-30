@@ -100,8 +100,8 @@ nodestatsUI <- function(id) {
 		rclipboardSetup(),
 		column(8,
 			fluidRow(
-				box(background='yellow', width=12,
-					nodeSelectUI(NS(id, "node_select"), listId="subject", lab='Enter pubkey/alias to view stats')
+				box(nodeSelectUI(NS(id, "node_select"), listId="subject", lab='Enter pubkey/alias to view stats'),
+					background='yellow', width=12
 				),
 			)
 		),
@@ -144,8 +144,8 @@ nodestatsUI <- function(id) {
 			conditionalPanel(
 				"output.invoice_status == 'Paid'", ns=ns,
 				box(
-					width=12,
-					plotOutputUI(NS(id, "past_ranks"), "Historical ranks", "past_ranks_plot", "plotlyOutput")
+					plotOutputUI(NS(id, "past_ranks"), "Historical ranks", "past_ranks_plot", "plotlyOutput"),
+					width=12
 				)
 			)
 		),
@@ -328,8 +328,8 @@ peerFeeServer <- function(id, graph=undir_graph, stats) {
 			fees <- fetch_peer_fees(pubkey=stats$node$pubkey) %>%
 				mutate(
 					diff=ifelse(
-						subject_fee>peer_fee, "Outbound fee is more than the inbound fee", ifelse(
-							subject_fee==peer_fee, "Outbound is the same as inbound", "Outbound fee is less than the inbound fee"))) %>%
+						subject_fee>peer_fee, "Out fee > in fee", ifelse(
+							subject_fee==peer_fee, "Out fee equals in fee", "Out fee < in fee"))) %>%
 				arrange(diff) %>%
 				mutate(diff=factor(diff))
 			min_fee <- fees %>% dplyr::select(subject_fee, peer_fee) %>% unlist %>% min
@@ -494,7 +494,7 @@ nodeStatHeader <- function(id, headerId, stats, activeTxt, inactiveTxt) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @return returns backend for the app UI
 #' @export
-nodestatsServer <- function(id, credentials, url_pubkey_search) {
+nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_summary_stats) {
 	moduleServer(id, function(input, output, session) {
 		# initialize the node list from which to select
 		users <- pool %>% tbl("users")
@@ -523,15 +523,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search) {
 				filter(pubkey==!!pubkey()) %>%
 				as_tibble %>%
 				arrange(time)
-			stats$ln <- pool %>% tbl("nodes_historical") %>%
-				filter(mean.rate.ppm<20e3) %>%
-				group_by(time) %>%
-				summarise(
-					tot.capacity=mean(tot.capacity, na.rm=TRUE),
-					mean.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE),
-					avg.capacity=mean(avg.capacity, na.rm=TRUE)) %>%
-				arrange(time) %>%
-				as_tibble
+			stats$ln <- ln_summary
 		}, ignoreNULL=TRUE)
 		# generate rank outputs for the selected node
 		lapply(
@@ -545,7 +537,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search) {
 					"Capacity-weighted betweenness rank", "Capacity-weighted eigenvector/hubness rank", "Capacity-weighted closeness/hopness rank", "BOS score"
 				)
 			) %>% t %>% as.data.frame,
-			function(x) nodeRankServer("node_ranks", x[1], x[2], stats)
+			function(x) nodeRankServer("node_ranks", x[1], x[2], stats) %>% bindCache(pubkey())
 		)
 		# generate capacity/fee/channel size outputs for the selected node
 		lapply(
@@ -554,7 +546,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search) {
 				plotId=paste0(c("cap_change", "fee_change", "chansize_change"), "_plot"),
 				xvar=c("tot.capacity", "mean.rate.ppm", "avg.capacity")
 			) %>% t %>% as.data.frame,
-			function(x) nodevsLNServer("evol_tab_selected", x[1], x[2], x[3], stats)
+			function(x) nodevsLNServer("evol_tab_selected", x[1], x[2], x[3], stats) %>% bindCache(pubkey())
 		)
 		# generate outputs for the remaining graph elements
 		peerFeeServer("peer_tab_selected", undir_graph, stats)
@@ -598,7 +590,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search) {
 		# if the invoice gets paid, then show historical ranks
 		observeEvent(invoice_status(), {
 			req(invoice_status() == "Paid")
-			pastRankServer("past_ranks", stats)
+			pastRankServer("past_ranks", stats) %>% bindCache(pubkey())
 		})
 
 		# send invoice status to the client side

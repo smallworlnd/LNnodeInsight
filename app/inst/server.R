@@ -1,4 +1,15 @@
 server <- function(input, output, session) {
+	apis <- c("chansim-api", "rebalsim-api", "capfeesim-api", "lnplus-swap-minmax")
+	endpoints <- lapply(apis,
+		function(x)
+			if (Sys.getenv("LOCAL")) {
+				list(url=Sys.getenv(x))
+			} else {
+				get_api_info(x)
+			}
+	)
+	names(endpoints) <- apis
+
 	users <- pool %>% tbl("users")
 	credentials <- loginServer(
 		id="login",
@@ -58,7 +69,7 @@ server <- function(input, output, session) {
 			accountServer("account", credentials)
 		}
 		else if (input$sidebar == "reports") {
-			reportServer('reports', credentials, lnplus_swap_minmax_api_info)
+			reportServer('reports', credentials, endpoints$`lnplus-swap-minmax`)
 		}
 		else if (input$sidebar == "byoc") {
 			byocServer('byoc', credentials)
@@ -67,13 +78,13 @@ server <- function(input, output, session) {
 			nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
 		}
 		else if (input$sidebar == "capfeesim") {
-			capfeesimServer('capfeesim', capfeesim_api_info, credentials)
+			capfeesimServer('capfeesim', endpoints$`capfeesim-api`, credentials)
 		}
 		else if (input$sidebar == "rebalsim") {
-			rebalsimServer('rebalsim', rebalsim_api_info, credentials)
+			rebalsimServer('rebalsim', endpoints$`rebalsim-api`, credentials)
 		}
 		else if (input$sidebar == "chansim") {
-			chansimServer('chansim', chansim_api_info, credentials)
+			chansimServer('chansim', endpoints$`chansim-api`, credentials)
 		}
 	})
 }

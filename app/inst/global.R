@@ -18,89 +18,32 @@ tryCatch({
 	}
 )
 
-chansim_filters <- data.frame(
-	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "max.lnplus.rank"),
-	filter_max=tbl(pool, 'nodes_current') %>%
-		summarise(
-			max.cap=round(max(tot.capacity)/1e8+1, 0),
-			max.avg.capacity=max(avg.capacity)/1e8,
-			max.fee.rate=6000,
-			max.num.channels=max(num.channels)+1,
-			max.between=max(cent.between.rank),
-			max.close=max(cent.close.rank),
-			max.eigen=max(cent.eigen.rank),
-			max.hops=11,
-			max.lnplus.rank=10) %>%
-		as_tibble %>%
-		unlist(use.names=FALSE),
-	filter_descr=c(
-		'Filter by range of total capacity (in BTC)',
-		'Filter by range of average channel capacity (in BTC)',
-		'Filter by range of average channel fee rates (ppm)',
-		'Filter by range of total channels',
-		'Filter by range of betweenness centrality ranks',
-		'Filter by range of closeness centrality ranks',
-		'Filter by range of eigenvector centrality ranks',
-		'Only show nodes that fall within a range of hops away from the node selected in Step 1',
-		"Filter by range of LightningNetwork+ ranks"),
-	filter_min=c(0.01, 0.001, 0, 1, 1, 1, 1, 0, 1),
-	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1)
-	) %>% t %>% as.data.frame
-
-report_filters <- data.frame(
-	filter_vars=c("max.cap", "max.med.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops"),
-	filter_max=tbl(pool, 'nodes_current') %>%
-		summarise(
-			max.cap=round(max(tot.capacity)/1e8+1, 0),
-			max.med.capacity=max(med.capacity)/1e8,
-			max.fee.rate=6000,
-			max.num.channels=max(num.channels)+1,
-			max.between=max(cent.between.rank),
-			max.close=max(cent.close.rank),
-			max.eigen=max(cent.eigen.rank),
-			max.hops=11) %>%
-		as_tibble %>%
-		unlist(use.names=FALSE),
-	filter_descr=c(
-		'Filter by range of total capacity (in BTC)',
-		'Filter by range of median channel capacity (in BTC)',
-		'Filter by range of median channel fee rates (ppm)',
-		'Filter by range of total channels',
-		'Filter by range of betweenness centrality ranks',
-		'Filter by range of closeness centrality ranks',
-		'Filter by range of eigenvector centrality ranks',
-		'Search nodes that fall within a range of hops away from your node'),
-	filter_min=c(0.1, 0.005, 0, 5, 1, 1, 1, 1),
-	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1)
-	) %>% t %>% as.data.frame
-
-chansim_api_info <- if (Sys.getenv("LOCAL")) {
-		list(url=Sys.getenv("CHANSIM_LOCAL_API_URL"))
-	} else {
-		get_api_info("chansim-api")
-	}
-rebalsim_api_info <- if (Sys.getenv("LOCAL")) {
-		list(url=Sys.getenv("REBALSIM_LOCAL_API_URL"))
-	} else {
-		get_api_info("rebalsim-api")
-	}
-capfeesim_api_info <- if (Sys.getenv("LOCAL")) {
-		list(url=Sys.getenv("CAPFEESIM_LOCAL_API_URL"))
-	} else {
-		get_api_info("capfeesim-api")
-	}
-lnplus_swap_minmax_api_info <- if (Sys.getenv("LOCAL")) {
-		list(url=Sys.getenv("LNPLUS_MINMAX_LOCAL_API_URL"))
-	} else {
-		get_api_info("lnplus-swap-minmax")
-	}
-
-
 nodes_current <- pool %>% tbl('nodes_current') %>% as_tibble
 edges_current <- pool %>% tbl('edges_current') %>% as_tibble
 
 nd_current <- pool %>% tbl('nd') %>% filter(time==max(time)) %>% as_tibble
 bos_current <- pool %>% tbl('bos') %>% filter(time==max(time)) %>% as_tibble
+
+# global for nodestatsApp
+ln_summary_stats <- tbl(pool, "nodes_historical") %>%
+	filter(mean.rate.ppm<20e3) %>%
+	group_by(time) %>%
+	summarise(
+		tot.capacity=mean(tot.capacity, na.rm=TRUE),
+		mean.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE),
+		avg.capacity=mean(avg.capacity, na.rm=TRUE)) %>%
+	arrange(time) %>%
+	as_tibble
+
+# global for byocApp
+min_max <- tbl(pool, "nodes_current") %>%
+	left_join(., dplyr::select(tbl(pool, "bos"), pubkey, score), by="pubkey") %>%
+	rename("bos"="score") %>%
+	left_join(., dplyr::select(tbl(pool, "nd"), pubkey, score), by="pubkey") %>%
+	rename("tweb.score"="score") %>%
+	summarise_all(c("min", "max"), na.rm=TRUE) %>%
+	mutate(tot.capacity_min=tot.capacity_min/1e8, tot.capacity_max=tot.capacity_max/1e8) %>%
+	as_tibble
 
 undir_graph <- build_graph(nodes_current, edges_current)
 
