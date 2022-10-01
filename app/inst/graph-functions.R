@@ -44,15 +44,16 @@ peer_graph <- function(graph=undir_graph, pubkey) {
 #' @return returns data.frame of pubkey fee, peer fee, peer pubkey and peer
 #' alias
 #' @export
-fetch_peer_fees <- function(channels=edges_current, pubkey) {
+fetch_peer_fees <- function(nodes=nodes_current, channels=edges_current, pubkey) {
 	fees <- channels %>%
 		filter(from==pubkey) %>%
 		mutate(
 			subject_fee=from_fee_rate,
 			peer_fee=to_fee_rate,
 			peer_pubkey=to) %>%
-		dplyr::select(subject_fee, peer_fee, peer_pubkey)
-	fees$peer_alias <- sapply(fees$peer_pubkey, function(x) fetch_alias(pubkey=x))
+		left_join(., nodes, by=c('peer_pubkey'='pubkey')) %>%
+		dplyr::select(subject_fee:peer_pubkey, alias) %>%
+		rename('peer_alias'='alias')
 	return(fees)
 }
 

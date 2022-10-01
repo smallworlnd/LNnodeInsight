@@ -427,7 +427,7 @@ centralityRankOutput <- function(id, data) {
 #' @param targets chosen for finding overlaps
 #' @return return ggplot Venn diagram of peer overlaps
 #' @export
-peerVennServer <- function(id, subject, targets) {
+peerVennServer <- function(id, subject, targets, nodes=nodes_current) {
 	moduleServer(id, function(input, output, session) {
 		output$chansim_venn <- renderPlotly({
 			req(subject() != "")
@@ -435,7 +435,7 @@ peerVennServer <- function(id, subject, targets) {
 			xkey <- subject()
 			xkey_alias <- fetch_alias(pubkey=xkey)
 			ykeys <- targets()[targets() != ""]
-			ykey_aliases <- sapply(ykeys, function(z) fetch_alias(pubkey=z)) %>% as.vector
+			ykey_aliases <- nodes %>% filter(pubkey %in% ykeys) %>% pull(alias)
 			peers <- lapply(c(xkey, ykeys), function(z) fetch_peer_aliases(pubkey=z))
 			names(peers) <- c(xkey_alias, ykey_aliases)
 			venn <- Venn(peers)
@@ -762,10 +762,10 @@ getChannelActions <- function(id) {
 #' @param actions vector of choices to add/remove
 #' @return returns renderText object of formatted aliass + actions
 #' @export
-formatUserChoices <- function(id, targets, actions) {
+formatUserChoices <- function(id, targets, actions, nodes=nodes_current) {
 	moduleServer(id, function(input, output, session) {
 		output$target_actions <- renderText({
-			aliases <- sapply(targets[targets != ""], function(x) fetch_alias(pubkey=x))
+			aliases <- nodes %>% filter(pubkey %in% targets[targets != ""]) %>% pull(alias)
 			indels <- str_replace(actions()[targets != ""], "del", "remove")
 			paste("<b>", str_to_title(indels), aliases, "</b><br>")
 		})

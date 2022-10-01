@@ -494,11 +494,11 @@ nodeStatHeader <- function(id, headerId, stats, activeTxt, inactiveTxt) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @return returns backend for the app UI
 #' @export
-nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_summary_stats) {
+nodestatsServer <- function(id, credentials, url_pubkey_search=NULL, ln_summary=ln_summary_stats) {
 	moduleServer(id, function(input, output, session) {
 		# initialize the node list from which to select
 		users <- pool %>% tbl("users")
-		nodeListServer("node_select", listId="subject", default_selected=url_pubkey_search)
+		nodeListServer("node_select", listId="subject")
 		pubkey <- getNodePubkey("node_select", "subject")
 		ambossLinkServer("link_to_amboss_page", pubkey)
 		stats <- reactiveValues()
@@ -537,7 +537,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 					"Capacity-weighted betweenness rank", "Capacity-weighted eigenvector/hubness rank", "Capacity-weighted closeness/hopness rank", "BOS score"
 				)
 			) %>% t %>% as.data.frame,
-			function(x) nodeRankServer("node_ranks", x[1], x[2], stats) %>% bindCache(pubkey())
+			function(x) nodeRankServer("node_ranks", x[1], x[2], stats)
 		)
 		# generate capacity/fee/channel size outputs for the selected node
 		lapply(
@@ -546,7 +546,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 				plotId=paste0(c("cap_change", "fee_change", "chansize_change"), "_plot"),
 				xvar=c("tot.capacity", "mean.rate.ppm", "avg.capacity")
 			) %>% t %>% as.data.frame,
-			function(x) nodevsLNServer("evol_tab_selected", x[1], x[2], x[3], stats) %>% bindCache(pubkey())
+			function(x) nodevsLNServer("evol_tab_selected", x[1], x[2], x[3], stats)
 		)
 		# generate outputs for the remaining graph elements
 		peerFeeServer("peer_tab_selected", undir_graph, stats)
