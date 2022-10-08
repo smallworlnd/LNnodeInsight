@@ -1,7 +1,7 @@
 source("inst/shiny-common.R", local=TRUE)
 
 report_filters <- data.frame(
-	filter_vars=c("max.cap", "max.med.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops"),
+	filter_vars=c("max.cap", "max.med.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "network.addr"),
 	filter_max=tbl(pool, 'nodes_current') %>%
 		summarise(
 			max.cap=round(max(tot.capacity)/1e8+1, 0),
@@ -11,7 +11,7 @@ report_filters <- data.frame(
 			max.between=max(cent.between.rank),
 			max.close=max(cent.close.rank),
 			max.eigen=max(cent.eigen.rank),
-			max.hops=11) %>%
+			max.hops=11, network.addr='all') %>%
 		as_tibble %>%
 		unlist(use.names=FALSE),
 	filter_descr=c(
@@ -22,9 +22,10 @@ report_filters <- data.frame(
 		'Filter by range of betweenness centrality ranks',
 		'Filter by range of closeness centrality ranks',
 		'Filter by range of eigenvector centrality ranks',
-		'Search nodes that fall within a range of hops away from your node'),
-	filter_min=c(0.1, 0.005, 0, 5, 1, 1, 1, 1),
-	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1)
+		'Search nodes that fall within a range of hops away from your node',
+		'Filter by connection type (IPV4/IPV6/Tor)'),
+	filter_min=c(0.1, 0.005, 0, 5, 1, 1, 1, 1, 'all'),
+	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 'all')
 	) %>% t %>% as.data.frame
 
 #' infobox UI element
@@ -69,6 +70,25 @@ numRangeFilterSelectUI <- function(id, filtId, lab, minVal, maxVal, stepVal) {
 	)
 }
 
+#' button UI element for the various node filters
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @param filtId filter-specific short ID
+#' @param lab descriptive label for the ui element
+#' @param inLine whether to display buttons in-line or not
+#' @param choice_labels descriptive labels of the buttons
+#' @param default_choice default button choice
+#' @return return button filt UI element
+#' @export
+buttonFilterSelectUI <- function(id, filtId, lab, inLine=TRUE, choice_labels, choice_vals, default_choice) {
+	prettyRadioButtons(
+		inputId=NS(id, filtId),
+		label=lab,
+		choiceNames=choice_labels, choiceValues=choice_vals,
+		selected=default_choice, inline=inLine
+	)
+}
+
 #' main layout UI for various report elements
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function
@@ -87,13 +107,21 @@ reportsUI <- function(id) {
 						width=NULL, collapsible=TRUE,
 						collapsed=TRUE, solidHeader=TRUE, status='primary',
 						lapply(
-							report_filters,
+							dplyr::select(report_filters, -V9),
 							function(x)
 								numRangeFilterSelectUI(
 									id=NS(id, 'filters'),
 									filtId=x[1], lab=x[3],
 									minVal=as.numeric(x[4]), maxVal=as.numeric(x[2]),
 									stepVal=as.numeric(x[5]))
+						),
+						buttonFilterSelectUI(
+							id=NS(id, 'filters'),
+							filtId='network.addr',
+							lab='Filter for nodes by connection type (IPV4/IPV6/Tor)',
+							inLine=TRUE,
+							choice_labels=c('All types', 'IPV4/IPV6 only', 'Hybrid IPV4/IPV6/Tor', 'Tor only'), choice_vals=c('all', 'clearnet', 'hybrid', 'tor'),
+							default_choice='all'
 						),
 						h6("* Committed node variable filters will be activated the next time the optimization engine runs"),
 						h6("* Can be updated at any time but new submissions override previous ones"),
@@ -331,8 +359,9 @@ getFilterInput <- function(id) {
 
 resetFilters <- function(id) {
 	moduleServer(id, function(input, output, session) {
-		lapply(report_filters, function(x)
+		lapply(dplyr::select(report_filters, -V9), function(x)
 			updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[4], x[2]))))
+		updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected='all')
 	})
 }
 
@@ -348,12 +377,14 @@ getPredefinedFilters <- function(id, user_pubkey, db=pool) {
 				filter(time==max(time)) %>%
 				dplyr::select(min.cap:max.hops) %>%
 				collect %>% matrix(ncol=2, byrow=TRUE) %>% t %>%
-				rbind(report_filters[1, ], .)
+				rbind(report_filters[1, 1:8], .)
 			lapply(filters_reformat, function(x)
 				updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[2], x[3]))))
+			updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected=filters$network.addr)
 		} else {
-			lapply(report_filters, function(x)
+			lapply(dplyr::select(report_filters, -network.addr), function(x)
 				updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[4], x[2]))))
+			updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected=as.numeric(report_filters$V9[4]))
 		}
 	})
 }
@@ -372,7 +403,7 @@ getPredefinedFilters <- function(id, user_pubkey, db=pool) {
 #' @export
 applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_list=node_ids, db=pool) {
 	moduleServer(id, function(input, output, session) {
-		vals <- eventReactive(c(input$max.cap, input$max.med.capacity, input$max.fee.rate, input$max.num.channels, input$max.between, input$max.close, input$max.eigen, input$max.hops), {
+		vals <- eventReactive(c(input$max.cap, input$max.med.capacity, input$max.fee.rate, input$max.num.channels, input$max.between, input$max.close, input$max.eigen, input$max.hops, input$network.addr), {
 			req(credentials$user_auth)
 			# apply user-defined filters
 			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=credentials$info[1]$pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
@@ -389,6 +420,18 @@ applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_lis
 					cent.close.rank>=input$max.close[1], cent.close.rank<=input$max.close[2],
 					cent.eigen.rank>=input$max.eigen[1], cent.eigen.rank<=input$max.eigen[2]) %>%
 				mutate(target=paste(alias, "-", pubkey))
+			if (input$network.addr == 'clearnet') {
+				vals <- vals %>%
+					filter(is.na(torv3))
+			}
+			else if (input$network.addr == 'hybrid') {
+				vals <- vals %>%
+					filter(!is.na(ipv4) | !is.na(ipv6))
+			}
+			else if (input$network.addr == 'tor') {
+				vals <- vals %>%
+					filter(is.na(ipv4) & is.na(ipv6))
+			}
 			pull(vals, target)
 		}, ignoreInit=TRUE)
 		return(vals)
@@ -465,7 +508,7 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 			filts <- userChangeFilters() %>% unlist %>% as.data.frame %>% t %>% as.data.frame
 			names(filts) <- c("min.cap", "max.cap", "min.med.capacity", "max.med.capacity",
 				"min.fee.rate", "max.fee.rate", "min.num.channels", "max.num.channels",
-				"min.between", "max.between", "min.close", "max.close", "min.eigen", "max.eigen", "min.hops", "max.hops")
+				"min.between", "max.between", "min.close", "max.close", "min.eigen", "max.eigen", "min.hops", "max.hops", "network.addr")
 			filts$time <- now("GMT")
 			filts$pubkey <- credentials()$info[1]$pubkey
 			dbWriteTable(pool, "minmax_filters", filts, row.names=FALSE, append=TRUE)

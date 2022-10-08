@@ -180,6 +180,16 @@ chansimUI <- function(id) {
 						default_choice=2
 					),
 					shinyjs::hidden(
+						buttonFilterSelectUI(
+							id=NS(id, 'filters'),
+							filtId='network.addr',
+							lab='Filter for nodes by connection type (IPV4/IPV6/Tor)',
+							inLine=TRUE,
+							choice_labels=c('All types', 'IPV4/IPV6 only', 'Hybrid IPV4/IPV6/Tor', 'Tor only'), choice_vals=c('all', 'clearnet', 'hybrid', 'tor'),
+							default_choice='all'
+						)
+					),
+					shinyjs::hidden(
 						dropdownFilterSelectUI(
 							id=NS(id, 'filters'),
 							filtId='community',
@@ -340,6 +350,7 @@ resetFiltersServer <- function(id, subject, filters=chansim_filters, db=pool) {
 			updateNumericRangeInput(session, inputId='max.hops', value=c(0, 11))
 			updatePrettyRadioButtons(session, inputId='peers.of.peers', selected=2)
 			updatePrettyRadioButtons(session, inputId='lnplus_pending', selected=2)
+			updatePrettyRadioButtons(session, inputId='network.addr', selected='all')
 			updateNumericRangeInput(session, inputId='lnplus_rank', value=c(1, 10))
 
 			comms <- tbl(db, 'communities') %>%
@@ -561,6 +572,15 @@ applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list
 					unique
 				vals <- vals %>% filter(pubkey %in% nodes_in_swaps)
 			}
+			if (input$network.addr == 'clearnet') {
+				vals <- vals %>% filter(is.na(torv3))
+			}
+			else if (input$network.addr == 'hybrid') {
+				vals <- vals %>% filter(!is.na(ipv4) | !is.na(ipv6))
+			}
+			else if (input$network.addr == 'tor') {
+				vals <- vals %>% filter(is.na(ipv4) & is.na(ipv6))
+			}
 			return(pull(vals, target))
 		}
 	})
@@ -641,6 +661,7 @@ toggleHiddenElements <- function(id, credentials) {
 	moduleServer(id, function(input, output, session) {
 		shiny::observe({
 			req(credentials()$user_auth)
+			shinyjs::toggle('network.addr')
 			shinyjs::toggle('community')
 			shinyjs::toggle('lnplus_pending')
 		})

@@ -26,9 +26,16 @@ build_graph_from_data_req <- function(data_req) {
 	# fetch nodes
 	nodes <- dg_resp$nodes %>%
 		unnest(addresses) %>%
-		dplyr::select(pub_key, alias) %>%
-		rename('pubkey'='pub_key') %>%
-		unique
+		dplyr::select(pub_key, alias, network, addr) %>%
+		mutate(network=
+			ifelse(grepl("^[0-9]+.[0-9]+.[0-9]+.[0-9]+:[0-9]+$", addr), "ipv4",
+			ifelse(grepl("^[a-z0-9]+.onion:[0-9]+$", addr), "torv3",
+			ifelse(grep("^\\[[a-z0-9]+:[a-z0-9]+:[a-z0-9]+:[a-z0-9]+:[a-z0-9]+:[a-z0-9]+:[a-z0-9]+:[a-z0-9]+\\]:[0-9]+$", addr), "ipv6", NA)))) %>%
+			unique %>%
+			pivot_wider(names_from=network, values_from=addr) %>%
+			unnest(cols=c(ipv4, ipv6, torv3)) %>%
+			rename('pubkey'='pub_key') %>%
+			distinct(pubkey, .keep_all=TRUE)
 	# fetch links
 	edges <- dg_resp$edges %>%
 		mutate(
@@ -322,7 +329,7 @@ if (length(commandArgs(trailingOnly=TRUE)) > 0) {
 # upload latest graph data to the db
 if (!graph_error) {
 	tryCatch({
-		dbWriteTable(con, 'nodes_historical', latest_graph$nodes, row.names=FALSE, overwrite=FALSE, append=TRUE)
+		dbWriteTable(con, 'nodes_historical', latest_graph$nodes %>% dplyr::select(-c(ipv4, ipv6, torv3)), row.names=FALSE, overwrite=FALSE, append=TRUE)
 		dbExecute(con, 'delete from nodes_historical where "time" <= now() - interval \'3 month\'')
 		dbWriteTable(con, 'nodes_current', latest_graph$nodes, row.names=FALSE, overwrite=TRUE)
 		dbWriteTable(con, 'edges_current', latest_graph$channels, row.names=FALSE, overwrite=TRUE)
