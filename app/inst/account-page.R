@@ -249,20 +249,7 @@ accountServer <- function(id, credentials) {
 			new_sub_df <- data.frame(
 				pubkey=node_pubkey, alias=node_alias, subscription="Premium",
 				sub_date=sub_begin, sub_expiration_date=sub_end)
-			tryCatch({
-				existing_entry <- users %>%
-					filter(pubkey %in% !!new_sub_df$pubkey, subscription %in% !!new_sub_df$subscription) %>%
-					as_tibble %>%
-					filter(sub_date==new_sub_df$sub_date, sub_expiration_date==new_sub_df$sub_expiration_date)
-				if (nrow(existing_entry) > 0) {
-					return(TRUE)
-				} else {
-					dbWriteTable(pool, "users", new_sub_df, row.names=FALSE, append=TRUE, overwrite=FALSE)
-				}},
-				error = function(e) {
-					return(FALSE)
-				}
-			)
+			dbWriteTable(pool, "users", new_sub_df, row.names=FALSE, append=TRUE, overwrite=FALSE)
 		})
 		# show message after invoice successfully paid
 		observeEvent(add_sub_to_db(), {

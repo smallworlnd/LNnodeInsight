@@ -24,7 +24,7 @@ ambossLinkUI <- function(id) {
 #' @param id An ID string that corresponds with the ID used to call the module's server function
 #' @param rankId rankId string, possibilities are 'cent.between.rank',
 #' 'cent.eigen.rank', 'cent.close.rank', 'nd.rank', 'cent'between.weight.rank',
-#' 'cent.eigen.weight.rank', 'cent.close.weight.rank' and 'bos'score'
+#' 'cent.eigen.weight.rank', 'cent.close.weight.rank'
 #' @param desc description of rankId as a character string
 #' @return returns valuebox UI element for the given rank of a node (if selected
 #' in \link{nodeSelectUI}
@@ -43,8 +43,8 @@ nodeRanksUI <- function(id, rankId, desc) {
 #' @export
 ranksButtonUI <- function(id) {
 	actionBttn(
-		inputId=NS(id, 'past_ranks_button'),
-		label=paste('View historical ranks of this node for', as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats or sign up and get unlimited access"),
+		inputId=NS(id, 'ranks_bal_button'),
+		label=paste('View historical ranks of this node for', as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats"),
 		style='fill',
 		color='success',
 		block=FALSE
@@ -129,23 +129,29 @@ nodestatsUI <- function(id) {
 		column(12,
 			lapply(
 				data.frame(
-					rankId=c("cent.between.weight.rank", "cent.eigen.weight.rank", "cent.close.weight.rank", "bos.score"),
+					rankId=c("cent.between.weight.rank", "cent.eigen.weight.rank", "cent.close.weight.rank"),
 					desc=c(
 						"Betweenness centrality but using channel capacities as weights.",
 						"Eigenvector/hubness centrality but using channel capacities as weights.",
-						"Closeness/hopness centrality but using channel capacities as weights.",
-						"The first ranking system designed by Lightning Labs.")
+						"Closeness/hopness centrality but using channel capacities as weights.")
 				) %>% t %>% as.data.frame,
 				function(x) nodeRanksUI(NS(id, "node_ranks"), rankId=x[1], desc=x[2])
 			)
 		),
-		column(12, h3("Historical ranks")),
-		column(12,
-			conditionalPanel(
-				"output.invoice_status == 'Paid'", ns=ns,
-				box(
-					plotOutputUI(NS(id, "past_ranks"), "Historical ranks", "past_ranks_plot", "plotlyOutput"),
-					width=12
+		column(6, h3("Historical ranks and node liquidity distribution") %>% bs_embed_tooltip(title="Liquidity distributions typically available for nodes with at least 10 channels but some exceptions exist")),
+		conditionalPanel(
+			"output.invoice_status == 'Paid'", ns=ns,
+			do.call(tabBox,
+				c(id=NS(id, 'ranks_bal'), side='left', width=12,
+					lapply(
+						data.frame(
+							tabId=c("ranks_tab", "liq_tab"),
+							plotTitle=c("Historical ranks", "Node liquidity estimate"),
+							plotId=paste(c("past_ranks", "node_liq"), "plot", sep="_"),
+							plotType=rep("plotlyOutput", 2)) %>% t %>% as.data.frame,
+						function(x)
+							plotOutputUI(NS(id, x[1]), plotTitle=x[2], plotId=x[3], plotType=x[4])
+					) %>% unname
 				)
 			)
 		),
@@ -153,7 +159,7 @@ nodestatsUI <- function(id) {
 		column(12, align='center',
 			conditionalPanel(
 				"output.invoice_status != 'Paid'", ns=ns,
-				ranksButtonUI(NS(id, "show_past_ranks"))
+				ranksButtonUI(NS(id, "show_ranks_bal"))
 			)
 		),
 		column(12, h3(nodeStatHeaderUI(NS(id, 'section_headers'), "node_stats"))),
@@ -220,7 +226,7 @@ ambossLinkServer <- function(id, pubkey) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param rankId rankId string, possibilities are 'cent.between.rank',
 #' 'cent.eigen.rank', 'cent.close.rank', 'nd.rank', 'cent'between.weight.rank',
-#' 'cent.eigen.weight.rank', 'cent.close.weight.rank' and 'bos'score'
+#' 'cent.eigen.weight.rank', 'cent.close.weight.rank'
 #' @param desc description of rankId as a character string
 #' @param node_stats_reactive reactive element of a node's pubkey
 #' @return returns valuebox server output for a given rank metric
@@ -258,10 +264,6 @@ pastRankServer <- function(id, stats) {
 	moduleServer(id, function(input, output, session) {
 		output$past_ranks_plot <- renderPlotly({
 			req(stats$node)
-			bos <- pool %>% tbl('bos') %>%
-				filter(pubkey==!!stats$node$pubkey) %>%
-				arrange(time) %>%
-				as_tibble
 			nd <- pool %>% tbl('nd') %>%
 				filter(pubkey==!!stats$node$pubkey) %>%
 				arrange(time) %>%
@@ -275,13 +277,30 @@ pastRankServer <- function(id, stats) {
 				add_trace(y=~cent.close.weight.rank, name="Capacity-weighted closeness/hopness") %>%
 				add_trace(y=~cent.eigen.weight.rank, name="Capacity-weighted eigenvector/hubness") %>%
 				layout(yaxis=list(title="Rank", type='log'), xaxis=list(title="Date"), hovermode='x')
-			if (nrow(bos) > 0) {
-				plt <- plt %>% add_trace(data=bos, x=~time, y=~rank, name="BOS rank", type='scatter', mode='lines')
-			}
 			if (nrow(nd) > 0) {
 				plt <- plt %>% add_trace(data=nd, x=~time, y=~rank, name="Terminal Web rank", type='scatter', mode='lines')
 			}
 			plt
+		})
+	})
+}
+
+#' liquidity server
+#'
+#' display ribbon plot of liquidity distribution and low capacity channels
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param db db connectiona object
+#' @return returns ggplotly output element
+#' @export
+liquidityServer <- function(id, stats, db=pool) {
+	moduleServer(id, function(input, output, session) {
+		output$node_liq_plot <- renderPlotly({
+			req(stats$node)
+			dat <- tbl(db, 'node_probes') %>%
+				filter(from==!!stats$node$pubkey) %>%
+				as_tibble
+			plot_ly(data=dat, labels=~desc, values=~n, type="pie", hole=0.6, marker=list(colors=~color))
 		})
 	})
 }
@@ -307,7 +326,7 @@ nodevsLNServer <- function(id, plotTitle, plotId, xvar, stats) {
 			stats$ln %>%
 				plot_ly(x=~time, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name='LN average') %>%
 					add_trace(data=stats$historical, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name=stats$node$alias) %>%
-					layout(hovermode='x', xaxis=list(title="Date", tickangle=45), yaxis=list(title=plotTitle))
+					layout(hovermode='x', xaxis=list(title="Date"), yaxis=list(title=plotTitle))
 		})
 	})
 }
@@ -333,21 +352,19 @@ peerFeeServer <- function(id, graph=undir_graph, stats) {
 				arrange(diff) %>%
 				mutate(diff=factor(diff))
 			min_fee <- fees %>% dplyr::select(subject_fee, peer_fee) %>% unlist %>% min
-			max_fee <- fees %>% dplyr::select(subject_fee, peer_fee) %>% unlist %>% max
+			max_fee <- pmin(fees %>% dplyr::select(subject_fee, peer_fee) %>% filter(!is.na(subject_fee), !is.na(peer_fee)) %>% unlist %>% max, 10000)
 			plt <- ggplot(fees, aes(y=subject_fee, x=peer_fee, text=paste0("Outgoing fee: ", subject_fee, "\n", peer_alias, " fee:", peer_fee), color=as.factor(diff), size=9, alpha=0.8)) +
 				geom_point() +
 				ggtitle("") +
+				xlab("Incoming peer fee (ppm)") + ylab("Outgoing fee (ppm)") +
 				geom_abline(intercept=0, slope=1, linetype='dashed', alpha=0.4) +
 				scale_color_manual(values = c("dodgerblue3", "orange", "darkgray")) +
 				xlim(min_fee, max_fee) +
 				ylim(min_fee, max_fee) +
 				theme(legend.title=element_blank()) +
-				theme_minimal()
-			ggplotly(plt, tooltip="text") %>%
-				layout(
-					xaxis=list(title="Incoming peer fee (ppm)", size=10),
-					yaxis=list(title="Outgoing fee (ppm)", size=10),
-					legend=list(orientation='v', x=-0.15, y=-0.15))
+				theme_minimal() +
+				theme(legend.title=element_blank())
+			ggplotly(plt, tooltip="text")
 		})
 	})
 }
@@ -370,7 +387,7 @@ peerOverlapServer <- function(id, graph=undir_graph, stats) {
 			plot_ly(common_peers, x=~peers, y=~num_common_peers, type='scatter', mode='lines+markers') %>%
 				layout(
 					hovermode='x',
-					xaxis=list(title="Peer alias", tickangle=45, categoryorder="array", categoryarray=common_peers$peers),
+					xaxis=list(title="Peer alias", categoryorder="array", categoryarray=common_peers$peers),
 					yaxis=list(title="Number of peers in common")
 				)
 		})
@@ -511,12 +528,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 				filter(pubkey==pubkey()) %>%
 				dplyr::select(pubkey, score, rank) %>%
 				rename(c('nd.score'='score', 'nd.rank'='rank'))
-			subject_bos <- bos_current %>%
-				filter(pubkey==pubkey()) %>%
-				rename(c('bos.score'='score')) %>%
-				dplyr::select(-time)
-			stats$node <- left_join(stats$node, subject_nd, by='pubkey') %>%
-				left_join(., subject_bos, by='pubkey')
+			stats$node <- left_join(stats$node, subject_nd, by='pubkey')
 			peer_ids <- adjacent_vertices(undir_graph, fetch_id(pubkey=pubkey()), mode='all') %>% unlist
 			stats$peers <- undir_graph %>% as_tibble %>% filter(id %in% peer_ids) %>% mutate(tot.capacity=tot.capacity/1e8)
 			stats$historical <- pool %>% tbl("nodes_historical") %>%
@@ -530,11 +542,11 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 			data.frame(
 				rankId=c(
 					"cent.between.rank", "cent.eigen.rank", "cent.close.rank", "nd.rank",
-					"cent.between.weight.rank", "cent.eigen.weight.rank", "cent.close.weight.rank", "bos.score"
+					"cent.between.weight.rank", "cent.eigen.weight.rank", "cent.close.weight.rank"
 				),
 				subtitle=c(
 					"Betweenness rank", "Eigenvector/hubness rank", "Closeness/hopness rank", "Terminal rank",
-					"Capacity-weighted betweenness rank", "Capacity-weighted eigenvector/hubness rank", "Capacity-weighted closeness/hopness rank", "BOS score"
+					"Capacity-weighted betweenness rank", "Capacity-weighted eigenvector/hubness rank", "Capacity-weighted closeness/hopness rank"
 				)
 			) %>% t %>% as.data.frame,
 			function(x) nodeRankServer("node_ranks", x[1], x[2], stats)
@@ -559,7 +571,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 		nodeStatHeader("section_headers", "node_stats", stats, "vs the Network", "Node vs the Network")
 		nodeStatHeader("section_headers", "peer_compare", stats, "peers", "Node peers")
 		
-		past_ranks_button <- startButtonServer("show_past_ranks", buttonId="past_ranks_button")
+		ranks_bal_button <- startButtonServer("show_ranks_bal", buttonId="ranks_bal_button")
 
 		# initialize invoice status
 		invoice_status <- reactiveVal("Unpaid")
@@ -567,11 +579,11 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 
 		# generate an invoice on button click
 		invoice <- invoiceHandlingServer(
-			"past_ranks",
-			reactive_trigger=past_ranks_button,
+			"ranks_bal",
+			reactive_trigger=ranks_bal_button,
 			inv_fetch_url=Sys.getenv("STORE_URL"),
 			inv_amt=Sys.getenv("PASTRANKS_MSAT"),
-			display_desc=paste("Done! Please pay", as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats to view results."),
+			display_desc=paste("Please pay", as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats to view results."),
 			inv_desc="historical ranks")
 
 		# modify invoice status reactiveVal to "Paid" if the
@@ -584,13 +596,15 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 		# reset the historical rank graph if a new node is selected
 		observeEvent(pubkey(), {
 			invoice_status("Unpaid")
-			pastRankServer("past_ranks", NULL)
+			pastRankServer("ranks_tab", NULL)
+			liquidityServer("liq_tab", NULL)
 		})
 
 		# if the invoice gets paid, then show historical ranks
 		observeEvent(invoice_status(), {
 			req(invoice_status() == "Paid")
-			pastRankServer("past_ranks", stats) %>% bindCache(pubkey())
+			pastRankServer("ranks_tab", stats)
+			liquidityServer("liq_tab", stats)
 		})
 
 		# send invoice status to the client side
@@ -604,9 +618,9 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 			req(is_premium() == "true")
 			invoice_status("Paid")
 			if (pubkey() == "") {
-				pastRankServer("past_ranks", NULL)
+				pastRankServer("ranks_tab", NULL)
 			} else {
-				pastRankServer("past_ranks", stats)
+				pastRankServer("ranks_tab", stats)
 			}
 		})
 	})
@@ -629,6 +643,8 @@ nodestatsApp <- function() {
 	credentials <- reactiveValues(
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
 		user_auth=TRUE)
+		#info=NULL,
+		#user_auth=FALSE)
 	server <- function(input, output, session) {
 		nodestatsServer('x', reactive(credentials), NULL)
 	}

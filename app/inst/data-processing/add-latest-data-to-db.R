@@ -15,11 +15,11 @@ library(ghql)
 build_graph_from_data_req <- function(data_req) {
 	if ("date" %in% names(data_req)) {
 		# fetch screenshot time of the graph
-		ss.time <- data_req$date
+		ss.time <- as_datetime(data_req$date, tz="UTC")
 		# pull graph content from request
 		dg_resp <- content(data_req, as="text") %>% fromJSON(flatten=TRUE)
 	} else {
-		ss.time <- Sys.time()
+		ss.time <- now("UTC")
 		dg_resp <- fromJSON(data_req, flatten=TRUE)
 	}
 
@@ -63,14 +63,14 @@ build_graph_from_data_req <- function(data_req) {
 	u1 <- edges %>%
 		dplyr::group_by(node1_pub) %>%
 		mutate(
-			diff=as.numeric(ss.time - as_datetime(last_update), unit='days'),
+			diff=as.numeric(ss.time - as_datetime(last_update, tz="UTC"), unit='days'),
 			state=ifelse(diff>14, "inact.channels", "act.channels")) %>%
 		dplyr::select(node1_pub, state) %>%
 		rename(c('pubkey'='node1_pub'))
 	u2 <- edges %>%
 		dplyr::group_by(node2_pub) %>%
 		mutate(
-			diff=as.numeric(ss.time - as_datetime(last_update), unit='days'),
+			diff=as.numeric(ss.time - as_datetime(last_update, tz="UTC"), unit='days'),
 			state=ifelse(diff>14, "inact.channels", "act.channels")) %>%
 		dplyr::select(node2_pub, state) %>%
 		rename(c('pubkey'='node2_pub'))
@@ -118,7 +118,8 @@ build_graph_from_data_req <- function(data_req) {
 		dplyr::select(f, t, capacity, last_update, fbf, ff, tbf, tf, direction) %>%
 		rename(c('from'='f', 'to'='t', 'from_base_fee'='fbf', 'from_fee_rate'='ff', 'to_base_fee'='tbf', 'to_fee_rate'='tf'))
 	forw_edges <- channels %>% mutate(direction=1)
-	all_edges <- rbind(forw_edges, rev_edges)
+	all_edges <- rbind(forw_edges, rev_edges) %>%
+		mutate(time=ss.time, day=floor_date(ss.time, 'day'))
 	g <- as_tbl_graph(all_edges, directed=TRUE, node_key='pubkey') %>%
 		rename('pubkey'='name') %>%
 		left_join(., nodes, by='pubkey')
@@ -188,7 +189,7 @@ build_graph_from_data_req <- function(data_req) {
 }
 
 summarise_nd_from_data_req <- function(data_req) {
-	ss.time <- data_req$date
+	ss.time <- now("UTC")
 	nd_resp <- content(data_req, as="text") %>% fromJSON(flatten=TRUE)
 
 	chan_states <- lapply(
@@ -252,18 +253,6 @@ summarise_nd_from_data_req <- function(data_req) {
 	fail_state <- nd_unstable %>% filter(key=='state') %>% dplyr::select(-key)
 	return(list(agg=nd_agg, bal=high_bal, state=fail_state))
 
-}
-
-summarise_bos_from_data_req <- function(data_req) {
-	ss.time <- data_req$date
-	bos_resp <- content(data_req, as="text") %>% fromJSON(flatten=TRUE)
-
-	bos <- bos_resp$scores %>%
-		dplyr::select(public_key, score) %>%
-		rename(c('pubkey'='public_key')) %>%
-		mutate(time=as_datetime(ss.time)) %>%
-		as_tibble
-	return(bos)
 }
 
 summarise_amboss_communities_from_data_req <- function(data_req) {
@@ -391,41 +380,11 @@ if (!nd_error) {
 		dbWriteTable(con, 'nd', nd$agg, row.names=FALSE, overwrite=FALSE, append=TRUE)
 		dbWriteTable(con, 'nd_bal', nd$bal, row.names=FALSE, overwrite=TRUE)
 		dbWriteTable(con, 'nd_fail', nd$state, row.names=FALSE, overwrite=TRUE)
-		dbExecute(con, 'delete from nd where "time" <= now() - interval \'3 month\'')
+		dbExecute(con, 'delete from nd where "time" <= (now() at time zone \'utc\')  - interval \'3 month\'')
 		},
 		error = function(e) { 
 			print(e)
 			print("Could not upload terminal web data")
-		},
-		warning = function(w) {
-			print(w)
-		}
-	)
-}
-
-tryCatch({
-	bos_req <- RETRY("GET", url=Sys.getenv("BOS_URL"), times=5, pause_min=2)
-	bos <- summarise_bos_from_data_req(bos_req)
-	bos_error <- http_error(dg_req)
-	},
-	error = function(e) { 
-		print(e)
-		print("Could not fetch bos data")
-		bos_error <- http_error(dg_req)
-	},
-	warning = function(w) {
-		print(w)
-	}
-)
-
-if (!bos_error) {
-	tryCatch({
-		dbWriteTable(con, 'bos', bos, row.names=FALSE, overwrite=FALSE, append=TRUE)
-		dbExecute(con, 'delete from bos where "time" <= now() - interval \'3 month\'')
-		},
-		error = function(e) { 
-			print(e)
-			print("Could not upload bos data")
 		},
 		warning = function(w) {
 			print(w)
@@ -459,7 +418,7 @@ tryCatch({
 
 if (exists("amboss_communities") && nrow(amboss_communities) > 0) {
 	tryCatch({
-		dbWriteTable(con, 'communities', amboss_communities, row.names=FALSE, overwrite=FALSE, append=TRUE)
+		dbWriteTable(con, 'communities', amboss_communities, row.names=FALSE, overwrite=TRUE)
 		},
 		error = function(e) { 
 			print(e)

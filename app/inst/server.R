@@ -87,4 +87,6 @@ server <- function(input, output, session) {
 			chansimServer('chansim', endpoints$`chansim-api`, credentials)
 		}
 	})
+
+	session$allowReconnect(TRUE)
 }

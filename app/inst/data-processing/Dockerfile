@@ -16,4 +16,4 @@ RUN install2.r --error \
 	ghql \
 	pool
 
-COPY [".", "/opt"]
+COPY [".", "."]

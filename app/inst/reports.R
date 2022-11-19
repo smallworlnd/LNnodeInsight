@@ -370,19 +370,20 @@ getPredefinedFilters <- function(id, user_pubkey, db=pool) {
 		filters <- tbl(db, 'minmax_filters') %>%
 			filter(pubkey==!!user_pubkey) %>%
 			filter(time==max(time)) %>%
-			as_tibble
+			as_tibble %>% tail(1)
 		if (nrow(filters) > 0) {
 			filters_reformat <- tbl(pool, 'minmax_filters') %>%
 				filter(pubkey==!!user_pubkey) %>%
 				filter(time==max(time)) %>%
 				dplyr::select(min.cap:max.hops) %>%
-				collect %>% matrix(ncol=2, byrow=TRUE) %>% t %>%
+				collect %>% tail(1) %>%
+				matrix(ncol=2, byrow=TRUE) %>% t %>%
 				rbind(report_filters[1, 1:8], .)
 			lapply(filters_reformat, function(x)
 				updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[2], x[3]))))
 			updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected=filters$network.addr)
 		} else {
-			lapply(dplyr::select(report_filters, -network.addr), function(x)
+			lapply(dplyr::select(report_filters, -V9), function(x)
 				updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[4], x[2]))))
 			updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected=as.numeric(report_filters$V9[4]))
 		}
@@ -405,6 +406,24 @@ applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_lis
 	moduleServer(id, function(input, output, session) {
 		vals <- eventReactive(c(input$max.cap, input$max.med.capacity, input$max.fee.rate, input$max.num.channels, input$max.between, input$max.close, input$max.eigen, input$max.hops, input$network.addr), {
 			req(credentials$user_auth)
+			validate(
+				need(!is.na(input$max.cap[1]), "Please choose a minimum value for total capacity"),
+				need(!is.na(input$max.med.capacity[1]), "Please choose a minimum value for median channel capacity"),
+				need(!is.na(input$max.fee.rate[1]), "Please choose a minimum value for maximum fee rate"),
+				need(!is.na(input$max.num.channels[1]), "Please choose a minimum value for maximum number of channels"),
+				need(!is.na(input$max.between[1]), "Please choose a minimum value for maximum betweenness rank"),
+				need(!is.na(input$max.close[1]), "Please choose a minimum value for maximum closeness rank"),
+				need(!is.na(input$max.eigen[1]), "Please choose a minimum value for eigenvector rank"),
+				need(!is.na(input$max.hops[1]), "Please choose a minimum value for maximum number of hops"),
+				need(!is.na(input$max.cap[2]), "Please choose a maximum value for total capacity"),
+				need(!is.na(input$max.med.capacity[2]), "Please choose a maximum value for median channel capacity"),
+				need(!is.na(input$max.fee.rate[2]), "Please choose a maximum value for maximum fee rate"),
+				need(!is.na(input$max.num.channels[2]), "Please choose a maximum value for maximum number of channels"),
+				need(!is.na(input$max.between[2]), "Please choose a maximum value for maximum betweenness rank"),
+				need(!is.na(input$max.close[2]), "Please choose a maximum value for maximum closeness rank"),
+				need(!is.na(input$max.eigen[2]), "Please choose a maximum value for eigenvector rank"),
+				need(!is.na(input$max.hops[2]), "Please choose a maximum value for maximum number of hops")
+			)
 			# apply user-defined filters
 			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=credentials$info[1]$pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
 				as_tbl_graph %>%

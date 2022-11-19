@@ -14,8 +14,7 @@ chart_vars <- c('Total capacity (BTC)'='tot.capacity',
 	'Betweenness centrality'='cent.between',
 	'Eigenvector centrality'='cent.eigen',
 	'Closeness centrality'='cent.close',
-	'Terminal Web score'='tweb.score',
-	'BOS score'='bos')
+	'Terminal Web score'='tweb.score')
 
 #' histogram UI element
 #'
@@ -117,20 +116,16 @@ histogramServer <- function(id, credentials, db=pool, vars=chart_vars, communiti
 				filter(time==max(time)) %>%
 				dplyr::select(pubkey, score) %>%
 				rename('tweb.score'='score')
-			bos <- tbl(db, "bos") %>%
-				filter(time==max(time)) %>%
-				dplyr::select(pubkey, score) %>%
-				rename('bos'='score')
 			dat <- tbl(db, "nodes_current") %>%
-				left_join(., nd, by='pubkey') %>%
-				left_join(., bos, by='pubkey')
+				left_join(., nd, by='pubkey')
 			if (credentials()$user_auth && input$histo_comm != "") {
 				pubkeys <- tbl(db, 'communities') %>%
 					filter(community %in% !!input$histo_comm) %>%
 					pull(pubkey)
 				dat <- dat %>%
 					filter(pubkey %in% !!pubkeys) %>%
-					dplyr::select(local(chart_vars[input$histo_var] %>% as.vector))
+					dplyr::select(local(chart_vars[input$histo_var] %>% as.vector)) %>%
+					as_tibble
 			} else {
 				dat <- dat %>%
 					dplyr::select(local(chart_vars[input$histo_var] %>% as.vector)) %>%
@@ -197,13 +192,8 @@ scatterplotServer <- function(id, credentials, db=pool, vars=chart_vars, communi
 				filter(time==max(time)) %>%
 				dplyr::select(pubkey, score) %>%
 				rename('tweb.score'='score')
-			bos <- tbl(db, "bos") %>%
-				filter(time==max(time)) %>%
-				dplyr::select(pubkey, score) %>%
-				rename('bos'='score')
 			dat <- tbl(db, "nodes_current") %>%
-				left_join(., nd, by='pubkey') %>%
-				left_join(., bos, by='pubkey')
+				left_join(., nd, by='pubkey')
 			if (credentials()$user_auth && input$scatter_comm != "") {
 				print('comm')
 				pubkeys <- db %>% tbl('communities') %>%
