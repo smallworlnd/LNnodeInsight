@@ -446,7 +446,7 @@ peerVennServer <- function(id, subject, targets, nodes=nodes_current) {
 			xkey <- subject()
 			xkey_alias <- fetch_alias(pubkey=xkey)
 			ykeys <- targets()[targets() != ""]
-			ykey_aliases <- nodes %>% filter(pubkey %in% ykeys) %>% pull(alias)
+			ykey_aliases <- as.vector(sapply(ykeys, function(x) nodes$alias[nodes$pubkey==x]))
 			peers <- lapply(c(xkey, ykeys), function(z) fetch_peer_aliases(pubkey=z))
 			names(peers) <- c(xkey_alias, ykey_aliases)
 			venn <- Venn(peers)
