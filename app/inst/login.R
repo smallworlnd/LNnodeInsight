@@ -1,3 +1,4 @@
+
 #' login UI module
 #'
 #' adapted from https://github.com/PaulC91/shinyauthr
@@ -37,6 +38,9 @@ loginUI <- function(id,
         jscookie_script(),
         shinyjs::extendShinyjs(text=js_cookie_to_r_code(ns("jscookie"), expire_days=cookie_expiry), functions=c("getcookie", "setcookie", "rmcookie")),
         shinyjs::extendShinyjs(text=js_return_click(ns("signed_msg"), ns("button")), functions=c()),
+		shinyjs::extendShinyjs(text=detectProvider(ns("webln_detect")), functions=c()),
+		shinyjs::extendShinyjs(text=requestProvider(ns("webln_enable")), functions=c("webln_enable")),
+		shinyjs::extendShinyjs(text=requestMessageSig(ns("webln_signmsg")), functions=c("webln_signmessage")),
         shiny::tags$h2(title, class="text-center", style="padding-top: 0; color: white;"),
 		br(),
 		fluidRow(
@@ -67,7 +71,32 @@ loginUI <- function(id,
               class="text-center"
             )
           )
-        )
+        ),
+		hr(),
+        shiny::div(
+          style="text-align: center;",
+          shinyWidgets::actionBttn(inputId=ns("webln_login_btn"), label=paste("WebLN", login_title), style='fill', color='success')
+        ),
+        shinyjs::hidden(
+          shiny::div(
+            id=ns("webln_error"),
+            shiny::tags$p(
+              "WebLN action canceled",
+              style="color: red; font-weight: bold; padding-top: 5px;",
+              class="text-center"
+            )
+          )
+        ),
+        shinyjs::hidden(
+          shiny::div(
+            id=ns("webln_sign_error"),
+            shiny::tags$p(
+              "Something went wrong with the signature verification",
+              style="color: red; font-weight: bold; padding-top: 5px;",
+              class="text-center"
+            )
+          )
+        ),
       )
     )
   )
@@ -261,7 +290,54 @@ loginServer <- function(id,
           shinyjs::delay(5000, shinyjs::toggle(id="error", anim=TRUE, time=1, animType="fade"))
         }
       })
-      
+
+      # possibility #3: login with webln
+		shiny::observeEvent(input$webln_login_btn, {
+			if (input$webln_detect) {
+				js$webln_enable()
+			} else {
+				showNotification("No WebLN provider detected. Try installing one like Alby.", type="error")
+			}
+		})
+		webln_status <- shiny::eventReactive(input$webln_enable, {
+			return(input$webln_enable)
+		})
+		observeEvent(c(webln_status(), input$webln_login_btn), {
+			req(webln_status())
+			js$webln_signmessage(input$verify_msg)
+		})
+		webln_msgsig <- shiny::eventReactive(input$webln_signmsg, {
+			if ("catch" %in% names(input$webln_signmsg)) {
+				shinyjs::toggle(id="webln_error", anim=TRUE, time=1, animType="fade")
+				shinyjs::delay(5000, shinyjs::toggle(id="webln_error", anim=TRUE, time=1, animType="fade"))
+			}
+			return(input$webln_signmsg)
+		})
+		observeEvent(webln_msgsig(), {
+			req("message" %in% names(webln_msgsig()), "signature" %in% names(webln_msgsig()))
+			rest_content <- toJSON(list(msg=base64_enc(webln_msgsig()$message), signature=webln_msgsig()$signature), auto_unbox=TRUE)
+			signed_msg_output <- content(POST(url=rest_url_base, body=rest_content, config=rest_headers))
+
+			if (signed_msg_output$valid) {
+			  credentials$user_auth <- TRUE
+			  credentials$info$pubkey <- signed_msg_output$pubkey
+			  
+			  if (cookie_logins) {
+				.sessionid <- randomString()
+				shinyjs::js$setcookie(.sessionid)
+				cookie_setter(signed_msg_output$pubkey, .sessionid)
+				cookie_data <- dplyr::filter(dplyr::select(cookie_getter(), -{{pubkey_col}}), {{sessionid_col}} == .sessionid)
+				if (nrow(cookie_data) == 1) {
+				  credentials$info <- dplyr::bind_cols(credentials$info, cookie_data)
+				}
+			  }
+			  
+			} else { # if not valid temporarily show error message to user
+			  shinyjs::toggle(id="webln_sign_error", anim=TRUE, time=1, animType="fade")
+			  shinyjs::delay(5000, shinyjs::toggle(id="webln_sign_error", anim=TRUE, time=1, animType="fade"))
+			}
+		})
+
       # return reactive list containing auth boolean and user information
       shiny::reactive({
         shiny::reactiveValuesToList(credentials)

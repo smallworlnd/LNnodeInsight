@@ -1,18 +1,14 @@
-FROM r-base:4.1.2
+FROM rocker/tidyverse:4.1.2
 RUN apt-get update \
 	&& apt-get install -y \
+	libssl-dev \
+	libudunits2-dev \
+	libgdal-dev \
 	libglpk-dev \
-	r-cran-tidyverse \
-	r-cran-igraph \
-	r-cran-tidygraph \
-	r-cran-dbi \
-	r-cran-rpostgresql \
-	r-cran-plumber \
 	&& rm -rf /var/lib/apt/lists/*
-RUN install2.r --error \ 
-	-r 'http://cran.rstudio.com' \
-	intergraph \
-	pool
+RUN R -e "install.packages(c('igraph', 'dbplyr', 'tidygraph', 'intergraph', 'DBI', 'RPostgreSQL', 'pool', 'plumber'), dependencies=TRUE)" \
+	&& strip /usr/local/lib/R/site-library/*/libs/*.so \
+	&& rm -rf /tmp/downloaded_packages/ /tmp/*.rds
 
 COPY ["./", "./"]
 

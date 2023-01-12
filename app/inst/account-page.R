@@ -288,8 +288,10 @@ accountApp <- function() {
 		skin='yellow',
 	)
 	credentials <- reactiveValues(
-		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE)
+		info=data.frame(pubkey="", foo=""),
+		user_auth=FALSE)
+		#info=data.frame(pubkey=test_pubkey, foo="bar"),
+		#user_auth=TRUE)
 	server <- function(input, output, session) {
 		accountServer('x', reactive(credentials))
 	}

@@ -44,12 +44,14 @@ invoiceDisplayServer <- function(id, invoice, desc, amt) {
 		})
 		qrModal <- function() {
 			modalDialog(
+				useShinyjs(),
+				extendShinyjs(text=requestPayment(ns("webln_request_payment")), functions=c("webln_request_payment")),
 				plotOutput(ns("inv_qr"), height='400px', width='400px'),
 				br(),
 				div(style="width: 400px;", verbatimTextOutput(ns("inv_text"))),
-				title=desc,
 				footer=tagList(
 					#rclipButton(ns("clipbtn"), "Copy", invoice$BOLT11, icon("clipboard"), modal=TRUE),
+					actionButton(ns("webln_pay"), "Pay with WebLN provider"),
 					modalActionButton(ns("cancel"), "Cancel")
 				)
 			)
@@ -75,6 +77,8 @@ invoiceDisplayServer <- function(id, invoice, desc, amt) {
 #' @export
 invoiceHandlingServer <- function(id, reactive_trigger, inv_fetch_url, inv_amt, display_desc, inv_desc) {
 	moduleServer(id, function(input, output, session) {
+		ns <- session$ns
+
 		invoice <- reactiveValues(details=NULL)
 		observeEvent(reactive_trigger(), {
 			invoice$details <- invoiceGenerator(paste0(id, "_inv"), inv_fetch_url, inv_amt, inv_desc)
@@ -85,6 +89,23 @@ invoiceHandlingServer <- function(id, reactive_trigger, inv_fetch_url, inv_amt, 
 		observeEvent(inv_cancel(), {
 			invoice$details$status <- "Cancelled"
 		})
+
+		webln_pay_button_click <- weblnModalPayButton(paste0(id, "_inv"))
+		webln_pay_detect <- weblnPayInput(paste0(id, "_inv"))
+		observeEvent(webln_pay_button_click(), {
+			js$webln_request_payment(invoice$details$BOLT11)
+		})
+
+		observeEvent(webln_pay_detect(), {
+			if ("catch" %in% names(webln_pay_detect())) {
+				if (webln_pay_detect()$catch == "TypeError") {
+					showNotification("No WebLN provider detected, try installing one like Alby", type="error")
+				} else {
+					showNotification("Payment via WebLN provider canceled", type="warning")
+				}
+			}
+		})
+
 		observe({
 			req(invoice$details)
 			if (invoice$details$status != "Cancelled" && invoice$details$status == "Unpaid") {
@@ -113,3 +134,26 @@ invoiceCancel <- function(id) {
 	})
 }
 
+#' pay by webln
+#'
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @return returns a reactive input on "pay by webln" click
+#' @export
+weblnModalPayButton <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		return(reactive(input$webln_pay))
+	})
+}
+
+#' get input from a request to pay via webln provider
+#'
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @return returns a reactive input on webln payment request
+#' @export
+weblnPayInput <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		return(reactive(input$webln_request_payment))
+	})
+}

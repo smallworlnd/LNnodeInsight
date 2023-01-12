@@ -51,29 +51,6 @@ ranksButtonUI <- function(id) {
 	)
 }
 
-#' generic tab plot UI element
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's server function
-#' @param plotTitle title of the plot displayed in tab
-#' @param plotId id of the plot element connected to its corresponding server
-#' module
-#' @param plotType the type of plot output, usualyl plotlyOutput
-#' @return returns generic plot UI element
-#' @export
-plotOutputUI <- function(id, plotTitle, plotId, plotType) {
-	tabPanel(
-		plotTitle,
-		withSpinner(
-			eval(
-				parse(text=paste0(plotType, "(NS(id, \"", plotId, "\"))"))
-			)
-		),
-		value=plotId,
-		id=NS(id, paste0(plotId, '_tab')),
-		width=NULL
-	)
-}
-
 #' html header UI element
 #'
 #' used for sectioning the page
@@ -361,9 +338,8 @@ peerFeeServer <- function(id, graph=undir_graph, stats) {
 				scale_color_manual(values = c("dodgerblue3", "orange", "darkgray")) +
 				xlim(min_fee, max_fee) +
 				ylim(min_fee, max_fee) +
-				theme(legend.title=element_blank()) +
 				theme_minimal() +
-				theme(legend.title=element_blank())
+				guides(fill=guide_legend(title=NULL), alpha=guide_legend(title=NULL), color=guide_legend(title=NULL), size=guide_legend(title=NULL))
 			ggplotly(plt, tooltip="text")
 		})
 	})
@@ -641,10 +617,10 @@ nodestatsApp <- function() {
 		)
 	}
 	credentials <- reactiveValues(
-		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE)
-		#info=NULL,
-		#user_auth=FALSE)
+		#info=data.frame(pubkey=test_pubkey, foo="bar"),
+		#user_auth=TRUE)
+		info=NULL,
+		user_auth=FALSE)
 	server <- function(input, output, session) {
 		nodestatsServer('x', reactive(credentials), NULL)
 	}

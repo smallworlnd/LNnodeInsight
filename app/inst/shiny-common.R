@@ -130,7 +130,9 @@ premiumAccountReactive <- function(id, credentials, users) {
 				account <- users %>%
 					filter(pubkey==!!credentials()$info[1]$pubkey) %>%
 					filter(sub_date==max(sub_date)) %>%
-					as_tibble
+					filter(subscription=="Premium") %>%
+					as_tibble %>%
+					distinct(sub_date, .keep_all=TRUE)
 				if (nrow(account) > 0 && account$subscription == "Premium" && account$sub_expiration_date>=now()) {
 					return("true")
 				} else {
@@ -213,4 +215,27 @@ startButtonLabelServer <- function(id, custom_label, account_check_reactive) {
 #' @export
 simResultUI <- function(id, resId) {
 	valueBoxOutput(NS(id, resId), width=12)
+}
+
+#' generic tab plot UI element
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @param plotTitle title of the plot displayed in tab
+#' @param plotId id of the plot element connected to its corresponding server
+#' module
+#' @param plotType the type of plot output, usualyl plotlyOutput
+#' @return returns generic plot UI element
+#' @export
+plotOutputUI <- function(id, plotTitle, plotId, plotType) {
+	tabPanel(
+		plotTitle,
+		withSpinner(
+			eval(
+				parse(text=paste0(plotType, "(NS(id, \"", plotId, "\"))"))
+			)
+		),
+		value=plotId,
+		id=NS(id, paste0(plotId, '_tab')),
+		width=NULL
+	)
 }

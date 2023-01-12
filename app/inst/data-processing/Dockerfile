@@ -1,19 +1,10 @@
-FROM r-base:4.1.2
-RUN apt-get update \
-	&& apt-get install -y \
-	libglpk-dev \
-	r-cran-tidyverse \
-	r-cran-tidygraph \
-	r-cran-jsonlite \
-	r-cran-lubridate \
-	r-cran-httr \
-	r-cran-dbi \
-	r-cran-rpostgresql \
+FROM rocker/tidyverse:4.1.2
+
+RUN apt-get update && apt-get install -y libglpk-dev \
 	&& rm -rf /var/lib/apt/lists/*
-RUN install2.r --error \ 
-	-r 'http://cran.rstudio.com' \
-	intergraph \
-	ghql \
-	pool
+
+RUN R -e "install.packages(c('jsonlite', 'lubridate', 'httr', 'DBI', 'RPostgreSQL', 'ghql', 'pool', 'intergraph', 'tidygraph'), dependencies=TRUE)" \
+	&& R -e "devtools::install_version('igraph', version='1.2.6')" \
+	&& strip /usr/local/lib/R/site-library/*/libs/*.so
 
 COPY [".", "."]

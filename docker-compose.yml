@@ -4,6 +4,8 @@ services:
   shiny:
     build: ./app
     restart: unless-stopped
+    environment:
+      SHINY_LOG_STDERR: 1
     expose:
       - "3838"
     depends_on:

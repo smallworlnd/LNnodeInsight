@@ -24,6 +24,7 @@ library(stringi)
 library(DBI)
 library(RPostgreSQL)
 library(pool)
+library(gamlss)
 library(googleCloudRunner)
 
 # load data and functions for applications
@@ -34,6 +35,7 @@ source('inst/session-mgmt.R')
 source('inst/login.R')
 source('inst/logout.R')
 source('inst/accounts-internal.R')
+source('inst/webln.R')
 
 # pages
 source("inst/dashboard.R")

@@ -67,7 +67,8 @@ dashboardbody <- dashboardBody(
 			maxflow_box,
 			passive_box,
 			active_box,
-			sign_msg_box
+			sign_msg_box,
+			outbound_value_box
 		)
 	))
 

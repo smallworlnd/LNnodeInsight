@@ -36,79 +36,9 @@ build_graph_from_data_req <- function(data_req) {
 			unnest(cols=c(ipv4, ipv6, torv3)) %>%
 			rename('pubkey'='pub_key') %>%
 			distinct(pubkey, .keep_all=TRUE)
-	# fetch links
-	edges <- dg_resp$edges %>%
-		mutate(
-			capacity=as.numeric(capacity),
-			node1_policy.fee_base_msat=as.numeric(node1_policy.fee_base_msat),
-			node1_policy.fee_rate_milli_msat=as.numeric(node1_policy.fee_rate_milli_msat),
-			node2_policy.fee_base_msat=as.numeric(node2_policy.fee_base_msat),
-			node2_policy.fee_rate_milli_msat=as.numeric(node2_policy.fee_rate_milli_msat)) %>%
-		separate(chan_point, sep=':', into='chan_point', extra='drop')
-	# fetch total capacity per node
-	n1 <- edges %>%
-		dplyr::select(node1_pub, capacity) %>%
-		rename(c('pubkey'='node1_pub'))
-	n2 <- edges %>%
-		dplyr::select(node2_pub, capacity) %>%
-		rename(c('pubkey'='node2_pub'))
-	capacity <- rbind(n1, n2) %>%
-		dplyr::group_by(pubkey) %>%
-		summarise(
-			tot.capacity=sum(capacity),
-			num.channels=n(),
-			avg.capacity=mean(capacity),
-			med.capacity=median(capacity))
-	# fetch number of dead channels, i.e., >14 days since last update
-	u1 <- edges %>%
-		dplyr::group_by(node1_pub) %>%
-		mutate(
-			diff=as.numeric(ss.time - as_datetime(last_update, tz="UTC"), unit='days'),
-			state=ifelse(diff>14, "inact.channels", "act.channels")) %>%
-		dplyr::select(node1_pub, state) %>%
-		rename(c('pubkey'='node1_pub'))
-	u2 <- edges %>%
-		dplyr::group_by(node2_pub) %>%
-		mutate(
-			diff=as.numeric(ss.time - as_datetime(last_update, tz="UTC"), unit='days'),
-			state=ifelse(diff>14, "inact.channels", "act.channels")) %>%
-		dplyr::select(node2_pub, state) %>%
-		rename(c('pubkey'='node2_pub'))
-	chanstates <- rbind(u1, u2) %>%
-		group_by(pubkey, state) %>%
-		summarise(count=n()) %>%
-		pivot_wider(names_from=state, values_from=count, values_fill=0)
-	# pull out node fees and compute the averages
-	f1 <- edges %>%
-		group_by(node1_pub) %>%
-		mutate(node1.mean.basefee=mean(node1_policy.fee_base_msat, na.rm=TRUE)) %>%
-		dplyr::select(node1_pub, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat) %>%
-		mutate(
-			node1_policy.fee_base_msat=ifelse(is.finite(node1_policy.fee_base_msat), node1_policy.fee_base_msat, NA),
-			node1_policy.fee_rate_milli_msat=ifelse(is.finite(node1_policy.fee_rate_milli_msat), node1_policy.fee_rate_milli_msat, NA))
-	names(f1) <- c('pubkey', 'base.msat', 'rate.ppm')
-	f2 <- edges %>%
-		group_by(node2_pub) %>%
-		mutate(node2.mean.basefee=mean(node2_policy.fee_base_msat, na.rm=TRUE)) %>%
-		dplyr::select(node2_pub, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
-		mutate(
-			node2_policy.fee_base_msat=ifelse(is.finite(node2_policy.fee_base_msat), node2_policy.fee_base_msat, NA),
-			node2_policy.fee_rate_milli_msat=ifelse(is.finite(node2_policy.fee_rate_milli_msat), node2_policy.fee_rate_milli_msat, NA))
-	names(f2) <- c('pubkey', 'base.msat', 'rate.ppm')
-	fees <- rbind(f1, f2) %>%
-		group_by(pubkey) %>%
-		summarise(
-			mean.base.msat=mean(base.msat, na.rm=TRUE),
-			mean.rate.ppm=mean(rate.ppm, na.rm=TRUE),
-			median.base.msat=median(base.msat, na.rm=TRUE),
-			median.rate.ppm=median(rate.ppm, na.rm=TRUE))
-	# join node information
-	nodes <- list(nodes, capacity, fees, chanstates) %>% 
-		reduce(left_join, by="pubkey")
 	# build graph
 	channels <- edges %>%
 		dplyr::select(node1_pub, node2_pub, capacity, last_update, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
-		mutate(last_update=as.numeric(as_datetime(max(last_update, na.rm=TRUE)) - as_datetime(last_update), units='days')) %>%
 		rename(c('from_base_fee'='node1_policy.fee_base_msat', 'from_fee_rate'='node1_policy.fee_rate_milli_msat', 'to_base_fee'='node2_policy.fee_base_msat', 'to_fee_rate'='node2_policy.fee_rate_milli_msat', 'from'='node1_pub', 'to'='node2_pub')) %>%
 		as_tibble
 
@@ -120,8 +50,40 @@ build_graph_from_data_req <- function(data_req) {
 	forw_edges <- channels %>% mutate(direction=1)
 	all_edges <- rbind(forw_edges, rev_edges) %>%
 		mutate(time=ss.time, day=floor_date(ss.time, 'day'))
+	capacity <- all_edges %>%
+		group_by(from) %>%
+		summarise(
+			tot.capacity=sum(capacity, na.rm=TRUE),
+			num.channels=n(),
+			avg.capacity=mean(capacity, na.rm=TRUE),
+			med.capacity=median(capacity, na.rm=TRUE)) %>%
+		rename('pubkey'='from')
+	chanstates <- all_edges %>% mutate(diff=as.numeric(day-as_datetime(last_update, tz="UTC"), unit="days"), state=ifelse(diff>14, "inact.channels", "act.channels")) %>%
+		dplyr::select(from, state) %>%
+		group_by(from, state) %>%
+		summarise(n=n()) %>%
+		rename('pubkey'='from') %>%
+		pivot_wider(names_from=state, values_from=n, values_fill=0) %>%
+		ungroup
+	fees <- all_edges %>%
+		group_by(from) %>%
+		summarise(
+			mean.base.msat.out=mean(from_base_fee, na.rm=TRUE),
+			mean.rate.ppm.out=mean(from_fee_rate, na.rm=TRUE),
+			median.base.msat.out=median(from_base_fee, na.rm=TRUE),
+			median.rate.ppm.out=median(from_fee_rate, na.rm=TRUE),
+			mean.base.msat.in=mean(to_base_fee, na.rm=TRUE),
+			mean.rate.ppm.in=mean(to_fee_rate, na.rm=TRUE),
+			median.base.msat.in=median(to_base_fee, na.rm=TRUE),
+			median.rate.ppm.in=median(to_fee_rate, na.rm=TRUE)) %>%
+		rename('pubkey'='from')
+
+	## redacted
 	g <- as_tbl_graph(all_edges, directed=TRUE, node_key='pubkey') %>%
 		rename('pubkey'='name') %>%
+		left_join(., capacity, by='pubkey') %>%
+		left_join(., fees, by='pubkey') %>%
+		left_join(., chanstates, by='pubkey') %>%
 		left_join(., nodes, by='pubkey')
 	# keep only the main network
 	g <- decompose(g, mode='weak')[[1]] %>%
@@ -175,8 +137,9 @@ build_graph_from_data_req <- function(data_req) {
 		cent.close.weight=g_clo_w$cent.close.weight,
 		cent.eigen.weight=g_eigen_w$cent.eigen.weight)
 
-	nodes <- list(nodes, g_cent_summ, g_cent_w_summ) %>% 
+	nodes <- list(g, g_cent_summ, g_cent_w_summ) %>% 
 		reduce(left_join, by="pubkey") %>%
+		as_tibble %>%
 		mutate(
 			time=ss.time,
 			cent.between.rank=rank(-cent.between, ties.method='first'),
@@ -279,6 +242,7 @@ tryCatch({
 		stop("Cannot proceed without a DB connection. Fail fast to avoid uncessary computations.")
 	},
 	warning = function(w) {
+		print('warning db open')
 		print(w)
 	}
 )
@@ -322,42 +286,28 @@ if (!graph_error) {
 		dbExecute(con, 'delete from nodes_historical where "time" <= now() - interval \'3 month\'')
 		dbWriteTable(con, 'nodes_current', latest_graph$nodes, row.names=FALSE, overwrite=TRUE)
 		dbWriteTable(con, 'edges_current', latest_graph$channels, row.names=FALSE, overwrite=TRUE)
-		},
-		error = function(e) { 
-			print(e)
-			print("Could not upload graph data")
-		},
-		warning = function(w) {
-			print(w)
-		}
-	)
-}
+		print("Wrote graph data to db")
 
-# upload new users to db
-if (!graph_error) {
-	tryCatch({
-		users_in_db <- tbl(con, 'users') %>% as_tibble %>% dplyr::select(pubkey, alias)
+		print("Fetching new users")
+		users_in_db <- tbl(con, 'users') %>% collect %>% dplyr::select(pubkey, alias) %>% unique
 		users_in_graph <- latest_node_summary %>% dplyr::select(pubkey, alias)
 		new_users <- setdiff(users_in_graph$pubkey, users_in_db$pubkey)
+		print(paste("Have", length(new_users), "new users to add"))
 		if (length(new_users) > 0) {
 			users_to_add <- users_in_graph %>% filter(pubkey %in% new_users) %>% dplyr::select(pubkey, alias)
 			subscription <- 'Standard'
-			sub_date <- now()
+			sub_date <- now("UTC")
 			sub_expiration_date <- NA
 			new_users_df <- data.frame(users_to_add, subscription, sub_date, sub_expiration_date)
 			names(new_users_df) <- c('pubkey', 'alias', 'subscription', 'sub_date', 'sub_expiration_date')
 			dbWriteTable(con, 'users', new_users_df, row.names=FALSE, overwrite=FALSE, append=TRUE)
+			print(paste("Added", length(new_users), "new users"))
 		}
-
-		},
-		error = function(e) { 
-			print(e)
-			print("Could not upload new users")
-		},
-		warning = function(w) {
-			print(w)
-		}
-	)
+	},
+	error = function(e) { 
+		print(e)
+		print("Could not upload graph data")
+	})
 }
 
 tryCatch({
@@ -371,6 +321,7 @@ tryCatch({
 		nd_error <- http_error(nd_req)
 	},
 	warning = function(w) {
+		print('nd fetch warning')
 		print(w)
 	}
 )
@@ -387,6 +338,7 @@ if (!nd_error) {
 			print("Could not upload terminal web data")
 		},
 		warning = function(w) {
+			print('nd commit warning')
 			print(w)
 		}
 	)
@@ -412,6 +364,7 @@ tryCatch({
 		print("Could not fetch amboss data")
 	},
 	warning = function(w) {
+		print('amboss communities warning')
 		print(w)
 	}
 )
@@ -425,6 +378,7 @@ if (exists("amboss_communities") && nrow(amboss_communities) > 0) {
 			print("Could not upload amboss data")
 		},
 		warning = function(w) {
+			print('amboss db commit warning')
 			print(w)
 		}
 	)
@@ -439,6 +393,7 @@ tryCatch({
 		stop("Could not close connection")
 	},
 	warning = function(w) {
+		print('warning with db close')
 		print(w)
 	}
 )

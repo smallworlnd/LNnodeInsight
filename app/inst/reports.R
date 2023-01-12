@@ -101,7 +101,7 @@ reportsUI <- function(id) {
 		column(12,
 			conditionalPanel(
 				condition="output.account_is_premium == 'true'", ns=ns,
-				h3('Automated weekly channel simulation optimization report', align="center"),
+				h3('Automated weekly channel simulation optimization report', align="left"),
 				column(8, offset=2,
 					box(id=NS(id, "filt.box"), title=uiOutput(NS(id, 'targets_num')),
 						width=NULL, collapsible=TRUE,
@@ -134,7 +134,7 @@ reportsUI <- function(id) {
 								lab="Reset filters to default",
 								button_color="danger"),
 						),
-						column(12, align="center",
+						column(12, align="",
 							shinyjs::hidden(
 							  shiny::div(
 								id=NS(id, "saved_filters"),
@@ -153,7 +153,7 @@ reportsUI <- function(id) {
 					style="height:500px; overflow-y: scroll;overflow-x: scroll;"
 				),
 				br(),
-				column(12, h3('LightningNetwork+ swap optimization report', align="center")),
+				column(12, h3('LightningNetwork+ swap optimization report', align="left")),
 				column(12,
 					dataTableUI(NS(id, "lnplus_minmax_report"), "lnplus_minmax"),
 					style="overflow-x: scroll;"
@@ -163,7 +163,21 @@ reportsUI <- function(id) {
 						buttonId="start_lnplus_minmax",
 						lab=swapRefreshButtonUI(NS(id, "swap_minmax_label")))
 				),
-			),
+				br(),
+				column(12, h3('Outbound liquidity value report', align="left") %>% bs_embed_tooltip(title="The value of outbound liquidity (i.e., your channel fees) is be estimated by analysing potential payments in your node's neighborhood according to either the passive or active fee strategy. Higher percentiles mean those channels have higher fees than most other channels in potential paths. Lower percentiles mean lower fees than most other channels in potential payments. See the FAQs for more information.")),
+				do.call(tabBox,
+					c(id=NS(id, 'liquidity_value'), side='left', width=12,
+						lapply(
+							data.frame(
+								plotTitle=c("Passive fee strategy", "Active fee strategy"),
+								plotId=paste(c("passive", "active"), "fee_plot", sep="_"),
+								plotType=rep("plotlyOutput", 2)) %>% t %>% as.data.frame,
+							function(x)
+								plotOutputUI(NS(id, "liquidity_value_tab_selected"), plotTitle=x[1], plotId=x[2], plotType=x[3])
+						) %>% unname
+					)
+				)
+			)
 		),
 		column(12, offset=2,
 			conditionalPanel(
@@ -287,7 +301,7 @@ minmaxServer <- function(id, credentials, db=pool) {
 				filter(pubkey.x==!!pull(credentials$info[1])) %>%
 				filter(time==max(time)) %>%
 				left_join(., tbl(db, "nodes_current"), by=c("pubkey.y"="pubkey"))
-			user_capfee <- tbl(pool, "capfee") %>%
+			user_capfee <- tbl(db, "capfee") %>%
 				group_by(pubkey) %>% filter(time==max(time)) %>% ungroup
 			latest_report <- left_join(user_minmax, user_capfee, by=c("pubkey.y"="pubkey")) %>%
 				dplyr::select(c(time.x, alias.x, num.channels, tot.capacity,
@@ -345,6 +359,56 @@ lnplusMinmaxServer <- function(id, credentials, users, lnplus_minmax_results) {
 	})
 }
 
+liquidityValueServer <- function(id, plotTitle, plotId, credentials, db=pool) {
+	moduleServer(id, function(input, output, session) {
+		output[[plotId]] <- renderPlotly({
+			req(credentials$user_auth)
+			peer_fees <- tbl(db, 'edges_current') %>%
+				filter(from==!!pull(credentials$info[1]), !is.na(from_fee_rate)) %>%
+				dplyr::select(to, from_fee_rate) %>%
+				as_tibble %>%
+				dplyr::rename('pubkey'='to', 'fee_rate'='from_fee_rate')
+			capfee_summary <- tbl(db, 'capfee') %>%
+				filter(pubkey %in% !!peer_fees$pubkey) %>%
+				collect %>%
+				left_join(., peer_fees, by="pubkey") %>%
+				group_by(pubkey) %>%
+				mutate(
+					passive_pct=eval(parse(text=paste0("p", channel_fees_fit.family.1., "(", fee_rate,
+						ifelse(!is.na(channel_fees_fit.mu), paste0(", mu=", channel_fees_fit.mu), ""),
+						ifelse(!is.na(channel_fees_fit.sigma), paste0(", sigma=", channel_fees_fit.sigma), ""),
+						ifelse(!is.na(channel_fees_fit.nu), paste0(", nu=", channel_fees_fit.nu), ""),
+						ifelse(!is.na(channel_fees_fit.tau), paste0(", tau=", channel_fees_fit.tau, ")"), ")")))),
+					active_pct=eval(parse(text=paste0("p", path_fees_fit.family.1., "(", fee_rate,
+						ifelse(!is.na(path_fees_fit.mu), paste0(", mu=", path_fees_fit.mu), ""),
+						ifelse(!is.na(path_fees_fit.sigma), paste0(", sigma=", path_fees_fit.sigma), ""),
+						ifelse(!is.na(path_fees_fit.nu), paste0(", nu=", path_fees_fit.nu), ""),
+						ifelse(!is.na(path_fees_fit.tau), paste0(", tau=", path_fees_fit.tau, ")"), ")"))))) %>%
+				mutate(passive_pct=passive_pct*100, active_pct=active_pct*100) %>%
+				ungroup
+			aliases <- tbl(db, "nodes_current") %>%
+				filter(pubkey %in% !!capfee_summary$pubkey) %>%
+				dplyr::select(pubkey, alias) %>%
+				collect
+			capfee_summary <- left_join(capfee_summary, aliases, by='pubkey') %>%
+				distinct(pubkey, .keep_all=TRUE)
+			if (plotId == "passive_fee_plot") {
+				plot_ly(capfee_summary, y=~passive_pct, x=~reorder(alias, fee_rate), type='bar',
+					hovertemplate=paste0("%{x}\n", "Passive fee rate: ", round(capfee_summary$passive, 0), "\nYour channel fee rate: ", capfee_summary$fee_rate, " (", round(capfee_summary$passive_pct, 1), " percentile)"),
+					marker=list(color="orange", line=list(color="darkorange"))) %>%
+					#marker=list(color=~channel_pct, colorscale=list(c(0, 1), c("blue", "orange")))) %>%
+						layout(xaxis=list(title='Channel peer (ordered by lowest to highest fee rate)', tickangle=45), yaxis=list(title="Fee rate percentile"))
+			} else {
+				plot_ly(capfee_summary, y=~active_pct, text=~fee_rate, x=~reorder(alias, fee_rate), type='bar',
+					hovertemplate=paste0("%{x}\n", "Active fee rate: ", round(capfee_summary$active, 0), "\nYour channel fee rate: ", capfee_summary$fee_rate, " (", round(capfee_summary$active_pct, 1), " percentile)"),
+					marker=list(color="orange", line=list(color="darkorange"))) %>%
+					#marker=list(color=~active_pct, colorscale=list(c(0, 1), c("blue", "orange")))) %>%
+						layout(xaxis=list(title='Channel peer (ordered by lowest to highest fee rate)', tickangle=45), yaxis=list(title="Fee rate percentile"))
+			}
+		})
+	})
+}
+
 getFilterInput <- function(id) {
 	moduleServer(id, function(input, output, session) {
 		return(
@@ -372,7 +436,7 @@ getPredefinedFilters <- function(id, user_pubkey, db=pool) {
 			filter(time==max(time)) %>%
 			as_tibble %>% tail(1)
 		if (nrow(filters) > 0) {
-			filters_reformat <- tbl(pool, 'minmax_filters') %>%
+			filters_reformat <- tbl(db, 'minmax_filters') %>%
 				filter(pubkey==!!user_pubkey) %>%
 				filter(time==max(time)) %>%
 				dplyr::select(min.cap:max.hops) %>%
@@ -406,24 +470,6 @@ applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_lis
 	moduleServer(id, function(input, output, session) {
 		vals <- eventReactive(c(input$max.cap, input$max.med.capacity, input$max.fee.rate, input$max.num.channels, input$max.between, input$max.close, input$max.eigen, input$max.hops, input$network.addr), {
 			req(credentials$user_auth)
-			validate(
-				need(!is.na(input$max.cap[1]), "Please choose a minimum value for total capacity"),
-				need(!is.na(input$max.med.capacity[1]), "Please choose a minimum value for median channel capacity"),
-				need(!is.na(input$max.fee.rate[1]), "Please choose a minimum value for maximum fee rate"),
-				need(!is.na(input$max.num.channels[1]), "Please choose a minimum value for maximum number of channels"),
-				need(!is.na(input$max.between[1]), "Please choose a minimum value for maximum betweenness rank"),
-				need(!is.na(input$max.close[1]), "Please choose a minimum value for maximum closeness rank"),
-				need(!is.na(input$max.eigen[1]), "Please choose a minimum value for eigenvector rank"),
-				need(!is.na(input$max.hops[1]), "Please choose a minimum value for maximum number of hops"),
-				need(!is.na(input$max.cap[2]), "Please choose a maximum value for total capacity"),
-				need(!is.na(input$max.med.capacity[2]), "Please choose a maximum value for median channel capacity"),
-				need(!is.na(input$max.fee.rate[2]), "Please choose a maximum value for maximum fee rate"),
-				need(!is.na(input$max.num.channels[2]), "Please choose a maximum value for maximum number of channels"),
-				need(!is.na(input$max.between[2]), "Please choose a maximum value for maximum betweenness rank"),
-				need(!is.na(input$max.close[2]), "Please choose a maximum value for maximum closeness rank"),
-				need(!is.na(input$max.eigen[2]), "Please choose a maximum value for eigenvector rank"),
-				need(!is.na(input$max.hops[2]), "Please choose a maximum value for maximum number of hops")
-			)
 			# apply user-defined filters
 			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=credentials$info[1]$pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
 				as_tbl_graph %>%
@@ -466,10 +512,18 @@ applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_lis
 #' @export
 reportServer <- function(id, credentials, api_info, db=pool) {
 	moduleServer(id, function(input, output, session) {
-		users <- pool %>% tbl("users")
-		lnplus_minmax_results <- pool %>% tbl("lnplus_minmax")
+		users <- db %>% tbl("users")
+		lnplus_minmax_results <- tbl(db, "lnplus_minmax")
+		liquidity_value_results <- tbl(db, "capfee")
 		minmaxServer("account_minmax_report", credentials())
 		lnplusMinmaxServer("lnplus_minmax_report", credentials(), users, lnplus_minmax_results)
+		lapply(
+			data.frame(
+				plotTitle=c("Passive", "Active"),
+				plotId=paste(c("passive", "active"), "fee_plot", sep="_")
+			) %>% t %>% as.data.frame,
+			function(x) liquidityValueServer("liquidity_value_tab_selected", plotTitle=x[1], plotId=x[2], credentials=credentials())
+		)
 		upgradeButtonServer("ad_upgrade", p(HTML("Upgrade"), onclick="openTab('account')", style="text-align: center; height: 16px;"))
 		subInfoServer("show_sub_info")
 		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, users)
@@ -525,12 +579,13 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 		node_filters_reset <- startButtonServer("reset_minmax_filters", buttonId="reset_minmax_filters")
 		observeEvent(node_filters_save(), {
 			filts <- userChangeFilters() %>% unlist %>% as.data.frame %>% t %>% as.data.frame
+			validate(need(sum(is.na(filts))==0, 'Some input values are missing'))
 			names(filts) <- c("min.cap", "max.cap", "min.med.capacity", "max.med.capacity",
 				"min.fee.rate", "max.fee.rate", "min.num.channels", "max.num.channels",
 				"min.between", "max.between", "min.close", "max.close", "min.eigen", "max.eigen", "min.hops", "max.hops", "network.addr")
 			filts$time <- now("GMT")
 			filts$pubkey <- credentials()$info[1]$pubkey
-			dbWriteTable(pool, "minmax_filters", filts, row.names=FALSE, append=TRUE)
+			dbWriteTable(db, "minmax_filters", filts, row.names=FALSE, append=TRUE)
 			shinyjs::toggle(id="saved_filters", anim=TRUE, time=1, animType="fade")
 			shinyjs::delay(500, shinyjs::toggle(id="saved_filters", anim=TRUE, time=3, animType="fade"))
 		})

@@ -22,6 +22,10 @@ active_def <- "This is a fee strategy that typically observes less volume but re
 active_def_title <- "Active rebalancing"
 active_box <- box(p(active_def), title=active_def_title, width=NULL, collapsible=TRUE)
 
+outbound_value_def <- "The value of outbound liquidity (i.e., your channel fees) is estimated by analysing the cost of potential payments in your node's neighborhood as well as to common payment destinations. Sustained volume at high fees imply high outbound value. High volume at relatively lower fees (i.e., lower percentile) suggests a given channel is underpriced, especially if liquidity moves in one direction only. Low volume at high fees suggests that a given channel may be overpriced. However, it may be worth maintaining higher fees at low volume depending on the size of a forwarded HTLC and the inbound & outbound channel pairs that forward the HTLC. Low volume at low fees suggests low demand through that channel. It may be worth considering reallocating liquidity elsewhere if low demand at low fees persists."
+outbound_value_def_title <- "Outbound liquidity value"
+outbound_value_box <- box(p(outbound_value_def), title=outbound_value_def_title, width=NULL, collapsible=TRUE)
+
 sign_msg_box <- box(
 	h4("lnd"), code('lncli signmessage "message to sign here"'),
 	h4("c-lightning"), code('lightning-cli signmessage "message to sign here"'),

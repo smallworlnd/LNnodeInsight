@@ -216,7 +216,7 @@ capfeesimServer <- function(id, api_info, credentials, db=pool) {
 #' for dev/testing purposes
 capfeesimApp <- function() {
 	capfeesim_api_info <- if (Sys.getenv("LOCAL")) {
-			list(url=Sys.getenv("CAPFEESIM_LOCAL_API_URL"))
+			list(url=Sys.getenv("capfeesim-api"))
 		} else {
 			get_api_info("capfeesim-api")
 		}

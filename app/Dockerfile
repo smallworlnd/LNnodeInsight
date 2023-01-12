@@ -3,36 +3,14 @@ RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
 	libssl-dev \
 	libudunits2-dev \
 	libgdal-dev \
+	libglpk-dev \
 	# clean up
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN install2.r --error \ 
-	-r 'http://cran.rstudio.com' \
-	dbplyr \
-	tidygraph \
-	igraph \
-	lubridate \
-	intergraph \
-	jsonlite \
-	ggVennDiagram \
-	shinyWidgets \
-	shinydashboard \
-	shinycssloaders \
-	shinyjs \
-	htmlwidgets \
-	htmltools \
-	bsplus \
-	httr \
-	plotly \
-	rclipboard \
-	stringi \
-	DBI \
-	RPostgreSQL \
-	pool \
-	callr \
-	## install Github packages
-	## clean up
+RUN R -e "devtools::install_version('ggplot2', version='3.3.5')"
+RUN R -e "install.packages(c('igraph', 'dbplyr', 'tidygraph', 'lubridate', 'intergraph', 'jsonlite', 'ggVennDiagram', 'shinyWidgets', 'shinydashboard', 'shinycssloaders', 'shinyjs', 'htmlwidgets', 'htmltools', 'bsplus', 'httr', 'plotly', 'rclipboard', 'stringi', 'DBI', 'RPostgreSQL', 'pool', 'callr', 'gamlss'), dependencies=TRUE)" \
+	&& strip /usr/local/lib/R/site-library/*/libs/*.so \
 	&& rm -rf /tmp/downloaded_packages/ /tmp/*.rds
 
 RUN R -e 'devtools::install_github(c("christophergandrud/networkD3", "hrbrmstr/qrencoder", "leonawicz/apputils", "MarkEdmondson1234/googleCloudRunner"))'
