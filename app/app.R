@@ -25,6 +25,7 @@ library(DBI)
 library(RPostgreSQL)
 library(pool)
 library(gamlss)
+library(reticulate)
 library(googleCloudRunner)
 
 # load data and functions for applications

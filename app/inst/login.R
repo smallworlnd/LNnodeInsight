@@ -266,12 +266,34 @@ loginServer <- function(id,
       # possibility 2: login through login button
       shiny::observeEvent(input$button, {
 		
+		# check signature lengths before building request body
+		if (str_length(input$signed_msg) == 104) {
+			# lnd/cln
+			signed_msg <- input$signed_msg
+		}
+		else if (str_length(input$signed_msg) == 130) {
+			# eclair
+			eclair_hex_sig <- input$signed_msg
+			py_run_string("import codext")
+			py_run_string(paste0("eclair_zbase32_sig = codext.encode(codext.decode('", eclair_hex_sig, "', 'base16'), 'zbase32')"))
+			signed_msg <- py$eclair_zbase32_sig
+		}
+		else {
+			# something unexpected
+			signed_msg <- input$signed_msg
+		}
+		# build request content
+		rest_content <- toJSON(list(msg=base64_enc(input$verify_msg), signature=signed_msg), auto_unbox=TRUE)
 	  	# check if signed message yields a pubkey
-		rest_content <- toJSON(list(msg=base64_enc(input$verify_msg), signature=input$signed_msg), auto_unbox=TRUE)
-		signed_msg_output <- content(POST(url=rest_url_base, body=rest_content, config=rest_headers))
-        
+		tryCatch({
+				signed_msg_output <- content(POST(url=rest_url_base, body=rest_content, config=rest_headers))
+			},
+			error = function(e) {
+				signed_msg_output <- list(valid=FALSE)
+			}
+		)
         # if signed message resolves to a valid pubkey, then credentials are valid
-        if (signed_msg_output$valid) {
+        if ("valid" %in% names(signed_msg_output) && signed_msg_output$valid) {
           credentials$user_auth <- TRUE
           credentials$info$pubkey <- signed_msg_output$pubkey
           
