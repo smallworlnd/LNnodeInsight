@@ -55,9 +55,19 @@ dashboardUI <- function(id) {
 			tags$style(type = 'text/css', '.bg- {background-color: #FFFFFF !important; }'),
 			tags$style(HTML(".info-box-icon .img-local {position: absolute; top: auto; left: 15px; }")),
 			h2("Develop your own data-driven Lightning Network insight", align='center'),
-			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable paths in the network.", align='center'),
+			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable opportunities", align='center'),
 			h4(HTML(paste(icon("check"), "Log in to access additional features in the Build-Your-Own-Chart and Channel Simulator tools")), align="center"),
-			h4(HTML(paste(icon("check"), "Upgrade your account to have us automate channel simulations to find optimal peers, optimal LN+ swaps, and to get unlimited access to all LNnodeInsight tools")), align="center"),
+			fluidRow(
+				column(6, style="padding: 43px;",
+					h4(HTML(paste(icon("check"), "Upgrade your account to get access to these features:" )), align="right")),
+				column(6, h4(
+					tags$ul(
+						tags$li("Automated channel simulations with fee and capacity recommendations to find optimal peers"),
+						tags$li("Find optimal LightningNetwork+ swaps on-demand"),
+						tags$li("Automated capacity-fee simulator runs on your peers"),
+						tags$li("Measure the value of outbound liquidity to your peers"),
+						tags$li("Get unlimited access to all LNnodeInsight tools")),
+					align="left"))),
 			h3('Visuals'),
 			fluidRow(
 				lapply(c("byoc", "nodestats"), function(x) appLinkUI(NS(id, "local_apps"), x))
