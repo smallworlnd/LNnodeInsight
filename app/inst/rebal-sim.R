@@ -293,7 +293,6 @@ rebalSimulationResultServer <- function(id, resId, xvar, desc, sim_res_reactive)
 #' @export
 rebalsimServer <- function(id, api_info, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
-		users <- db %>% tbl("users")
 		# build list of nodes to select from
 		lapply(c("subject", "out_node", "in_node"), function(x) nodeListServer("node_select", listId=x))
 		# reactive pubkey selections
@@ -416,10 +415,10 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 		})
 
 		# determine if account is premium
-		is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		upgradeButtonServer("ad_upgrade",
 			p(HTML("Want to get unlimited access to this tool?<br/>Sign up!"), onclick="openTab('account')"))
-		output$is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		output$is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
 		# change start button label depending on account status
 		startButtonLabelServer("start_sim", paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"), is_premium)

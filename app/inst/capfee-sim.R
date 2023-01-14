@@ -131,15 +131,14 @@ capfeeSimulationResultServer <- function(id, resId, xvar, desc, sim_res_reactive
 capfeesimServer <- function(id, api_info, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		# initializ reactive values
-		users <- db %>% tbl('users')
 		subject <- getNodePubkey('node_select', "subject")
 		target <- getNodePubkey('node_select', "target")
 		lapply(c("subject", "target"), function(x) nodeListServer("node_select", listId=x))
 
-		is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		upgradeButtonServer("ad_upgrade",
 			p(HTML("Want to automatically run this tool on potential peers?<br/>Sign up!"), onclick="openTab('account')"))
-		output$is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		output$is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
 		startButtonLabelServer("start_sim", paste('View suggestions for', as.numeric(Sys.getenv("CAPFEESIM_MSAT"))/1e3, "sats"), is_premium)
 

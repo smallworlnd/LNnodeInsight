@@ -26,11 +26,12 @@ bos_current <- pool %>% tbl('bos') %>% filter(time==max(time)) %>% as_tibble
 
 # global for nodestatsApp
 ln_summary_stats <- tbl(pool, "nodes_historical") %>%
-	filter(mean.rate.ppm<20e3) %>%
+	filter(mean.rate.ppm.out<20e3, mean.rate.ppm.in<20e3) %>%
 	group_by(time) %>%
 	summarise(
 		tot.capacity=mean(tot.capacity, na.rm=TRUE),
-		mean.rate.ppm=mean(mean.rate.ppm, na.rm=TRUE),
+		mean.rate.ppm.out=mean(mean.rate.ppm.out, na.rm=TRUE),
+		mean.rate.ppm.in=mean(mean.rate.ppm.in, na.rm=TRUE),
 		avg.capacity=mean(avg.capacity, na.rm=TRUE)) %>%
 	arrange(time) %>%
 	as_tibble

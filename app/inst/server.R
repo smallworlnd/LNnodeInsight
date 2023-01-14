@@ -34,7 +34,7 @@ server <- function(input, output, session) {
 		actionBttn(inputId='login_nav', label='Login', style='fill', color='success', block=FALSE, size='sm')
 	})
 	onclick('login_nav', updateTabItems(session, "sidebar", "account"))
-	account_is_premium <- premiumAccountReactive("prem_account", credentials, users)
+	account_is_premium <- premiumAccountReactive("prem_account", credentials, pool)
 	output$is_premium_account <- renderUI({
 		req(credentials()$user_auth)
 		req(account_is_premium() == "true")

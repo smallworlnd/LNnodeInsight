@@ -80,14 +80,14 @@ accountUI <- function(id) {
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param credentials login status from \link{loginServer}
-#' @param users users (sql) table containing account information
+#' @param db sql db
 #' @return returns renderTable server for account information
 #' @export
-accountTableServer <- function(id, credentials, users) {
+accountTableServer <- function(id, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		output$account <- renderTable({
 			req(credentials$user_auth)
-			acc <- users %>%
+			acc <- tbl(db, "users") %>%
 				filter(pubkey==!!pull(credentials$info[1])) %>%
 				as_tibble %>%
 				mutate(sub_date=format(sub_date, "%B %d, %Y"), sub_expiration_date=format(sub_expiration_date, "%B %d, %Y")) %>%
@@ -103,14 +103,14 @@ accountTableServer <- function(id, credentials, users) {
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param credentials login status from \link{loginServer}
-#' @param users users (sql) table containing account information
+#' @param db sql db
 #' @return returns text UI element containing node alias
 #' @export
-accountHeaderServer <- function(id, credentials, users) {
+accountHeaderServer <- function(id, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		output$header <- renderUI({
 			req(credentials$user_auth)
-			node_alias <- users %>% filter(pubkey==!!pull(credentials$info[1])) %>% filter(sub_date==max(sub_date)) %>% pull(alias) %>% unique
+			node_alias <- tbl(db, "nodes_current") %>% filter(pubkey==!!pull(credentials$info[1])) %>% pull(alias)
 			p(style="text-align: left; font-size: 20px", strong(node_alias))
 		})
 	})
@@ -185,13 +185,12 @@ subPeriodDisplayServer <- function(id, amt) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param credentials login status from \link{loginServer}
 #' @export
-accountServer <- function(id, credentials) {
+accountServer <- function(id, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
-		users <- pool %>% tbl("users")
-		accountHeaderServer("account_header", credentials(), users)
-		accountTableServer("account_status", credentials(), users)
+		accountHeaderServer("account_header", credentials(), db=pool)
+		accountTableServer("account_status", credentials(), db=pool)
 		subInfoServer("show_sub_info")
-		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		output$account_is_auth <- reactive({
 			if (credentials()$user_auth) {
 				return("true")
@@ -243,7 +242,7 @@ accountServer <- function(id, credentials) {
 		add_sub_to_db <- eventReactive(invoice(), {
 			req(invoice() == "Paid")
 			node_pubkey <- credentials()$info[1]$pubkey
-			node_alias <- users %>% filter(pubkey==node_pubkey) %>% pull(alias)
+			node_alias <- tbl(db, "nodes_current") %>% filter(pubkey==node_pubkey) %>% pull(alias)
 			sub_begin <- now()
 			sub_end <- now()+months(sub_period())
 			new_sub_df <- data.frame(
@@ -288,10 +287,10 @@ accountApp <- function() {
 		skin='yellow',
 	)
 	credentials <- reactiveValues(
-		info=data.frame(pubkey="", foo=""),
-		user_auth=FALSE)
-		#info=data.frame(pubkey=test_pubkey, foo="bar"),
-		#user_auth=TRUE)
+		#info=data.frame(pubkey="", foo=""),
+		#user_auth=FALSE)
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		user_auth=TRUE)
 	server <- function(input, output, session) {
 		accountServer('x', reactive(credentials))
 	}

@@ -237,11 +237,11 @@ nodeRankServer <- function(id, rankId, desc, node_stats_reactive) {
 #' @param stats reactiveValues containing current and historical node and LN #' data
 #' @return returns plotlyOutput element for node historical ranks
 #' @export
-pastRankServer <- function(id, stats) {
+pastRankServer <- function(id, stats, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		output$past_ranks_plot <- renderPlotly({
 			req(stats$node)
-			nd <- pool %>% tbl('nd') %>%
+			nd <- tbl(db, 'nd') %>%
 				filter(pubkey==!!stats$node$pubkey) %>%
 				arrange(time) %>%
 				as_tibble
@@ -300,10 +300,19 @@ nodevsLNServer <- function(id, plotTitle, plotId, xvar, stats) {
 	moduleServer(id, function(input, output, session) {
 		output[[plotId]] <- renderPlotly({
 			req(stats$historical)
-			stats$ln %>%
-				plot_ly(x=~time, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name='LN average') %>%
-					add_trace(data=stats$historical, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name=stats$node$alias) %>%
-					layout(hovermode='x', xaxis=list(title="Date"), yaxis=list(title=plotTitle))
+			if (xvar == "mean.rate.ppm") {
+				stats$ln %>%
+					plot_ly(x=~time, y=~eval(parse(text=paste0(xvar, ".out"))), type='scatter', mode='lines', name='LN outbound average') %>%
+						add_trace(y=~eval(parse(text=paste0(xvar, ".in"))), type='scatter', mode='lines', name='LN inbound average') %>%
+						add_trace(data=stats$historical, y=~eval(parse(text=paste0(xvar, ".out"))), type='scatter', mode='lines', name=paste(stats$node$alias, "outbound average")) %>%
+						add_trace(data=stats$historical, y=~eval(parse(text=paste0(xvar, ".in"))), type='scatter', mode='lines', name=paste(stats$node$alias, "inbound average")) %>%
+						layout(hovermode='x', xaxis=list(title="Date"), yaxis=list(title=plotTitle))
+			} else {
+				stats$ln %>%
+					plot_ly(x=~time, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name='LN average') %>%
+						add_trace(data=stats$historical, y=~eval(parse(text=xvar)), type='scatter', mode='lines', name=stats$node$alias) %>%
+						layout(hovermode='x', xaxis=list(title="Date"), yaxis=list(title=plotTitle))
+			}
 		})
 	})
 }
@@ -379,10 +388,10 @@ peerOverlapServer <- function(id, graph=undir_graph, stats) {
 #' @return returns plotly output element to draw the terminal rank of a node's
 #' peers and corresponding terminal "status"
 #' @export
-peerRankServer <- function(id, stats) {
+peerRankServer <- function(id, stats, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		output$peer_ranks_plot <- renderPlotly({
-			dat <- pool %>% tbl('nd') %>%
+			dat <- tbl(db, 'nd') %>%
 				filter(time==max(time) && pubkey %in% !!stats$peers$pubkey) %>%
 				as_tibble %>%
 				left_join(., stats$peers %>% dplyr::select(pubkey, alias) %>% as_tibble) %>%
@@ -487,10 +496,9 @@ nodeStatHeader <- function(id, headerId, stats, activeTxt, inactiveTxt) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @return returns backend for the app UI
 #' @export
-nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_summary_stats) {
+nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_summary_stats, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		# initialize the node list from which to select
-		users <- pool %>% tbl("users")
 		nodeListServer("node_select", listId="subject", default_selected=url_pubkey_search)
 		pubkey <- getNodePubkey("node_select", "subject")
 		ambossLinkServer("link_to_amboss_page", pubkey)
@@ -507,7 +515,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 			stats$node <- left_join(stats$node, subject_nd, by='pubkey')
 			peer_ids <- adjacent_vertices(undir_graph, fetch_id(pubkey=pubkey()), mode='all') %>% unlist
 			stats$peers <- undir_graph %>% as_tibble %>% filter(id %in% peer_ids) %>% mutate(tot.capacity=tot.capacity/1e8)
-			stats$historical <- pool %>% tbl("nodes_historical") %>%
+			stats$historical <- tbl(db, "nodes_historical") %>%
 				filter(pubkey==!!pubkey()) %>%
 				as_tibble %>%
 				arrange(time)
@@ -587,7 +595,7 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 		outputOptions(output, "invoice_status", suspendWhenHidden=FALSE)
 
 		# determine if account is premium
-		is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		# if account is premium, short-circuit button click/invoice creation
 		# process by settting invoice status to always "paid"
 		observe({
@@ -617,10 +625,10 @@ nodestatsApp <- function() {
 		)
 	}
 	credentials <- reactiveValues(
-		#info=data.frame(pubkey=test_pubkey, foo="bar"),
-		#user_auth=TRUE)
-		info=NULL,
-		user_auth=FALSE)
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		user_auth=TRUE)
+		#info=NULL,
+		#user_auth=FALSE)
 	server <- function(input, output, session) {
 		nodestatsServer('x', reactive(credentials), NULL)
 	}

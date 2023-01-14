@@ -117,17 +117,17 @@ startButtonServer <- function(id, buttonId) {
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI element, \link{startButtonUI}
 #' @param credentials login status from \link{loginServer}
-#' @param users users (sql) table containing account information
+#' @param db sql db
 #' @return returns character string "true" or "false" (instead of boolean, for
 #' server->client outputOptions
 #' @export
-premiumAccountReactive <- function(id, credentials, users) {
+premiumAccountReactive <- function(id, credentials, db) {
 	moduleServer(id, function(input, output, session) {
 		reactive({
 			if (!credentials()$user_auth) {
 				return("false")
 			} else {
-				account <- users %>%
+				account <- tbl(db, "users") %>%
 					filter(pubkey==!!credentials()$info[1]$pubkey) %>%
 					filter(sub_date==max(sub_date)) %>%
 					filter(subscription=="Premium") %>%

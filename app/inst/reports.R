@@ -1,12 +1,13 @@
 source("inst/shiny-common.R", local=TRUE)
 
 report_filters <- data.frame(
-	filter_vars=c("max.cap", "max.med.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "network.addr"),
+	filter_vars=c("max.cap", "max.med.capacity", "max.fee.rate.out", "max.fee.rate.in","max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "network.addr"),
 	filter_max=tbl(pool, 'nodes_current') %>%
 		summarise(
 			max.cap=round(max(tot.capacity)/1e8+1, 0),
 			max.med.capacity=max(med.capacity)/1e8,
-			max.fee.rate=6000,
+			max.fee.rate.out=6000,
+			max.fee.rate.in=6000,
 			max.num.channels=max(num.channels)+1,
 			max.between=max(cent.between.rank),
 			max.close=max(cent.close.rank),
@@ -17,15 +18,16 @@ report_filters <- data.frame(
 	filter_descr=c(
 		'Filter by range of total capacity (in BTC)',
 		'Filter by range of median channel capacity (in BTC)',
-		'Filter by range of median channel fee rates (ppm)',
+		'Filter by range of median outbound channel fee rates (ppm)',
+		'Filter by range of median inbound channel fee rates (ppm)',
 		'Filter by range of total channels',
 		'Filter by range of betweenness centrality ranks',
 		'Filter by range of closeness centrality ranks',
 		'Filter by range of eigenvector centrality ranks',
 		'Search nodes that fall within a range of hops away from your node',
 		'Filter by connection type (IPV4/IPV6/Tor)'),
-	filter_min=c(0.1, 0.005, 0, 5, 1, 1, 1, 1, 'all'),
-	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 'all')
+	filter_min=c(0.1, 0.005, 0, 0, 5, 1, 1, 1, 1, 'all'),
+	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1, 'all')
 	) %>% t %>% as.data.frame
 
 #' infobox UI element
@@ -231,10 +233,10 @@ renderMinmaxFilterServer <- function(id, targets_list) {
 	})
 }
 
-swapRefreshButtonLabel <- function(id, credentials, lnplus_minmax_results) {
+swapRefreshButtonLabel <- function(id, credentials, db) {
 	moduleServer(id, function(input, output, session) {
 		output$swap_minmax_button_label <- renderText({
-			prev_res <- lnplus_minmax_results %>%
+			prev_res <- tbl(db, "lnplus_minmax") %>%
 				filter(pubkey==!!credentials()$info[1]$pubkey) %>%
 				collect %>%
 				nrow
@@ -290,7 +292,7 @@ lnplusSwapMinmax <- function(id, subject, api_info) {
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param credentials login status from \link{loginServer}
-#' @param users users (sql) table containing account information
+#' @param db sql db
 #' @return returns data table output server containing minmax results
 #' @export
 minmaxServer <- function(id, credentials, db=pool) {
@@ -334,14 +336,14 @@ minmaxServer <- function(id, credentials, db=pool) {
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @param credentials login status from \link{loginServer}
-#' @param users users (sql) table containing account information
+#' @param db sql db
 #' @return returns data table output server containing minmax results
 #' @export
-lnplusMinmaxServer <- function(id, credentials, users, lnplus_minmax_results) {
+lnplusMinmaxServer <- function(id, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		output$lnplus_minmax <- renderDataTable({
 			req(credentials$user_auth)
-			user_results <- lnplus_minmax_results %>%
+			user_results <- tbl(db, 'lnplus_minmax') %>%
 				filter(pubkey==!!pull(credentials$info[1])) %>%
 				filter(time==max(time)) %>%
 				dplyr::select(-pubkey) %>%
@@ -468,7 +470,7 @@ getPredefinedFilters <- function(id, user_pubkey, db=pool) {
 #' @export
 applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_list=node_ids, db=pool) {
 	moduleServer(id, function(input, output, session) {
-		vals <- eventReactive(c(input$max.cap, input$max.med.capacity, input$max.fee.rate, input$max.num.channels, input$max.between, input$max.close, input$max.eigen, input$max.hops, input$network.addr), {
+		vals <- eventReactive(c(input$max.cap, input$max.med.capacity, input$max.fee.rate.out, input$max.fee.rate.in, input$max.num.channels, input$max.between, input$max.close, input$max.eigen, input$max.hops, input$network.addr), {
 			req(credentials$user_auth)
 			# apply user-defined filters
 			vals <- make_ego_graph(graph, order=input$max.hops[2]+1, nodes=fetch_id(pubkey=credentials$info[1]$pubkey), mindist=input$max.hops[1]+1)[[1]] %>%
@@ -480,7 +482,8 @@ applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_lis
 					!is.na(mean.rate.ppm),
 					med.capacity>=input$max.med.capacity[1]*1e8, med.capacity<=input$max.med.capacity[2]*1e8,
 					num.channels>=input$max.num.channels[1], num.channels<=input$max.num.channels[2],
-					median.rate.ppm>=input$max.fee.rate[1], median.rate.ppm<=input$max.fee.rate[2],
+					median.rate.ppm>=input$max.fee.rate.out[1], median.rate.ppm<=input$max.fee.rate.out[2],
+					median.rate.ppm>=input$max.fee.rate.in[1], median.rate.ppm<=input$max.fee.rate.in[2],
 					cent.between.rank>=input$max.between[1], cent.between.rank<=input$max.between[2],
 					cent.close.rank>=input$max.close[1], cent.close.rank<=input$max.close[2],
 					cent.eigen.rank>=input$max.eigen[1], cent.eigen.rank<=input$max.eigen[2]) %>%
@@ -512,11 +515,8 @@ applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_lis
 #' @export
 reportServer <- function(id, credentials, api_info, db=pool) {
 	moduleServer(id, function(input, output, session) {
-		users <- db %>% tbl("users")
-		lnplus_minmax_results <- tbl(db, "lnplus_minmax")
-		liquidity_value_results <- tbl(db, "capfee")
 		minmaxServer("account_minmax_report", credentials())
-		lnplusMinmaxServer("lnplus_minmax_report", credentials(), users, lnplus_minmax_results)
+		lnplusMinmaxServer("lnplus_minmax_report", credentials(), db)
 		lapply(
 			data.frame(
 				plotTitle=c("Passive", "Active"),
@@ -526,7 +526,7 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 		)
 		upgradeButtonServer("ad_upgrade", p(HTML("Upgrade"), onclick="openTab('account')", style="text-align: center; height: 16px;"))
 		subInfoServer("show_sub_info")
-		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		output$account_is_auth <- reactive({
 			if (credentials()$user_auth) {
 				return("true")
@@ -563,7 +563,7 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 				refresh()
 			}
 		})
-		swapRefreshButtonLabel("swap_minmax_label", credentials, lnplus_minmax_results)
+		swapRefreshButtonLabel("swap_minmax_label", credentials, db)
 		
 		observe({
 			req(credentials()$info[1]$pubkey != "")
@@ -581,7 +581,7 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 			filts <- userChangeFilters() %>% unlist %>% as.data.frame %>% t %>% as.data.frame
 			validate(need(sum(is.na(filts))==0, 'Some input values are missing'))
 			names(filts) <- c("min.cap", "max.cap", "min.med.capacity", "max.med.capacity",
-				"min.fee.rate", "max.fee.rate", "min.num.channels", "max.num.channels",
+				"min.fee.rate.out", "min.fee.rate.in", "max.fee.rate.out", "max.fee.rate.in", "min.num.channels", "max.num.channels",
 				"min.between", "max.between", "min.close", "max.close", "min.eigen", "max.eigen", "min.hops", "max.hops", "network.addr")
 			filts$time <- now("GMT")
 			filts$pubkey <- credentials()$info[1]$pubkey

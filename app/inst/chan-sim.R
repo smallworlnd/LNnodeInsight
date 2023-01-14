@@ -1,12 +1,13 @@
 source("inst/shiny-common.R")
 
 chansim_filters <- data.frame(
-	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "max.lnplus.rank"),
+	filter_vars=c("max.cap", "max.avg.capacity", "max.fee.rate.out", "max.fee.rate.in", "max.num.channels", "max.between", "max.close", "max.eigen", "max.hops", "max.lnplus.rank"),
 	filter_max=tbl(pool, 'nodes_current') %>%
 		summarise(
 			max.cap=round(max(tot.capacity)/1e8+1, 0),
 			max.avg.capacity=max(avg.capacity)/1e8,
-			max.fee.rate=6000,
+			max.fee.rate.out=6000,
+			max.fee.rate.in=6000,
 			max.num.channels=max(num.channels)+1,
 			max.between=max(cent.between.rank),
 			max.close=max(cent.close.rank),
@@ -18,15 +19,16 @@ chansim_filters <- data.frame(
 	filter_descr=c(
 		'Filter by range of total capacity (in BTC)',
 		'Filter by range of average channel capacity (in BTC)',
-		'Filter by range of average channel fee rates (ppm)',
+		'Filter by range of average outbound channel fee rates (ppm)',
+		'Filter by range of average inbound channel fee rates (ppm)',
 		'Filter by range of total channels',
 		'Filter by range of betweenness centrality ranks',
 		'Filter by range of closeness centrality ranks',
 		'Filter by range of eigenvector centrality ranks',
 		'Only show nodes that fall within a range of hops away from the node selected in Step 1',
 		"Filter by range of LightningNetwork+ ranks"),
-	filter_min=c(0.01, 0.001, 0, 1, 1, 1, 1, 0, 1),
-	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1)
+	filter_min=c(0.01, 0.001, 0, 0, 1, 1, 1, 1, 0, 1),
+	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1, 1)
 	) %>% t %>% as.data.frame
 
 
@@ -540,7 +542,8 @@ applyFiltersToTargetsServer <- function(id, graph=undir_graph, pubkey, node_list
 					tot.capacity>=input$max.cap[1]*1e8, tot.capacity<=input$max.cap[2]*1e8,
 					avg.capacity>=input$max.avg.capacity[1]*1e8, avg.capacity<=input$max.avg.capacity[2]*1e8,
 					num.channels>=input$max.num.channels[1], num.channels<=input$max.num.channels[2],
-					median.rate.ppm>=input$max.fee.rate[1], median.rate.ppm<=input$max.fee.rate[2],
+					median.rate.ppm.out>=input$max.fee.rate.out[1], median.rate.ppm.out<=input$max.fee.rate.out[2],
+					median.rate.ppm.in>=input$max.fee.rate.in[1], median.rate.ppm.in<=input$max.fee.rate.in[2],
 					cent.between.rank>=input$max.between[1], cent.between.rank<=input$max.between[2],
 					cent.close.rank>=input$max.close[1], cent.close.rank<=input$max.close[2],
 					cent.eigen.rank>=input$max.eigen[1], cent.eigen.rank<=input$max.eigen[2]) %>%
@@ -806,8 +809,7 @@ formatUserChoices <- function(id, targets, actions, nodes=nodes_current) {
 chansimServer <- function(id, api_info, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		# initializ reactive values
-		users <- db %>% tbl('users')
-		pending_swaps <- db %>% tbl("lnplus_pending")
+		pending_swaps <- tbl(db, "lnplus_pending")
 		subject <- getNodePubkey('subject_select', "subject")
 		targets <- getTargets('target_select')
 		observeEvent(targets(), {
@@ -876,7 +878,7 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 
 		upgradeButtonServer("ad_upgrade",
 			p(HTML("Want us to find nodes that increase your centralities the most?<br/>Sign up!"), onclick="openTab('account')"))
-		output$is_premium <- premiumAccountReactive("prem_account", credentials, users)
+		output$is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
 
 		# accumulate previous results

@@ -19,7 +19,7 @@ build_graph_from_data_req <- function(data_req) {
 		# pull graph content from request
 		dg_resp <- content(data_req, as="text") %>% fromJSON(flatten=TRUE)
 	} else {
-		ss.time <- now("UTC")
+		ss.time <- as_datetime(as.numeric(str_split(data_req, "[-.]")[[1]][3]), tz="UTC")
 		dg_resp <- fromJSON(data_req, flatten=TRUE)
 	}
 
@@ -37,9 +37,10 @@ build_graph_from_data_req <- function(data_req) {
 			rename('pubkey'='pub_key') %>%
 			distinct(pubkey, .keep_all=TRUE)
 	# build graph
-	channels <- edges %>%
+	channels <- dg_resp$edges %>%
 		dplyr::select(node1_pub, node2_pub, capacity, last_update, node1_policy.fee_base_msat, node1_policy.fee_rate_milli_msat, node2_policy.fee_base_msat, node2_policy.fee_rate_milli_msat) %>%
 		rename(c('from_base_fee'='node1_policy.fee_base_msat', 'from_fee_rate'='node1_policy.fee_rate_milli_msat', 'to_base_fee'='node2_policy.fee_base_msat', 'to_fee_rate'='node2_policy.fee_rate_milli_msat', 'from'='node1_pub', 'to'='node2_pub')) %>%
+		mutate_at(vars(capacity, from_base_fee, from_fee_rate, to_base_fee, to_fee_rate), as.numeric) %>%
 		as_tibble
 
 	# expand single edges into 2 to express asymmetric chann properties

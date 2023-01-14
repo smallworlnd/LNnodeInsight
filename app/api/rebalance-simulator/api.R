@@ -15,7 +15,7 @@ path_flow_cost <- function(subject_pubkey="", out_pubkey, in_pubkey) {
 		return_fee <- E(dir_graph, path=data.frame(from=in_id, to=subject_id))$from_fee_rate
 	} else {
 		# otherwise use median in_pubkey fee
-		return_fee <- nodes %>% filter(pubkey==in_pubkey) %>% pull(median.rate.ppm)
+		return_fee <- nodes %>% filter(pubkey==in_pubkey) %>% pull(median.rate.ppm.out)
 	}
 	# find a single shortest path
 	dat <- build_path_flow_cost_dist(dir_graph, out_id, in_id, return_fee)
