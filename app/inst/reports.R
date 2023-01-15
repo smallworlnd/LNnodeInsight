@@ -109,7 +109,7 @@ reportsUI <- function(id) {
 						width=NULL, collapsible=TRUE,
 						collapsed=TRUE, solidHeader=TRUE, status='primary',
 						lapply(
-							dplyr::select(report_filters, -V9),
+							dplyr::select(report_filters, -V10),
 							function(x)
 								numRangeFilterSelectUI(
 									id=NS(id, 'filters'),
@@ -425,9 +425,9 @@ getFilterInput <- function(id) {
 
 resetFilters <- function(id) {
 	moduleServer(id, function(input, output, session) {
-		lapply(dplyr::select(report_filters, -V9), function(x)
+		lapply(dplyr::select(report_filters, -V10), function(x)
 			updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[4], x[2]))))
-		updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected='all')
+		updatePrettyRadioButtons(session, inputId=report_filters$V10[1], selected='all')
 	})
 }
 
@@ -444,14 +444,14 @@ getPredefinedFilters <- function(id, user_pubkey, db=pool) {
 				dplyr::select(min.cap:max.hops) %>%
 				collect %>% tail(1) %>%
 				matrix(ncol=2, byrow=TRUE) %>% t %>%
-				rbind(report_filters[1, 1:8], .)
+				rbind(report_filters[1, 1:9], .)
 			lapply(filters_reformat, function(x)
 				updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[2], x[3]))))
-			updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected=filters$network.addr)
+			updatePrettyRadioButtons(session, inputId=report_filters$V10[1], selected=filters$network.addr)
 		} else {
-			lapply(dplyr::select(report_filters, -V9), function(x)
+			lapply(dplyr::select(report_filters, -V10), function(x)
 				updateNumericRangeInput(session, inputId=x[1], value=as.numeric(c(x[4], x[2]))))
-			updatePrettyRadioButtons(session, inputId=report_filters$V9[1], selected=as.numeric(report_filters$V9[4]))
+			updatePrettyRadioButtons(session, inputId=report_filters$V10[1], selected=as.numeric(report_filters$V10[4]))
 		}
 	})
 }
@@ -479,11 +479,11 @@ applyInputFiltersServer <- function(id, graph=undir_graph, credentials, node_lis
 					act.channels>0,
 					act.channels/(act.channels+inact.channels)>0.66,
 					tot.capacity>=input$max.cap[1]*1e8, tot.capacity<=input$max.cap[2]*1e8,
-					!is.na(mean.rate.ppm),
+					!is.na(mean.rate.ppm.out), !is.na(mean.rate.ppm.in),
 					med.capacity>=input$max.med.capacity[1]*1e8, med.capacity<=input$max.med.capacity[2]*1e8,
 					num.channels>=input$max.num.channels[1], num.channels<=input$max.num.channels[2],
-					median.rate.ppm>=input$max.fee.rate.out[1], median.rate.ppm<=input$max.fee.rate.out[2],
-					median.rate.ppm>=input$max.fee.rate.in[1], median.rate.ppm<=input$max.fee.rate.in[2],
+					median.rate.ppm.out>=input$max.fee.rate.out[1], median.rate.ppm.out<=input$max.fee.rate.out[2],
+					median.rate.ppm.in>=input$max.fee.rate.in[1], median.rate.ppm.in<=input$max.fee.rate.in[2],
 					cent.between.rank>=input$max.between[1], cent.between.rank<=input$max.between[2],
 					cent.close.rank>=input$max.close[1], cent.close.rank<=input$max.close[2],
 					cent.eigen.rank>=input$max.eigen[1], cent.eigen.rank<=input$max.eigen[2]) %>%
