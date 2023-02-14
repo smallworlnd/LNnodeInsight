@@ -20,6 +20,7 @@ appLinkUI <- function(id, appId) {
 #' @export
 dashboardUI <- function(id) {
 	addResourcePath('www', 'www')
+	ns <- NS(id)
 	fluidRow(
 		useShinyjs(),
 		tags$style(HTML("
@@ -56,18 +57,27 @@ dashboardUI <- function(id) {
 			tags$style(HTML(".info-box-icon .img-local {position: absolute; top: auto; left: 15px; }")),
 			h2("Develop your own data-driven Lightning Network insight", align='center'),
 			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable opportunities", align='center'),
-			h4(HTML(paste(icon("check"), "Log in to access additional features in the Build-Your-Own-Chart and Channel Simulator tools")), align="center"),
-			fluidRow(
-				column(6, style="padding: 43px;",
-					h4(HTML(paste(icon("check"), "Upgrade your account to get access to these features:" )), align="right")),
-				column(6, h4(
-					tags$ul(
-						tags$li("Automated channel simulations with fee and capacity recommendations to find optimal peers"),
-						tags$li("Find optimal LightningNetwork+ swaps on-demand"),
-						tags$li("Automated capacity-fee simulator runs on your peers"),
-						tags$li("Measure the value of outbound liquidity to your peers"),
-						tags$li("Get unlimited access to all LNnodeInsight tools")),
-					align="left"))),
+			conditionalPanel(
+				"output.account_is_auth == 'false'", ns=ns,
+				h4(HTML(paste(icon("check"), "Log in to access additional features in the Build-Your-Own-Chart and Channel Simulator tools")), align="center")
+			),
+			conditionalPanel(
+				"output.account_is_premium == 'false'", ns=ns,
+				fluidRow(
+					column(6, style="padding: 43px;",
+						h4(HTML(paste(icon("check"), "Upgrade your account to get access to these features:" )), align="right")
+					),
+					column(6, h4(
+						tags$ul(
+							tags$li("Automated channel simulations with fee and capacity recommendations to find optimal peers"),
+							tags$li("Find optimal LightningNetwork+ swaps on-demand"),
+							tags$li("Automated capacity-fee simulator runs on your peers"),
+							tags$li("Measure the value of outbound liquidity to your peers"),
+							tags$li("Get unlimited access to all LNnodeInsight tools")),
+						align="left")
+					)
+				)
+			),
 			h3('Visuals'),
 			fluidRow(
 				lapply(c("byoc", "nodestats"), function(x) appLinkUI(NS(id, "local_apps"), x))
@@ -133,8 +143,24 @@ localAppServer <- function(id, boxId, boxTitle, boxSubtitle, linkIcon) {
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
 #' @return returns backend for the app UI
 #' @export
-dashboardServer <- function(id) {
+dashboardServer <- function(id, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
+		output$account_is_premium <- eventReactive(credentials(), {
+			if (credentials()$premium) {
+				return("true")
+			} else {
+				return("false")
+			}
+		})
+		output$account_is_auth <- eventReactive(credentials(), {
+			if (credentials()$user_auth) {
+				return("true")
+			} else {
+				return("false")
+			}
+		})
+		outputOptions(output, "account_is_premium", suspendWhenHidden=FALSE)
+		outputOptions(output, "account_is_auth", suspendWhenHidden=FALSE)
 		lapply(
 			data.frame(
 				boxId=c("amboss", "lnrouter", "lnplus"),
@@ -173,8 +199,14 @@ dashboardApp <- function() {
 		dashboardBody(dashboardUI('x')),
 		skin='yellow',
 	)
+	credentials <- reactiveValues(
+		info=data.frame(pubkey="", foo=""),
+		user_auth=FALSE, premium=FALSE)
+		#info=data.frame(pubkey=test_pubkey, foo="bar"),
+		#premium=TRUE,
+		#user_auth=TRUE)
 	server <- function(input, output, session) {
-		dashboardServer('x')
+		dashboardServer('x', reactive(credentials))
 	}
 	shinyApp(ui, server)
   

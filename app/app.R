@@ -42,12 +42,16 @@ source('inst/webln.R')
 source("inst/dashboard.R")
 source("inst/account-page.R")
 source("inst/reports.R")
+source('inst/earn.R')
 source("inst/node-stats.R")
 source('inst/byoc.R')
 source('inst/chan-sim.R')
 source('inst/capfee-sim.R')
 source('inst/rebal-sim.R')
 source("inst/faq.R")
+
+source("inst/tos.R")
+source("inst/privacy.R")
 
 # load top-level shiny components
 source('inst/server.R')

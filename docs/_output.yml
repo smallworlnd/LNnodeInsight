@@ -1,0 +1,13 @@
+bookdown::gitbook:
+  highlight: tango
+  config:
+    toc:
+      scroll_highlight: true
+      before: null
+      after: null
+    sharing:
+      github: yes
+      facebook: no
+      twitter: yes
+      all: no
+    info: false

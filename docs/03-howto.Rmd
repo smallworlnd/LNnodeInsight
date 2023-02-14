@@ -1,0 +1,30 @@
+# How-to {#howto}
+
+## Sign a message using your node {}
+
+
+### lnd {}
+
+```
+lncli signmessage "message to sign here"
+```
+
+### core-lightning {}
+
+```
+lightning-cli signmessage "message to sign here"
+```
+
+### eclair {}
+
+```
+eclair-cli signmessage --msg=$(echo -n 'message to sign here' | base64)
+```
+
+### Ride The Lightning {}
+
+Navigate to Lightning > Sign/Verify > Copy
+
+### Thunderhub {}
+
+Navigate to Tools > Sign message > Copy

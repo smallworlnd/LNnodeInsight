@@ -1,0 +1,5 @@
+# Other resources {#other-resources}
+
+A non-exhaustive list of other resources:
+
+- The [Plebnet Wiki](https://plebnet.wiki)

@@ -262,7 +262,7 @@ chansimUI <- function(id) {
 		),
 		column(4, align="center",
 			conditionalPanel(
-				"output.is_premium == 'false'", ns=ns,
+				"output.account_is_premium == 'false'", ns=ns,
 				upgradeButtonUI(NS(id, "ad_upgrade"))
 			)
 		),
@@ -817,7 +817,6 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 		})
 		available_choices <- reactiveVal()
 		channel_actions <- getChannelActions('target_select')
-		launch_sim <- startButtonServer('launch_sim', buttonId="launch_sim_button")
 		output$chansim_venn <- peerVennServer('chansim_venn', subject, targets)
 		previous_targets <- reactiveVal(NULL)
 
@@ -859,7 +858,7 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 
 		# if the launch button is clicked, then run a simulation on the subject
 		# with the given targets
-		sim_run <- eventReactive(launch_sim(), {
+		sim_run <- eventReactive(startButtonServer('launch_sim', buttonId="launch_sim_button"), {
 			req(subject() != "")
 			req(length(unique(targets())) != 1 && unique(targets()) != "")
 			showModal(
@@ -878,8 +877,14 @@ chansimServer <- function(id, api_info, credentials, db=pool) {
 
 		upgradeButtonServer("ad_upgrade",
 			p(HTML("Want us to find nodes that increase your centralities the most?<br/>Sign up!"), onclick="openTab('account')"))
-		output$is_premium <- premiumAccountReactive("prem_account", credentials, db)
-		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
+		output$account_is_premium <- eventReactive(credentials(), {
+			if (credentials()$premium) {
+				return("true")
+			} else {
+				return("false")
+			}
+		})
+		outputOptions(output, "account_is_premium", suspendWhenHidden=FALSE)
 
 		# accumulate previous results
 		observeEvent(targets(), {
@@ -954,10 +959,10 @@ chansimApp <- function() {
 		skin='yellow',
 	)
 	credentials <- reactiveValues(
-		#info=data.frame(pubkey=test_pubkey, foo="bar"),
-		#user_auth=TRUE, cookie_already_checked=FALSE)
-		info=NULL,
-		user_auth=FALSE, cookie_already_checked=FALSE)
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		user_auth=TRUE, premium=TRUE)
+		#info=NULL,
+		#user_auth=FALSE, premium=FALSE)
 	server <- function(input, output, session) {
 		chansimServer('x', chansim_api_info, reactive(reactiveValuesToList(credentials)))
 	}

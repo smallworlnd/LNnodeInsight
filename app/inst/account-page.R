@@ -24,17 +24,6 @@ tableUI <- function(id, tableId) {
 	tableOutput(NS(id, tableId))
 }
 
-#' infobox UI element
-#'
-#' displays info about account upgrade
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's server function
-#' @return returns infobox output containing subscription information
-#' @export
-subInfoBox <- function(id) {
-	infoBoxOutput(NS(id, "sub_info"), width=4)
-}
-
 #' subscription period slider UI element
 #'
 #' takes user input for desired subscription period
@@ -63,9 +52,10 @@ accountUI <- function(id) {
 					tableUI(NS(id, "account_status"), "account"),
 					conditionalPanel(
 						condition="output.account_is_premium == 'false'", ns=ns,
-						column(10, subInfoBox(NS(id, "show_sub_info"))),
 						br(),
-						column(2, align="center", startButtonUI(NS(id, "subscribe_button"), buttonId="action_button", lab="Upgrade"))
+						column(12, align="center",
+							startButtonUI(NS(id, "subscribe_button"), buttonId="action_button", lab="Upgrade account")
+						),
 					)
 				)
 			)
@@ -91,8 +81,12 @@ accountTableServer <- function(id, credentials, db=pool) {
 				filter(pubkey==!!pull(credentials$info[1])) %>%
 				as_tibble %>%
 				mutate(sub_date=format(sub_date, "%B %d, %Y"), sub_expiration_date=format(sub_expiration_date, "%B %d, %Y")) %>%
-				dplyr::select(subscription, sub_date, sub_expiration_date) %>%
-				rename(c("Subscription"="subscription", "Subscription date"="sub_date", "Subscription expiration date"="sub_expiration_date"))
+				dplyr::select(subscription, sub_date, sub_expiration_date, paymentHash) %>%
+				rename(c(
+					"Subscription"="subscription",
+					"Subscription date"="sub_date",
+					"Subscription expiration date"="sub_expiration_date",
+					"Payment hash"="paymentHash"))
 		}, spacing="l", width="100%", align="c")
 	})
 }
@@ -112,22 +106,6 @@ accountHeaderServer <- function(id, credentials, db=pool) {
 			req(credentials$user_auth)
 			node_alias <- tbl(db, "nodes_current") %>% filter(pubkey==!!pull(credentials$info[1])) %>% pull(alias)
 			p(style="text-align: left; font-size: 20px", strong(node_alias))
-		})
-	})
-}
-
-#' subcription infobox server
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @return returns infobox render of subscription details
-#' @export
-subInfoServer <- function(id) {
-	moduleServer(id, function(input, output, session) {
-		output$sub_info <- renderInfoBox({
-			infoBox(
-				"", "Upgrade to get weekly centrality optimization reports for your node, on-demand LN+ swap recommendations, and get unlimited access to all LNnodeInsight tools", icon=icon("exclamation"),
-				color = "yellow", fill=TRUE
-			)
 		})
 	})
 }
@@ -190,8 +168,14 @@ accountServer <- function(id, credentials, db=pool) {
 		accountHeaderServer("account_header", credentials(), db=pool)
 		accountTableServer("account_status", credentials(), db=pool)
 		subInfoServer("show_sub_info")
-		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, db)
-		output$account_is_auth <- reactive({
+		output$account_is_premium <- eventReactive(credentials(), {
+			if (credentials()$premium) {
+				return("true")
+			} else {
+				return("false")
+			}
+		})
+		output$account_is_auth <- eventReactive(credentials(), {
 			if (credentials()$user_auth) {
 				return("true")
 			} else {
@@ -201,15 +185,16 @@ accountServer <- function(id, credentials, db=pool) {
 		outputOptions(output, "account_is_premium", suspendWhenHidden=FALSE)
 		outputOptions(output, "account_is_auth", suspendWhenHidden=FALSE)
 
-		sub_button <- startButtonServer("subscribe_button", buttonId="action_button")
-		observeEvent(sub_button(), {
+		observeEvent(startButtonServer("subscribe_button", buttonId="action_button"), {
 			ns <- session$ns
 			showModal(
 				modalDialog(
 					"By upgrading, you get:",
 					HTML(
 						"<ul>
-						<li>A weekly breakdown of automated channel simulations to show you economically<br/>active nodes that improve your centralities the most (first report shows up within 24 hours)</li>
+						<li>A weekly report on automated channel simulations to show you economically<br/>active nodes that improve your centralities the most (first report shows up within 24 hours)</li>
+						<li>On-demand search for LightningNetwork+ swaps to join that increase your centralities the most</li>
+						<li>A breakdown of your outbound liquidity value</li>
 						<li>Unlimited access to the rebalance simulator</li>
 						<li>Unlimited access to the past centrality ranks and Terminal Web ranks</li>
 						<li>Automatic access to new features</li>
@@ -240,14 +225,14 @@ accountServer <- function(id, credentials, db=pool) {
 
 		# if invoice gets paid then modify subscription status in users db
 		add_sub_to_db <- eventReactive(invoice(), {
-			req(invoice() == "Paid")
+			req(invoice()$status == "Paid")
 			node_pubkey <- credentials()$info[1]$pubkey
 			node_alias <- tbl(db, "nodes_current") %>% filter(pubkey==node_pubkey) %>% pull(alias)
 			sub_begin <- now()
 			sub_end <- now()+months(sub_period())
 			new_sub_df <- data.frame(
 				pubkey=node_pubkey, alias=node_alias, subscription="Premium",
-				sub_date=sub_begin, sub_expiration_date=sub_end)
+				sub_date=sub_begin, sub_expiration_date=sub_end, paymentHash=invoice()$paymentHash)
 			dbWriteTable(pool, "users", new_sub_df, row.names=FALSE, append=TRUE, overwrite=FALSE)
 		})
 		# show message after invoice successfully paid
@@ -256,12 +241,12 @@ accountServer <- function(id, credentials, db=pool) {
 			ns <- session$ns
 			showModal(
 				modalDialog(
-					"Invoice paid, thanks for subscribing! What happens next?",
+					HTML(paste("Invoice paid", icon("check"), "thanks for subscribing! What happens next?")),
 					HTML(
 						"<ul>
 						<li>The first centrality optimization report should appear on the Reports page within 24 hours</li>
-						<li>That list will be updated each week</li>
-						<li>The page will be refreshed after closing this box to reflect your account changes</li>
+						<li>Centrality optimizations are updated each week starting from the subscription date</li>
+						<li>The page will refresh to reflect your account upgrade</li>
 						</ul>"),
 					footer=tagList(
 						modalActionButton(ns("done"), "Done")
@@ -290,7 +275,7 @@ accountApp <- function() {
 		#info=data.frame(pubkey="", foo=""),
 		#user_auth=FALSE)
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE)
+		user_auth=TRUE, premium=TRUE)
 	server <- function(input, output, session) {
 		accountServer('x', reactive(credentials))
 	}

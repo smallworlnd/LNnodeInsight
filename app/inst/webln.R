@@ -21,9 +21,21 @@ detectProvider <- function(id) {
 #' @param id an id string used to call the script's server input
 #' @return returns a shiny input value containing user response
 #' @export
-requestProvider <- function(id) {
+requestLoginEnable <- function(id) {
 	glue::glue(.open = "{{{", .close = "}}}", '
-	shinyjs.webln_enable = async function() {
+	shinyjs.webln_login_enable = async function() {
+	  try {
+		const status = await window.webln.enable();
+		Shiny.setInputValue("{{{id}}}", status.enabled);
+	  }
+	  catch(error) {
+		Shiny.setInputValue("{{{id}}}", {catch: error.name, reason: error.message});
+	  }
+	};')
+}
+requestEarnEnable <- function(id) {
+	glue::glue(.open = "{{{", .close = "}}}", '
+	shinyjs.webln_earn_enable = async function() {
 	  try {
 		const status = await window.webln.enable();
 		Shiny.setInputValue("{{{id}}}", status.enabled);
@@ -66,8 +78,46 @@ requestPayment <- function(id) {
 		var defaultParams = {bolt11: null};
 		await window.webln.enable();
 		params = shinyjs.getParams(params, defaultParams);
-		const pay_response = await window.webln.sendPayment(params.bolt11);
-		Shiny.setInputValue("{{{id}}}", pay_response);
+		const response = await window.webln.sendPayment(params.bolt11);
+		Shiny.setInputValue("{{{id}}}", response);
+	  } catch (error) {
+		Shiny.setInputValue("{{{id}}}", {catch: error.name, reason: error.message});
+	  }
+	};')
+}
+
+#' Request routermc data from WebLN provider
+#'
+#' @param id an id string used to call the script's server input
+#' @return returns a shiny input value containing routermc info
+#' @export
+requestRoutermc <- function(id) {
+	glue::glue(.open = "{{{", .close = "}}}", '
+	shinyjs.webln_request_routermc = async function() {
+	  try {
+		await window.webln.enable();
+	    const routermc_response = await webln.request("routermc");
+		Shiny.setInputValue("{{{id}}}", routermc_response);
+	  } catch (error) {
+		Shiny.setInputValue("{{{id}}}", {catch: error.name, reason: error.message});
+	  }
+	};')
+}
+
+#' Request an invoice from the WebLN provider
+#'
+#' @param id an id string used to call the script's server input
+#' @return returns a shiny input value containing invoice info
+#' @export
+requestInvoice <- function(id) {
+	glue::glue(.open = "{{{", .close = "}}}", '
+	shinyjs.webln_request_invoice = async function(params) {
+	  try {
+		var defaultParams = {amount: null, defaultMemo: null};
+		await window.webln.enable();
+		params = shinyjs.getParams(params, defaultParams);
+		const response = await window.webln.makeInvoice({amount: params.amount, defaultMemo: params.defaultMemo});
+		Shiny.setInputValue("{{{id}}}", response);
 	  } catch (error) {
 		Shiny.setInputValue("{{{id}}}", {catch: error.name, reason: error.message});
 	  }

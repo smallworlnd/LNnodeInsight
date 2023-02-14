@@ -38,8 +38,7 @@ loginUI <- function(id,
         jscookie_script(),
         shinyjs::extendShinyjs(text=js_cookie_to_r_code(ns("jscookie"), expire_days=cookie_expiry), functions=c("getcookie", "setcookie", "rmcookie")),
         shinyjs::extendShinyjs(text=js_return_click(ns("signed_msg"), ns("button")), functions=c()),
-		shinyjs::extendShinyjs(text=detectProvider(ns("webln_detect")), functions=c()),
-		shinyjs::extendShinyjs(text=requestProvider(ns("webln_enable")), functions=c("webln_enable")),
+		shinyjs::extendShinyjs(text=requestLoginEnable(ns("webln_login_enable")), functions=c("webln_login_enable")),
 		shinyjs::extendShinyjs(text=requestMessageSig(ns("webln_signmsg")), functions=c("webln_signmessage")),
         shiny::tags$h2(title, class="text-center", style="padding-top: 0; color: white;"),
 		br(),
@@ -191,7 +190,7 @@ loginServer <- function(id,
 			rclipboard::rclipButton(inputId="copy_verify_msg", label=NULL, clipText=verify_msg(), icon=icon('clipboard'))
 		})
       
-      credentials <- shiny::reactiveValues(user_auth=FALSE, info=NULL, cookie_already_checked=FALSE)
+      credentials <- shiny::reactiveValues(user_auth=FALSE, premium=FALSE, info=NULL, cookie_already_checked=FALSE)
       
       shiny::observeEvent(log_out(), {
         if (cookie_logins) {
@@ -204,6 +203,7 @@ loginServer <- function(id,
           shiny::updateTextInput(session, "signed_msg", value="")
           verify_msg(stri_rand_strings(1, 60, pattern="[A-Za-z0-9]"))
           credentials$user_auth <- FALSE
+          credentials$premium <- FALSE
           credentials$info <- NULL
         }
       })
@@ -244,8 +244,8 @@ loginServer <- function(id,
             shinyjs::js$rmcookie()
           } else {
             # if valid cookie, we reset it to update expiry date
-            .userid <- dplyr::pull(cookie_data, {{pubkey_col}})
             .sessionid <- randomString()
+			.userid <- dplyr::pull(cookie_data, {{pubkey_col}})
             
             shinyjs::js$setcookie(.sessionid)
             
@@ -258,6 +258,8 @@ loginServer <- function(id,
               dplyr::filter(data, {{pubkey_col}} == .userid) %>% as_tibble %>% arrange(desc(sub_date)) %>% distinct(pubkey, .keep_all=TRUE),
               dplyr::select(cookie_data, -{{pubkey_col}})
             )
+			get_subscription <- dplyr::filter(data, {{pubkey_col}} == .userid, subscription=="Premium", sub_expiration_date>=now()) %>% tally %>% pull
+			credentials$premium <- ifelse(get_subscription>0, TRUE, FALSE)
           }
         })
         
@@ -296,6 +298,8 @@ loginServer <- function(id,
         if ("valid" %in% names(signed_msg_output) && signed_msg_output$valid) {
           credentials$user_auth <- TRUE
           credentials$info$pubkey <- signed_msg_output$pubkey
+		  get_subscription <- dplyr::filter(data, {{pubkey_col}} == !!credentials$info$pubkey, subscription=="Premium", sub_expiration_date>=now()) %>% tally %>% pull
+		  credentials$premium <- ifelse(get_subscription>0, TRUE, FALSE)
           
           if (cookie_logins) {
             .sessionid <- randomString()
@@ -315,18 +319,22 @@ loginServer <- function(id,
 
       # possibility #3: login with webln
 		shiny::observeEvent(input$webln_login_btn, {
-			if (input$webln_detect) {
-				js$webln_enable()
-			} else {
-				showNotification("No WebLN provider detected. Try installing one like Alby.", type="error")
+			js$webln_login_enable()
+		})
+		shiny::observeEvent(c(input$webln_login_enable, input$webln_login_btn), {
+			req(!is.null(input$webln_login_enable))
+			if ("catch" %in% names(input$webln_login_enable) && input$webln_login_enable$catch == "TypeError") {
+				showNotification("No WebLN provider detected. Try installing one like Alby", type="error")
 			}
-		})
-		webln_status <- shiny::eventReactive(input$webln_enable, {
-			return(input$webln_enable)
-		})
-		observeEvent(c(webln_status(), input$webln_login_btn), {
-			req(webln_status())
-			js$webln_signmessage(input$verify_msg)
+			else if ("catch" %in% names(input$webln_login_enable) && input$webln_login_enable$catch == "Error") {
+				showNotification(input$webln_login_enable$message, type="error")
+			}
+			else if (input$webln_login_enable) {
+				js$webln_signmessage(input$verify_msg)
+			}
+			else {
+				showNotification("Something unexpected happened, please contact us", type="error")
+			}
 		})
 		webln_msgsig <- shiny::eventReactive(input$webln_signmsg, {
 			if ("catch" %in% names(input$webln_signmsg)) {
@@ -343,7 +351,9 @@ loginServer <- function(id,
 			if (signed_msg_output$valid) {
 			  credentials$user_auth <- TRUE
 			  credentials$info$pubkey <- signed_msg_output$pubkey
-			  
+			  get_subscription <- dplyr::filter(data, {{pubkey_col}} == !!credentials$info$pubkey, subscription=="Premium", sub_expiration_date>=now()) %>% tally %>% pull
+			  credentials$premium <- ifelse(get_subscription>0, TRUE, FALSE)
+
 			  if (cookie_logins) {
 				.sessionid <- randomString()
 				shinyjs::js$setcookie(.sessionid)

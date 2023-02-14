@@ -109,37 +109,7 @@ modalActionButton <- function(inputId, label, icon = NULL, width = NULL, ...) {
 #' @export
 startButtonServer <- function(id, buttonId) {
 	moduleServer(id, function(input, output, session) {
-		reactive(eval(parse(text=paste0("input$", buttonId))))
-	})
-}
-
-#' fetch account status
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's UI element, \link{startButtonUI}
-#' @param credentials login status from \link{loginServer}
-#' @param db sql db
-#' @return returns character string "true" or "false" (instead of boolean, for
-#' server->client outputOptions
-#' @export
-premiumAccountReactive <- function(id, credentials, db) {
-	moduleServer(id, function(input, output, session) {
-		reactive({
-			if (!credentials()$user_auth) {
-				return("false")
-			} else {
-				account <- tbl(db, "users") %>%
-					filter(pubkey==!!credentials()$info[1]$pubkey) %>%
-					filter(sub_date==max(sub_date)) %>%
-					filter(subscription=="Premium") %>%
-					as_tibble %>%
-					distinct(sub_date, .keep_all=TRUE)
-				if (nrow(account) > 0 && account$subscription == "Premium" && account$sub_expiration_date>=now()) {
-					return("true")
-				} else {
-					return("false")
-				}
-			}
-		})
+		eval(parse(text=paste0("input$", buttonId)))
 	})
 }
 
@@ -158,10 +128,10 @@ upgradeButtonUI <- function(id) {
 #' @param msg message to show in action button label
 #' @return returns infobox rendering
 #' @export
-upgradeButtonServer <- function(id, msg) {
+upgradeButtonServer <- function(id, msg, btnSize='sm') {
 	moduleServer(id, function(input, output, session) {
 		output$upgrade_button <- renderUI({
-			actionBttn(inputId='upgrade_button', label=msg, style='fill', color='success', block=FALSE, size='sm')
+			actionBttn(inputId='upgrade_button', label=msg, style='fill', color='success', block=FALSE, size=btnSize)
 		})
 	})
 }
@@ -190,15 +160,38 @@ startButtonLabel <- function(id) {
 	textOutput(NS(id, "account_is_premium"))
 }
 
+#' data table UI element
+#'
+#' used for centrality minmax reports
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @param tableId the ID string corresponding to the lower level module function
+#' @return returns interactive data table output
+#' @export
+dataTableUI <- function(id, tableId) {
+	dataTableOutput(NS(id, tableId))
+}
+
+#' infobox UI element
+#'
+#' displays info about account upgrade
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's server function
+#' @return returns infobox output containing subscription information
+#' @export
+subInfoBox <- function(id) {
+	infoBoxOutput(NS(id, "sub_info"), width=4)
+}
+
 #' start/action button label server
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @param account_check_reactive reactive element to verify account status
+#' @param credentials credentials reactive element to verify account status
 #' @return returns render text element depending on account status
-startButtonLabelServer <- function(id, custom_label, account_check_reactive) {
+startButtonLabelServer <- function(id, custom_label, credentials) {
 	moduleServer(id, function(input, output, session) {
 		output$account_is_premium <- renderText({
-			if (account_check_reactive() == "true") {
+			if (credentials()$premium) {
 				paste("Start")
 			} else {
 				paste(custom_label)
@@ -238,4 +231,20 @@ plotOutputUI <- function(id, plotTitle, plotId, plotType) {
 		id=NS(id, paste0(plotId, '_tab')),
 		width=NULL
 	)
+}
+
+#' subcription infobox server
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @return returns infobox render of subscription details
+#' @export
+subInfoServer <- function(id) {
+	moduleServer(id, function(input, output, session) {
+		output$sub_info <- renderInfoBox({
+			infoBox(
+				"", "Upgrade to get weekly centrality optimization reports for your node, on-demand LN+ swap recommendations, and get unlimited access to all LNnodeInsight tools", icon=icon("exclamation"),
+				color = "yellow", fill=TRUE
+			)
+		})
+	})
 }

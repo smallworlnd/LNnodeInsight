@@ -10,8 +10,8 @@ services:
       - "3838"
     depends_on:
       - db
-  centralities-api:
-    build: ./app/api/centralities
+  endpoints:
+    build: ./app/api/endpoints
     restart: unless-stopped
     expose:
       - "8080"
@@ -40,6 +40,7 @@ services:
       - "443:443"
     volumes:
       - $PWD/Caddyfile:/etc/caddy/Caddyfile
+      - $PWD/docs/build:/var/www
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

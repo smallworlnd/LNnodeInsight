@@ -1,0 +1,82 @@
+# Glossary {#glossary}
+
+This is a collection of definitions and jargon commonly used to talk about the various facets of the Bitcoin Lightning Network dynamics. Many of these words and concepts were coined by various people thinking about, and working on the LN.
+
+## Channel balance {-#channel-balance}
+
+Refers to the proportion of outbound and inbound liquidity sitting in a channel. Opening an unsolicited channel to a peer will start off as 100% outbound. A typical liquidity swap like on [LightningNetwork+](https://lightningnetwork.plus) will start a channel off 50% outbound and 50% inbound.
+
+## Node behaviors and traits {-#nodebehaviors}
+
+Nodes are not so different from living organisms in an ecosystem. They each have a genetic code that specifies how they're built, but they can exhibit a range of behaviors when it comes to deploying and moving liquidity around the network, which can also evolve over time.
+
+### Liquidity source {-#liquidity-source}
+
+A liquidity source pushes inbound to other channels more than it pulls. A wallet node could be a liquidity source.
+
+### Liquidity sink {-#liquidity-sink}
+
+A liquidity sink pulls inbound from other channels more than it pushes. An example of this would be an on-chain swap service.
+
+### Ping-pong or bidirectional router {-#twoway}
+
+This node pushes approximately as much as it pulls liquidity. Payments can be small and frequent (Nostr zaps), or fewer and further between but larger (liquidity battery). This kind of behavior in the wild is rare but widely sought after in a peer.
+
+### Last mile router {-#lastmile}
+
+A routing node that seeks out and opens channels to weakly connected nodes.
+
+### Swap routing node {-#swaprouting}
+
+A node that offers on-/off-chain swap services to increase or decrease inbound liquidity. Known services include the Lightning Labs Loop node, and others like [deezy.io](https://swap.deezy.io/) or [ipayblue.com](https://www.ipayblue.com/ipb/def/home/).
+
+## Liquidity flow rate {-#liquidity-flow-rate}
+
+Depending on fees, liquidity can move more or less quickly between channels. Nodes with lower average fees will see more volume, whereas nodes with higher fees will see less volume. The fees vs flow rate dynamic can be roughly modelled like the following:
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot() + xlim(0, 2000) + geom_function(fun=dexp, args=list(rate=0.006)) + xlab("Fee rate (ppm)") + ylab("Liquidity flow rate") + theme(axis.text.y=element_blank())
+```
+
+This model doesn't account for liquidity value or demand, or other dynamics, but still a useful visual.
+
+## Total capacity {-#total-capacity}
+
+The sum of a node's channel capacities (outbound+inbound) is a node's total capacity.
+
+## Centrality {-#centrality}
+
+Centrality is a generic term to describe a node's or a channel's position in a (Lightning) network. There are dozens of formulations of centralities that each describe something different, but the most basic metrics we can talk about in the context of the LN are a node's betweenness, closeness and eigenvector centralities.
+
+### Betweenness {-#betweenness}
+
+Betweeness centrality measures the number of shortest paths that pass through a node. A higher number of shortest paths a node has to any two other node in the network, the more likely they will be included in a route depending on the liquidity balance of each channel in the path.
+
+### Closeness {-#closeness}
+
+Closeness, or hopness on [Amboss](https://amboss.space), centrality is a measure of how many hops it takes to reach any node on the network from a given node. The better the rank, the fewer the hops required to reach any and all nodes.
+
+### Eigenvector {-#eigenvector}
+
+Eigenvector, or hubness on [Amboss](https://amboss.space), centrality measures influence of a given node in the network. Higher ranks imply a well-connected node that is linked to other well-connected nodes. A lower eigenvector centrality could also imply a new and/or underserved node in the network.
+
+##  Maximum liquidity flow {-#maxflow}
+
+Maximum flow is the highest amount of sats that can theoretically be pushed through a path if liquidity were 100% outbound. In reality, outbound across a path is likely 50% or less.
+
+## Rebalancing strategies {-#rebalancing-strategies}
+
+Maintaining a routing node involves managing liquidity between channels, either actively through circular payments, or passively by adjusting fees to encourage liquidity movement. The goal is to manage liquidity in places where it is needed rather than aiming for an arbitrary ratio of outbound to inbound.
+
+### Passive {-#passive}
+
+This is a fee strategy that attempts to encourage higher liquidity volume and ideally bi-directional volume such that channel balances are passively maintained. The success of this strategy depends on multiple factors, and can often be difficult to achieve. It's not uncommon for liquidity to get pushed to one side and then never move back, even at a fee of 0ppm. This strategy needn't be mutually exclusive to active rebalancing.
+
+### Active {-#active}
+
+This is a fee strategy that involves making a circular payment from one channel to another in order to meet liquidity demands. Usually, a circular repayment will be attempted to push liquidity from an outbound-heavy channel to an inbound-heavy channel. It could also be a circular payment from a peer that is just easier to get cheap outbound pushed to a liquidity sink. Ideally, liquidity is purchased where it can be sold for a profit, but it needn't be so. Also, it needn't be mutually exclusive to passive rebalancing.
+
+## Outbound liquidity value {-#outbound-value}
+
+The value of outbound liquidity (i.e., your channel fees) is estimated by analysing the cost of potential payments in your node's neighborhood as well as to common payment destinations. Sustained volume at high fees imply high outbound value. High volume at relatively lower fees (i.e., lower percentile) suggests a given channel is underpriced, especially if liquidity moves in one direction only. Low volume at high fees suggests that a given channel may be overpriced. However, it may be worth maintaining higher fees at low volume depending on the size of a forwarded HTLC and the inbound & outbound channel pairs that forward the HTLC. Low volume at low fees suggests low demand through that channel. It may be worth considering reallocating liquidity elsewhere if low demand at low fees persists.

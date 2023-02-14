@@ -3,5 +3,25 @@
 }
 
 centralities.api.{$SERVER_NAME} {
-	reverse_proxy centralities-api:8080
+	reverse_proxy endpoints:8080
+}
+
+api.{$SERVER_NAME} {
+	reverse_proxy /ln-summary-ts endpoints:8080 {
+		header_up Host {host}
+		header_up X-Real-IP {remote}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+	}
+	reverse_proxy /centralities endpoints:8080 {
+		header_up Host {host}
+		header_up X-Real-IP {remote}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+docs.{$SERVER_NAME} {
+	root * /var/www
+	file_server
 }

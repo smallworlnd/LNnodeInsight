@@ -1,4 +1,5 @@
 source("inst/graph-functions.R")
+source("inst/data-price-functions.R")
 
 tryCatch({
 	pool <- dbPool(
@@ -48,5 +49,9 @@ comms_list <- tbl(pool, 'communities') %>% distinct(community) %>% arrange %>% p
 store_headers <- add_headers(c(
 	"Content-Type"=paste("application/json"),
 	"Authorization"=paste("token", Sys.getenv("STORE_API_KEY"), sep=" ")))
+
+pay_headers <- add_headers(c(
+	"Content-Type"=paste("application/json"),
+	"Authorization"=paste("token", Sys.getenv("PAY_API_KEY"), sep=" ")))
 
 rest_headers <- add_headers(c("Grpc-Metadata-macaroon"=Sys.getenv("VERIFY_MACAROON")))

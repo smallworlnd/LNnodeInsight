@@ -555,16 +555,18 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 		nodeStatHeader("section_headers", "node_stats", stats, "vs the Network", "Node vs the Network")
 		nodeStatHeader("section_headers", "peer_compare", stats, "peers", "Node peers")
 		
-		ranks_bal_button <- startButtonServer("show_ranks_bal", buttonId="ranks_bal_button")
-
 		# initialize invoice status
 		invoice_status <- reactiveVal("Unpaid")
 		output$invoice_status <- reactive({invoice_status()})
 
+		show_stats <- eventReactive(startButtonServer("show_ranks_bal", buttonId="ranks_bal_button"), {
+			req(pubkey()!="")
+			return(TRUE)
+		})
 		# generate an invoice on button click
 		invoice <- invoiceHandlingServer(
 			"ranks_bal",
-			reactive_trigger=ranks_bal_button,
+			reactive_trigger=show_stats,
 			inv_fetch_url=Sys.getenv("STORE_URL"),
 			inv_amt=Sys.getenv("PASTRANKS_MSAT"),
 			display_desc=paste("Please pay", as.numeric(Sys.getenv("PASTRANKS_MSAT"))/1e3, "sats to view results."),
@@ -573,8 +575,8 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 		# modify invoice status reactiveVal to "Paid" if the
 		# invoice gets paid
 		observeEvent(invoice(), {
-			req(invoice() == "Paid")
-			invoice_status(invoice())
+			req(invoice()$status == "Paid")
+			invoice_status(invoice()$status)
 		})
 
 		# reset the historical rank graph if a new node is selected
@@ -594,12 +596,10 @@ nodestatsServer <- function(id, credentials, url_pubkey_search, ln_summary=ln_su
 		# send invoice status to the client side
 		outputOptions(output, "invoice_status", suspendWhenHidden=FALSE)
 
-		# determine if account is premium
-		is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		# if account is premium, short-circuit button click/invoice creation
 		# process by settting invoice status to always "paid"
 		observe({
-			req(is_premium() == "true")
+			req(credentials()$premium)
 			invoice_status("Paid")
 			if (pubkey() == "") {
 				pastRankServer("ranks_tab", NULL)
@@ -625,10 +625,10 @@ nodestatsApp <- function() {
 		)
 	}
 	credentials <- reactiveValues(
-		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE)
-		#info=NULL,
-		#user_auth=FALSE)
+		#info=data.frame(pubkey=test_pubkey, foo="bar"),
+		#user_auth=TRUE, premium=TRUE)
+		info=NULL,
+		user_auth=FALSE, premium=FALSE)
 	server <- function(input, output, session) {
 		nodestatsServer('x', reactive(credentials), NULL)
 	}

@@ -34,12 +34,15 @@ server <- function(input, output, session) {
 		actionBttn(inputId='login_nav', label='Login', style='fill', color='success', block=FALSE, size='sm')
 	})
 	onclick('login_nav', updateTabItems(session, "sidebar", "account"))
-	account_is_premium <- premiumAccountReactive("prem_account", credentials, pool)
-	output$is_premium_account <- renderUI({
+	output$account_level <- renderUI({
 		req(credentials()$user_auth)
-		req(account_is_premium() == "true")
-		actionBttn(inputId='is_premium_account', label='Premium account', style='fill', color='success', block=FALSE, size='sm')
+		if (credentials()$premium) {
+			actionBttn(inputId='account_level', label='Premium account', style='fill', color='success', block=FALSE, size='sm')
+		} else {
+			actionBttn(inputId='account_level', label='Free account', style='fill', color='warning', block=FALSE, size='sm')
+		}
 	})
+	onclick('account_level', updateTabItems(session, "sidebar", "account"))
 
     runjs("
       $('.box').on('click', '.box-header h3', function() {
@@ -61,32 +64,34 @@ server <- function(input, output, session) {
 		}
 	})
 
-	observeEvent(input$sidebar, {
-		if (input$sidebar == "dashboard") {
-			dashboardServer('dashboard')
-		}
-		else if (input$sidebar == "account") {
-			accountServer("account", credentials)
-		}
-		else if (input$sidebar == "reports") {
-			reportServer('reports', credentials, endpoints$`lnplus-swap-minmax`)
-		}
-		else if (input$sidebar == "byoc") {
-			byocServer('byoc', credentials)
-		}
-		else if (input$sidebar == "nodestats") {
-			nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
-		}
-		else if (input$sidebar == "capfeesim") {
-			capfeesimServer('capfeesim', endpoints$`capfeesim-api`, credentials)
-		}
-		else if (input$sidebar == "rebalsim") {
-			rebalsimServer('rebalsim', endpoints$`rebalsim-api`, credentials)
-		}
-		else if (input$sidebar == "chansim") {
-			chansimServer('chansim', endpoints$`chansim-api`, credentials)
-		}
-	})
+	# what about grouped loading, like visuals as one?
+	observeEvent(req(input$sidebar == "dashboard"), {
+		dashboardServer('dashboard', credentials)
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "account"), {
+		accountServer("account", credentials)
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "reports"), {
+		reportServer('reports', credentials, endpoints$`lnplus-swap-minmax`)
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "sats4stats"), {
+		earnServer('sats4stats', credentials)
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "byoc"), {
+		byocServer('byoc', credentials)
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "nodestats"), {
+		nodestatsServer('nodestats', credentials, url_pubkey_search=query_pubkey())
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "capfeesim"), {
+		capfeesimServer('capfeesim', endpoints$`capfeesim-api`, credentials)
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "rebalsim"), {
+		rebalsimServer('rebalsim', endpoints$`rebalsim-api`, credentials)
+	}, once=TRUE)
+	observeEvent(req(input$sidebar == "chansim"), {
+		chansimServer('chansim', endpoints$`chansim-api`, credentials)
+	}, once=TRUE)
 
 	session$allowReconnect(TRUE)
 }

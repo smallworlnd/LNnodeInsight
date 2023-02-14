@@ -124,7 +124,7 @@ rebalsimUI <- function(id) {
 		),
 		column(4, align="center",
 			conditionalPanel(
-				"output.is_premium == 'false'", ns=ns,
+				"output.account_is_premium == 'false'", ns=ns,
 				upgradeButtonUI(NS(id, "ad_upgrade"))
 			)
 		)
@@ -303,9 +303,6 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 		output$sim_type_choice <- simTypeServer("sim_type")
 		outputOptions(output, "sim_type_choice", suspendWhenHidden=FALSE)
 
-		# start simulation reactive button
-		sim_start_button <- startButtonServer("launch_sim", "launch_sim_button")
-
 		# reactive output summary stats depending on active histogram tab
 		histo_tab <- reactive({input$histo_tab})
 		observe({
@@ -366,7 +363,7 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 				scatterPlotServer(id="scatter_tab_selected", plotId=x[1], xlab=x[2], ylab=x[3], xvar=x[4], yvar=x[5], sim_output)
 		)
 		# start the simulation when the start button is selected
-		sim_run <- eventReactive(sim_start_button(), {
+		sim_run <- eventReactive(startButtonServer("launch_sim", "launch_sim_button"), {
 			req(out_node() != "")
 			req(in_node() != "")
 			showModal(
@@ -387,7 +384,7 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 				invalidateLater(1000)
 			} else {
 				# short-circuit invoicing if account is premium
-				if (is_premium() == "true") {
+				if (credentials()$premium) {
 					sim_result_sub(sim_run()$get_result())
 				} else {
 					sim_result_nosub(sim_run()$get_result())
@@ -406,7 +403,7 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 		# display results if premium, else require that the invoice be paid to
 		# reactively show simulation results
 		sim_output <- eventReactive(c(invoice(), sim_result_sub()), {
-			if (is_premium() == "true") {
+			if (credentials()$premium) {
 				sim_result_sub()
 			} else {
 				req(invoice() == "Paid")
@@ -415,13 +412,18 @@ rebalsimServer <- function(id, api_info, credentials, db=pool) {
 		})
 
 		# determine if account is premium
-		is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		upgradeButtonServer("ad_upgrade",
 			p(HTML("Want to get unlimited access to this tool?<br/>Sign up!"), onclick="openTab('account')"))
-		output$is_premium <- premiumAccountReactive("prem_account", credentials, db)
-		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
+		output$account_is_premium <- eventReactive(credentials(), {
+			if (credentials()$premium) {
+				return("true")
+			} else {
+				return("false")
+			}
+		})
+		outputOptions(output, "account_is_premium", suspendWhenHidden=FALSE)
 		# change start button label depending on account status
-		startButtonLabelServer("start_sim", paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"), is_premium)
+		startButtonLabelServer("start_sim", paste('View simulation results for', as.numeric(Sys.getenv("REBALSIM_MSAT"))/1e3, "sats"), credentials)
 	})
 
 }
@@ -443,7 +445,7 @@ rebalsimApp <- function() {
 	)
 	credentials <- reactiveValues(
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE)
+		user_auth=TRUE, premium=TRUE)
 	server <- function(input, output, session) {
 		rebalsimServer('x', rebalsim_api_info, reactive(credentials))
 	}

@@ -1,0 +1,9 @@
+# Workflows {#workflows}
+
+**Under construction**
+
+In this section, we'll go through a couple scenarios that leverage all of the tools on [LNnodeInsight](https://lnnodeinsight.com) to identify candidate nodes to open channels to. To tackle that problem, it's a good idea to first figure out what you want to achieve. Here are a few questions to consider:
+
+- What kind of routing opportunity am I looking for?
+- What stage is my routing node at (total capacity, number of channels) and how much more will the node be growing?
+- What are my current peers like?

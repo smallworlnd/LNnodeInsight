@@ -30,29 +30,6 @@ report_filters <- data.frame(
 	filter_steps=c(0.1, 0.01, 1, 1, 1, 1, 1, 1, 1, 'all')
 	) %>% t %>% as.data.frame
 
-#' infobox UI element
-#'
-#' displays info about account upgrade
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's server function
-#' @return returns infobox output containing subscription information
-#' @export
-subInfoBox <- function(id) {
-	infoBoxOutput(NS(id, "sub_info"), width=NULL)
-}
-
-#' data table UI element
-#'
-#' used for centrality minmax reports
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's server function
-#' @param tableId the ID string corresponding to the lower level module function
-#' @return returns interactive data table output
-#' @export
-dataTableUI <- function(id, tableId) {
-	dataTableOutput(NS(id, tableId))
-}
-
 #' UI numeric range element for the various node filters
 #'
 #' @param id An ID string that corresponds with the ID used to call the module's server function
@@ -185,31 +162,17 @@ reportsUI <- function(id) {
 			conditionalPanel(
 				condition="output.account_is_auth == 'false' || output.account_is_premium == 'false'", ns=ns,
 				box(title=NULL, background='yellow', width=8,
-					column(10, subInfoBox(NS(id, "show_sub_info"))),
+					h2("Let us find optimal channel peers for you", align="center"),
 					br(),
-					column(2, align="center",
+					column(12, align="center",
 						upgradeButtonUI(NS(id, "ad_upgrade"))
-					)
+					),
+					br(),
+					h4(HTML(paste("Find out more", a("here", href="https://docs.lnnodeinsight.com/manuals.html#reports", target="_blank"))))
 				)
 			)
 		)
 	)
-}
-
-#' subcription infobox server
-#'
-#' @param id An ID string that corresponds with the ID used to call the module's UI function
-#' @return returns infobox render of subscription details
-#' @export
-subInfoServer <- function(id) {
-	moduleServer(id, function(input, output, session) {
-		output$sub_info <- renderInfoBox({
-			infoBox(
-				"", "Upgrade your account and see which nodes and LN+ swaps increase your centralities the most", icon=icon("exclamation"),
-				color = "yellow", fill=TRUE
-			)
-		})
-	})
 }
 
 swapRefreshButtonUI <- function(id) {
@@ -524,10 +487,15 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 			) %>% t %>% as.data.frame,
 			function(x) liquidityValueServer("liquidity_value_tab_selected", plotTitle=x[1], plotId=x[2], credentials=credentials())
 		)
-		upgradeButtonServer("ad_upgrade", p(HTML("Upgrade"), onclick="openTab('account')", style="text-align: center; height: 16px;"))
-		subInfoServer("show_sub_info")
-		output$account_is_premium <- premiumAccountReactive("prem_account", credentials, db)
-		output$account_is_auth <- reactive({
+		output$account_is_premium <- eventReactive(credentials(), {
+			if (credentials()$premium) {
+				return("true")
+			} else {
+				return("false")
+			}
+		})
+
+		output$account_is_auth <- eventReactive(credentials(), {
 			if (credentials()$user_auth) {
 				return("true")
 			} else {
@@ -536,11 +504,16 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 		})
 		outputOptions(output, "account_is_premium", suspendWhenHidden=FALSE)
 		outputOptions(output, "account_is_auth", suspendWhenHidden=FALSE)
+		observeEvent(credentials(), {
+			if (credentials()$user_auth) {
+				upgradeButtonServer("ad_upgrade", p(HTML("Upgrade account"), onclick="openTab('account')", style="text-align: center; height: 16px;"), btnSize='md')
+			} else {
+				upgradeButtonServer("ad_upgrade", p(HTML("Login to find out more"), onclick="openTab('account')", style="text-align: center; height: 16px;"), btnSize='sm')
+			}
+		})
 
-		# set up ln+ swap minmax button
-		lnplus_minmax_button <- startButtonServer("get_swap_minmax_report", buttonId="start_lnplus_minmax")
 		# on button press, compute latest lnplus swap minmax
-		lnplus_minmax_run <- eventReactive(lnplus_minmax_button(), {
+		lnplus_minmax_run <- eventReactive(startButtonServer("get_swap_minmax_report", buttonId="start_lnplus_minmax"), {
 			showModal(
 				modalDialog(
 					title="Started LN+ swap recommender",
@@ -575,11 +548,9 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 		observeEvent(filterOutput(), {
 			output$targets_num <- renderMinmaxFilterServer('report_filterbar', filterOutput())
 		})
-		node_filters_save <- startButtonServer("commit_minmax_filters", buttonId="update_minmax_filters")
-		node_filters_reset <- startButtonServer("reset_minmax_filters", buttonId="reset_minmax_filters")
-		observeEvent(node_filters_save(), {
+		observeEvent(startButtonServer("commit_minmax_filters", buttonId="update_minmax_filters"), {
 			filts <- userChangeFilters() %>% unlist %>% as.data.frame %>% t %>% as.data.frame
-			validate(need(sum(is.na(filts))==0, 'Some input values are missing'))
+			#validate(need(sum(is.na(filts))==0, 'Some input values are missing'))
 			names(filts) <- c("min.cap", "max.cap", "min.med.capacity", "max.med.capacity",
 				"min.fee.rate.out", "min.fee.rate.in", "max.fee.rate.out", "max.fee.rate.in", "min.num.channels", "max.num.channels",
 				"min.between", "max.between", "min.close", "max.close", "min.eigen", "max.eigen", "min.hops", "max.hops", "network.addr")
@@ -589,7 +560,7 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 			shinyjs::toggle(id="saved_filters", anim=TRUE, time=1, animType="fade")
 			shinyjs::delay(500, shinyjs::toggle(id="saved_filters", anim=TRUE, time=3, animType="fade"))
 		})
-		observeEvent(node_filters_reset(), {
+		observeEvent(startButtonServer("reset_minmax_filters", buttonId="reset_minmax_filters"), {
 			resetFilters("filters")
 		})
 	})
@@ -612,7 +583,7 @@ reportsApp <- function() {
 	)
 	credentials <- reactiveValues(
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE)
+		premium=TRUE, user_auth=TRUE)
 	server <- function(input, output, session) {
 		reportServer('x', reactive(credentials), lnplus_minmax_api_info)
 	}

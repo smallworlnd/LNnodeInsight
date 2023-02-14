@@ -45,7 +45,7 @@ capfeesimUI <- function(id) {
 				),
 				column(12, align="center",
 					conditionalPanel(
-						"output.is_premium == 'false'", ns=ns,
+						"output.account_is_premium == 'false'", ns=ns,
 						upgradeButtonUI(NS(id, "ad_upgrade"))
 					)
 				)
@@ -135,18 +135,20 @@ capfeesimServer <- function(id, api_info, credentials, db=pool) {
 		target <- getNodePubkey('node_select', "target")
 		lapply(c("subject", "target"), function(x) nodeListServer("node_select", listId=x))
 
-		is_premium <- premiumAccountReactive("prem_account", credentials, db)
 		upgradeButtonServer("ad_upgrade",
 			p(HTML("Want to automatically run this tool on potential peers?<br/>Sign up!"), onclick="openTab('account')"))
-		output$is_premium <- premiumAccountReactive("prem_account", credentials, db)
-		outputOptions(output, "is_premium", suspendWhenHidden=FALSE)
-		startButtonLabelServer("start_sim", paste('View suggestions for', as.numeric(Sys.getenv("CAPFEESIM_MSAT"))/1e3, "sats"), is_premium)
-
-		# start simulation reactive button
-		sim_start_button <- startButtonServer("launch_sim", "launch_sim_button")
+		output$account_is_premium <- eventReactive(credentials(), {
+			if (credentials()$premium) {
+				return("true")
+			} else {
+				return("false")
+			}
+		})
+		outputOptions(output, "account_is_premium", suspendWhenHidden=FALSE)
+		startButtonLabelServer("start_sim", paste('View suggestions for', as.numeric(Sys.getenv("CAPFEESIM_MSAT"))/1e3, "sats"), credentials)
 
 		# start the simulation when the start button is selected
-		sim_run <- eventReactive(sim_start_button(), {
+		sim_run <- eventReactive(startButtonServer("launch_sim", "launch_sim_button"), {
 			req(target() != "", subject() != "")
 			showModal(
 				modalDialog(
@@ -172,7 +174,7 @@ capfeesimServer <- function(id, api_info, credentials, db=pool) {
 					filter(pubkey==!!target()) %>%
 					filter(time==max(time)) %>%
 					as_tibble)
-				if (is_premium() == "true") {
+				if (credentials()$premium) {
 					isolate(sim_result_sub(sim_res_from_db))
 				} else {
 					isolate(sim_result_nosub(sim_res_from_db))
@@ -191,7 +193,7 @@ capfeesimServer <- function(id, api_info, credentials, db=pool) {
 		# display results if premium, else require that the invoice be paid to
 		# reactively show simulation results
 		sim_output <- eventReactive(c(invoice(), sim_result_sub()), {
-			if (is_premium() == "true") {
+			if (credentials()$premium) {
 				sim_result_sub()
 			} else {
 				req(invoice() == "Paid")
@@ -227,7 +229,7 @@ capfeesimApp <- function() {
 	)
 	credentials <- reactiveValues(
 		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		user_auth=TRUE, cookie_already_checked=FALSE)
+		user_auth=TRUE, premium=TRUE)
 		#info=NULL,
 		#user_auth=FALSE, cookie_already_checked=FALSE)
 	server <- function(input, output, session) {

@@ -1,0 +1,37 @@
+--- 
+title: "Welcome to the LNnodeInsight documentation"
+author: "smallworlnd"
+date: "Last update: `r Sys.Date()`"
+site: "bookdown::bookdown_site"
+documentclass: book
+favicon: images/favicon.ico
+github-repo: smallworlnd/LNnodeInsight
+---
+
+# Getting started
+
+This is the living reference book for the LNnodeInsight tool set built for Bitcoin Lightning Network (LN) node operators. It can also serve as a framework to better understand the common challenges to operating a LN node in an open, decentralized, peer-to-peer market, such as:
+
+- What are some trends among LN nodes that can help us understand how capital is deployed?
+- Where do I allocate capital so it can be effective?
+- How much capital do I allocate?
+- How do I price that capital initially?
+- How can I value deployed capital over time?
+
+## What's in the documentation?
+
+There isn't ever a single, clear answer to common challenges in running a node because the LN itself is a market that adapts to changing conditions (like mempool congestion, new players, new services) and evolves over time (like adopting a new spec, moving from HTLCs to PTLCs). No single node has access to all the inner workings of every other node--by design, because moving information off-chain is an inherent property of the LN to scale Bitcoin as a payments system. So now each node, operated by an individual or entity with their own strategies and behaviors, has a specific yet incomplete view of the network. Trying to decipher what's going on isn't easy.
+
+Figuring out how to deploy capital and maintain a routing node essentially means enabling borderless, instant settlement, peer-to-peer payments on a global scale. We all want that, don't we?
+
+- The [manuals](#manuals) section goes over all of the tools available at [LNnodeInsight](https://lnnodeinsight.com) to help routing node operators to make sense of the LN.
+
+- The [workflows](#workflows) section runs through a couple scenarios a routing node operator would encounter to demonstrate how multiple tools can work together to inform a decision. It would be a good idea to quickly look through the manuals to better understand the different pieces that make up a workflow.
+
+- The [how-to](#howto) section contains non-exhaustive information on how to do common tasks
+
+- The [API](#api) section goes over... the API!
+
+- The [glossary](#glossary) includes definitions for jargon commonly used in the LN routing world.
+
+- A page dedicated to other useful [resources](#other-resources)
