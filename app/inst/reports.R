@@ -168,7 +168,7 @@ reportsUI <- function(id) {
 						upgradeButtonUI(NS(id, "ad_upgrade"))
 					),
 					br(),
-					h4(HTML(paste("Find out more", a("here", href="https://docs.lnnodeinsight.com/manuals.html#reports", target="_blank"))))
+					h4(HTML(paste("Learn more", a("here", href="https://docs.lnnodeinsight.com/manuals.html#reports", target="_blank"))))
 				)
 			)
 		)
@@ -508,7 +508,7 @@ reportServer <- function(id, credentials, api_info, db=pool) {
 			if (credentials()$user_auth) {
 				upgradeButtonServer("ad_upgrade", p(HTML("Upgrade account"), onclick="openTab('account')", style="text-align: center; height: 16px;"), btnSize='md')
 			} else {
-				upgradeButtonServer("ad_upgrade", p(HTML("Login to find out more"), onclick="openTab('account')", style="text-align: center; height: 16px;"), btnSize='sm')
+				upgradeButtonServer("ad_upgrade", p(HTML("Login and upgrade"), onclick="openTab('account')", style="text-align: center; height: 16px;"), btnSize='sm')
 			}
 		})
 

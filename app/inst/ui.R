@@ -43,7 +43,6 @@ sidebar <- dashboardSidebar(
 			menuItem("API", href="https://docs.lnnodeinsight.com/api.html", icon=NULL)
 		),
 		menuItem("Contact", tabName="contact", icon=icon('comment'),
-			menuItem("Nostr"),
 			menuItem("Telegram", href="https://t.me/LNnodeInsight", icon=icon('telegram')),
 			menuItem("Twitter", href="https://twitter.com/smallworlnd", icon=icon('twitter')),
 			menuItem("Email", href="mailto:smallworlnd@protonmail.com", icon=icon('envelope')),

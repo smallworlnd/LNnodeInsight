@@ -197,6 +197,7 @@ accountServer <- function(id, credentials, db=pool) {
 						<li>A breakdown of your outbound liquidity value</li>
 						<li>Unlimited access to the rebalance simulator</li>
 						<li>Unlimited access to the past centrality ranks and Terminal Web ranks</li>
+						<li>Earn more sats than the current market bid for some node data</li>
 						<li>Automatic access to new features</li>
 						<li>To support a Bitcoin Lightning project!</li>
 						</ul>"),

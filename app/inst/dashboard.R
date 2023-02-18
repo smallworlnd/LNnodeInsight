@@ -56,28 +56,6 @@ dashboardUI <- function(id) {
 			tags$style(type = 'text/css', '.bg- {background-color: #FFFFFF !important; }'),
 			tags$style(HTML(".info-box-icon .img-local {position: absolute; top: auto; left: 15px; }")),
 			h2("Develop your own data-driven Lightning Network insight", align='center'),
-			h4("Discover network-wide statistics on nodes, interactively explore node local networks, measure the impact of opening or closing a channel, and identify potentially profitable opportunities", align='center'),
-			conditionalPanel(
-				"output.account_is_auth == 'false'", ns=ns,
-				h4(HTML(paste(icon("check"), "Log in to access additional features in the Build-Your-Own-Chart and Channel Simulator tools")), align="center")
-			),
-			conditionalPanel(
-				"output.account_is_premium == 'false'", ns=ns,
-				fluidRow(
-					column(6, style="padding: 43px;",
-						h4(HTML(paste(icon("check"), "Upgrade your account to get access to these features:" )), align="right")
-					),
-					column(6, h4(
-						tags$ul(
-							tags$li("Automated channel simulations with fee and capacity recommendations to find optimal peers"),
-							tags$li("Find optimal LightningNetwork+ swaps on-demand"),
-							tags$li("Automated capacity-fee simulator runs on your peers"),
-							tags$li("Measure the value of outbound liquidity to your peers"),
-							tags$li("Get unlimited access to all LNnodeInsight tools")),
-						align="left")
-					)
-				)
-			),
 			h3('Visuals'),
 			fluidRow(
 				lapply(c("byoc", "nodestats"), function(x) appLinkUI(NS(id, "local_apps"), x))
@@ -85,6 +63,10 @@ dashboardUI <- function(id) {
 			h3('Simulators'),
 			fluidRow(
 				lapply(c("chansim", "rebalsim", "capfeesim"), function(x) appLinkUI(NS(id, "local_apps"), x))
+			),
+			h3('Sats4stats'),
+			fluidRow(
+				lapply(c("sats4stats"), function(x) appLinkUI(NS(id, "local_apps"), x))
 			),
 			h3('Community tools'),
 			fluidRow(
@@ -173,15 +155,17 @@ dashboardServer <- function(id, credentials, db=pool) {
 		)
 		lapply(
 			data.frame(
-				boxId=c("byoc", "nodestats", "rebalsim", "chansim", "capfeesim"),
-				boxTitle=c("Build your own chart", "Node stats", "Payment/rebalance simulator", "Channel simulator", "Capacity-Fee simulator"),
+				boxId=c("byoc", "nodestats", "rebalsim", "chansim", "capfeesim", "sats4stats"),
+				boxTitle=c("Build your own chart", "Node stats", "Payment/rebalance simulator", "Channel simulator", "Capacity-Fee simulator", "Earn sats for channel probes"),
 				boxSubtitle=c(
 					"Explore network-wide node data and gather insight on trends and correlations",
 					"Explore your node's local network and gain insight on peers",
 					"Estimate the potential cost of a payment or rebalance to gain insight on liquidity demand and bottlenecks",
 					"Simulate opening or closing a channel on your node to measure influence in the network",
-					"Get recommendations on fees and capacity for a new channel or use those results to judge the value of your liquidity in existing channels"),
-				linkIcon=c("chart-bar", "project-diagram", "calculator", "edit", "bullseye")
+					"Get recommendations on fees and capacity for a new channel or use those results to judge the value of your liquidity in existing channels",
+					paste("Current market bid up to", Sys.getenv("ROUTERMC_BID"), "sats and", Sys.getenv("ROUTERMC_PREM_BID"), "sats for premium accounts")
+				),
+				linkIcon=c("chart-bar", "project-diagram", "calculator", "edit", "bullseye", "search")
 			) %>% t %>% as.data.frame,
 			function(x) localAppServer("local_apps", x[1], x[2], x[3], x[4])
 		)

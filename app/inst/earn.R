@@ -53,7 +53,14 @@ earnUI <- function(id) {
 						upgradeButtonUI(NS(id, "ad_upgrade"))
 					),
 					br(),
-					h4(HTML(paste("Requires a WebLN provider like", a("Alby", href="https://getalby.com/", target="_blank"))))
+					fluidRow(
+						column(6, align="left",
+							h5(HTML(paste("Requires a WebLN provider like", a("Alby", href="https://getalby.com/", target="_blank"))))
+						),
+						column(6, align="right",
+							h5(HTML(paste("Data", a("disclosure", href="https://docs.lnnodeinsight.com/manuals.html#sats4statsdata", target="_blank"))))
+						)
+					)
 				)
 			)
 		),
@@ -72,7 +79,8 @@ earnUI <- function(id) {
 			column(12,
 				h3("Submission history"),
 				dataTableUI(NS(id, "show_data_submissions"), "data_submission_table")
-			)
+			),
+			p(HTML(paste("Data", a("disclosure", href="https://docs.lnnodeinsight.com/manuals.html#sats4statsdata", target="_blank"))))
 		),
 	)
 }
@@ -266,10 +274,10 @@ earnApp <- function() {
 		skin='yellow',
 	)
 	credentials <- reactiveValues(
-		info=data.frame(pubkey=test_pubkey, foo="bar"),
-		premium=TRUE, user_auth=TRUE)
-		#info=data.frame(pubkey="", foo="bar"),
-		#user_auth=FALSE, premium=FALSE)
+		#info=data.frame(pubkey=test_pubkey, foo="bar"),
+		#premium=TRUE, user_auth=TRUE)
+		info=data.frame(pubkey="", foo="bar"),
+		user_auth=FALSE, premium=FALSE)
 	server <- function(input, output, session) {
 		earnServer('x', reactive(credentials))
 	}

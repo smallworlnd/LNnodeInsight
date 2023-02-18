@@ -271,15 +271,39 @@ By comparing both the passive and active distributions We can tell that this nod
 
 ## Sats4stats {#sats4stats}
 
-Routing fees and selling channels are not the only sources of income possible for routing nodes. Information gathered by routing nodes is also valuable. [LNnodeInsight](https://lnnodeinsight.com) is offering to buy routing node Mission Control data (currently limited to `lnd` nodes, other implementations in the future!). But why MC data? Liquidity tests are inherent to the LN right now. They're needed to be able to maintain a routing node, which means liquidity tests are a form of work, and that Proof-of-Work has value. MC data also offers a good privacy balance. It doesn't reveal forwards, channel balances or payment outcomes.
+Routing fees and selling channels are not the only sources of income possible for routing nodes. Information gathered by routing nodes is also valuable. [LNnodeInsight](https://lnnodeinsight.com) is offering to buy routing node Mission Control data (currently limited to `lnd` nodes, other implementations in the future!). But why MC data? Liquidity tests are inherent to the LN right now. They're needed to be able to maintain a routing node, which means liquidity tests are a form of work, and that Proof-of-Work has value.
 
-Here's the current payout framework^[Amounts subject to change]:
-
-- Free accounts can earn up to 100 sats per submission
-- Subscribers can earn up to 500 sats (!!!) per submission
+The current market bid can be found on the front page of [LNnodeInsight](https://lnnodeinsight.com), and is subject to change.
 
 So how does it work? First, you'll need to login. Then, head to the Sats4stats tab, and initiate the sale. Simple! Here's a video demonstration:
 
 <iframe width="720" height="480" src="images/lnni-earn-demo.mp4" align="middle" frameborder="0" allowfullscreen></iframe>
 
 Why give something away for free (or even throw it away!) when you can get paid for it?!
+
+### Which types of data can be sold? {#sats4statsdata}
+
+We strive to be as transparent as possible with the type of data we are willing to buy, and what the implications are (privacy-wise and other), so that node operators can make well-informed decisions. Currently, we're offering to buy Mission Control data, which is just a record of previous channel probes used to inform the pathfinding algorithm in making a payment. We encourage you to explore this data for yourself by running the `querymc` command with `lncli` (e.g., `/path/to/lncli querymc`). Here's what a typical entry looks like:
+
+```
+{
+	"node_from": "pubkeyA",
+	"node_to": "pubkeyB",
+	"history": {
+		"fail_time": "0",
+		"fail_amt_sat": "0",
+		"fail_amt_msat": "0",
+		"success_time": "0123456789",
+		"success_amt_sat": "100",
+		"success_amt_msat": "100000"
+	}
+}
+```
+
+This entry is telling us that we were able to successfully send 100 sats between `pubkeyA` and `pubkeyB`. Most importantly, we can see that:
+
+- Probes does not reveal forwarding information
+- Channel balances are not a feature of this data
+- Payment outcome is not visible, in other words we don't know if this probe is part of a payment that was successful or failed
+- We don't know if `pubkeyB` is the destination or just a hop
+- Entries are disjointed from each other, therefore paths cannot be confidently reconstructed
