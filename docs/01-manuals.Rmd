@@ -273,7 +273,9 @@ By comparing both the passive and active distributions We can tell that this nod
 
 Routing fees and selling channels are not the only sources of income possible for routing nodes. Information gathered by routing nodes is also valuable. [LNnodeInsight](https://lnnodeinsight.com) is offering to buy routing node Mission Control data (currently limited to `lnd` nodes, other implementations in the future!). But why MC data? Liquidity tests are inherent to the LN right now. They're needed to be able to maintain a routing node, which means liquidity tests are a form of work, and that Proof-of-Work has value.
 
-The current market bid can be found on the front page of [LNnodeInsight](https://lnnodeinsight.com), and is subject to change.
+The current market bid^[Amounts subject to change] can be found on the front page of [LNnodeInsight](https://lnnodeinsight.com):
+
+![](images/sats4stats-current-bid.png)
 
 So how does it work? First, you'll need to login. Then, head to the Sats4stats tab, and initiate the sale. Simple! Here's a video demonstration:
 
