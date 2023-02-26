@@ -1,0 +1,502 @@
+servers:
+  - url: https://api.lnnodeinsight.com
+openapi: 3.0.3
+info:
+  title: LNnodeInsight API
+  description: |
+
+    # Authentication
+
+    LNnodeInsight currently offers authentication by API key
+
+    <SecurityDefinitions />
+
+  termsOfService: https://lnnodeinsight.com
+  contact:
+    name: API Support
+    url: https://lnnodeinsight.com
+    email: smallworlnd@protonmail.com
+  version: 1.0.0
+paths:
+  /sats4stats/probes:
+    post:
+      summary: Sats4probes
+      description: Get sats for your probes collected by the Mission Control daemon
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  receipt:
+                    type: object
+                    properties:
+                      settlement_time:
+                        description: The timestamp
+                        allOf:
+                          - $ref: '#/components/schemas/UnixTimestamp'
+                      amount:
+                        description: The amount that was paid out for the submission
+                        type: integer
+                        example: 420
+                      hash:
+                        description: The payment hash
+                        example: a62f09cd09c60e76c0d86dc8cd8e55a18c9ca7a7454560c1bd510e128f3baf61
+                        type: string
+        "401":
+          description: Authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrors'
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrors'
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+      tags:
+        - Sats4stats
+      security:
+        - api_key: []
+      x-codeSamples:
+        - lang: 'cURL'
+          source: |
+            # Run this command from your node
+            # Make sure `lncli` is in your path,
+            # or specify the path to `lncli`
+            lncli querymc | \
+              curl "http://api.lnnodeinsight.com/v1/sats4stats/probes" \ 
+              -H "Content-Type: application/json" \
+              -H 'api-key: your-api-key' \
+              -i -X POST -d @-
+        - lang: 'Python'
+          source: |
+            import base64, codecs, json, requests
+
+            REST_HOST = 'localhost:8080'
+            MACAROON_PATH = 'LND_DIR/data/chain/bitcoin/mainnet/admin.macaroon'
+            TLS_PATH = 'LND_DIR/tls.cert'
+
+            url = f'https://{REST_HOST}/v2/router/mc'
+            macaroon = codecs.encode(open(MACAROON_PATH, 'rb').read(), 'hex')
+            headers = {'Grpc-Metadata-macaroon': macaroon}
+            mc = requests.get(url, headers=headers, verify=TLS_PATH)
+
+            endpoint = "http://api.lnnodeinsight.com/v1/sats4stats/probes"
+            headers = {
+                "Content-Type": "application/json",
+                "api-key": "your-api-key"
+            }
+
+            response = requests.post(url, headers=headers, data=mc)
+            print(response.text)
+        - lang: 'Javascript'
+          source: |
+            const fetch = require('node-fetch');
+            const fs = require('fs');
+            const path = require('path');
+
+            const REST_HOST = 'localhost:8080';
+            const MACAROON_PATH = 'LND_DIR/data/chain/bitcoin/mainnet/admin.macaroon';
+            const TLS_PATH = 'LND_DIR/tls.cert';
+
+            const url = `https://${REST_HOST}/v2/router/mc`;
+            const macaroon = fs.readFileSync(MACAROON_PATH).toString('hex');
+            const headers = { 'Grpc-Metadata-macaroon': macaroon };
+            const options = { headers, agent: new https.Agent({ ca: fs.readFileSync(TLS_PATH) }) };
+
+            fetch(url, options)
+              .then((res) => res.json())
+              .then((mc) => {
+                const endpoint = 'http://api.lnnodeinsight.com/v1/sats4stats/probes';
+                const headers = {
+                  'Content-Type': 'application/json',
+                  'api-key': 'your-api-key',
+                };
+                const options = { headers, body: JSON.stringify(mc), method: 'POST' };
+                return fetch(endpoint, options);
+              })
+              .then((res) => res.text())
+              .then((text) => console.log(text))
+              .catch((err) => console.error(err));
+        - lang: 'Go'
+          source: |
+            import (
+                "encoding/hex"
+                "encoding/json"
+                "io/ioutil"
+                "net/http"
+            )
+
+            const (
+                restHost     = "localhost:8080"
+                macaroonPath = "LND_DIR/data/chain/bitcoin/mainnet/admin.macaroon"
+                tlsPath      = "LND_DIR/tls.cert"
+            )
+
+            func main() {
+                mc, err := ioutil.ReadFile(macaroonPath)
+
+                url := "https://" + restHost + "/v2/router/mc"
+                req, err := http.NewRequest("GET", url, nil)
+                req.Header.Set("Grpc-Metadata-macaroon", hex.EncodeToString(mc))
+
+                client := &http.Client{}
+                resp, err := client.Do(req)
+                defer resp.Body.Close()
+
+                endpoint := "http://api.example.com/endpoint"
+                data := map[string]interface{}{
+                    "key": "value",
+                }
+                payload, err := json.Marshal(data)
+
+                req, err = http.NewRequest("POST", endpoint, bytes.NewBuffer(payload))
+                req.Header.Set("Content-Type", "application/json")
+                req.Header.Set("api-key", "your-api-key")
+
+                resp, err = client.Do(req)
+                defer resp.Body.Close()
+
+                body, err := ioutil.ReadAll(resp.Body)
+                fmt.Println(string(body))
+            }
+  /sats4stats/payouts:
+    get:
+      summary: Payout info
+      description: Get info about previous sats4stats payouts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payouts:
+                    type: object
+                    properties:
+                      date_submitted:
+                        description: The timestamp
+                        allOf:
+                          - $ref: '#/components/schemas/UnixTimestamp'
+                      details:
+                        type: object
+                        properties:
+                          data_type:
+                            description: The type of node data
+                            type: string
+                            example: Router Mission Control
+                          amount:
+                            description: The amount that was paid out for the submission
+                            type: integer
+                            example: 420
+                          hash:
+                            description: The payment hash
+                            type: string
+                            example: a62f09cd09c60e76c0d86dc8cd8e55a18c9ca7a7454560c1bd510e128f3baf61
+        "401":
+          description: Authorization error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthErrors'
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: string
+      tags:
+        - Sats4stats
+      security:
+        - api_key: []
+      x-codeSamples:
+        - lang: 'cURL'
+          source: |
+            curl "http://api.lnnodeinsight.com/v1/sats4stats/payouts" \ 
+              -H 'api-key: your-api-key-here' \
+              -i -X GET
+        - lang: 'Python'
+          source: |
+            import requests
+
+            url = "https://api.lnnodeinsight.com/v1/sats4stats/payouts"
+            headers = {'api-key': 'your-api-key'}
+
+            response = requests.get(url, headers=headers)
+            print(response.text)
+        - lang: 'Javascript'
+          source: |
+            const resp = await fetch(
+              `https://api.lnnodeinsight.com/v1/sats4stats/payouts`,
+              {
+                method: 'GET',
+                headers: {
+                  'api-key': 'your-api-key-here'
+                }
+              }
+            );
+
+            const data = await resp.json();
+            console.log(data);
+        - lang: 'Go'
+          source: |
+            package main
+
+            import (
+                "encoding/json"
+                "fmt"
+                "net/http"
+            )
+
+            func main() {
+                url := "https://api.lnnodeinsight.com/v1/sats4stats/payouts"
+                req, err := http.NewRequest("GET", url, nil)
+
+                req.Header.Set("api-key", "your-api-key-here")
+
+                client := &http.Client{}
+                resp, err := client.Do(req)
+                defer resp.Body.Close()
+
+                var data interface{}
+                err = json.NewDecoder(resp.Body).Decode(&data)
+
+                fmt.Println(data)
+            }
+  /stats/ln-summary-ts:
+    get:
+      summary: Nodes/Channels/Capacity
+      description: Pull historical summary information about publicly announced total capacity, nodes and channels
+      responses:
+        "200":
+          description: Historical summary information on total capacity, number of nodes and channels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ln_summary:
+                    type: object
+                    properties:
+                      time:
+                        description: The timestamp
+                        allOf:
+                          - $ref: '#/components/schemas/UnixTimestamp'
+                      stats:
+                        type: object
+                        properties:
+                          node_count:
+                            type: integer
+                            example: 10000
+                            description: The total number of publicly visible nodes
+                          channel_count:
+                            type: integer
+                            example: 40000
+                            description: The total number of publicly visible channels
+                          total_capacity:
+                            type: double
+                            example: 214204206969
+                            description: The total publicly visible capacity in sats
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: string
+      parameters: []
+      tags:
+        - Summary Stats
+      x-codeSamples:
+        - lang: 'cURL'
+          source: |
+            curl "https://api.lnnodeinsight.com/v1/stats/ln-summary-ts" -i -X GET
+        - lang: 'Python'
+          source: |
+            import requests
+
+            url = "https://api.lnnodeinsight.com/v1/stats/ln-summary-ts"
+            response = requests.get(url)
+            print(response.text)
+        - lang: 'Javascript'
+          source: |
+            const resp = await fetch(
+              `https://api.lnnodeinsight.com/v1/stats/ln-summary-ts`,
+              {method: 'GET'}
+            );
+
+            const data = await resp.text();
+            console.log(data);
+        - lang: 'Go'
+          source: |
+            package main
+
+            import (
+                "fmt"
+                "io/ioutil"
+                "net/http"
+            )
+
+            func main() {
+                resp, _ := http.Get("https://api.lnnodeinsight.com/v1/stats/ln-summary-ts")
+                defer resp.Body.Close()
+
+                data, _ := ioutil.ReadAll(resp.Body)
+
+                fmt.Println(string(data))
+            }
+  /stats/centralities:
+    get:
+      summary: Centralities
+      description: Pull current centrality information computed by LNnodeInsight for all publicly visible nodes
+      responses:
+        "200":
+          description: Current centrality information for publicly visible nodes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  centralities:
+                    type: object
+                    properties:
+                      pubkey:
+                        type: string
+                        example: 03899f4a6c679c3a1bea61c3ba7bb0ac560f3d420286d1d898c5f83b8e0830844f
+                        description: The node's public key
+                      ranks:
+                        type: object
+                        properties:
+                          cent_between_rank:
+                            type: integer
+                            example: 420
+                            description: The node's betweenness centrality rank
+                          cent_between_weight_rank:
+                            type: integer
+                            example: 420
+                            description: The node's capacity-weighted betweenness centrality rank
+                          cent_close_rank:
+                            type: integer
+                            example: 69
+                            description: The node's closeness centrality rank
+                          cent_close_weight_rank:
+                            type: integer
+                            example: 69
+                            description: The node's capacity-weighted closeness centrality rank
+                          cent_eigen_rank:
+                            type: integer
+                            example: 21
+                            description: The node's eigenvector centrality rank
+                          cent_eigen_weight_rank:
+                            type: integer
+                            example: 21
+                            description: The node's capacity-weighted eigenvector centrality rank
+                          graph_timestamp:
+                            description: The timestamp
+                            allOf:
+                              - $ref: '#/components/schemas/UnixTimestamp'
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: string
+      parameters: []
+      tags:
+        - Summary Stats
+      x-codeSamples:
+        - lang: 'cURL'
+          source: |
+            curl "https://api.lnnodeinsight.com/v1/stats/centralities" -i -X GET
+        - lang: 'Python'
+          source: |
+            import requests
+
+            url = "https://api.lnnodeinsight.com/v1/stats/centralities"
+            response = requests.get(url)
+            print(response.text)
+        - lang: 'Javascript'
+          source: |
+            const resp = await fetch(
+              `https://api.lnnodeinsight.com/v1/stats/centralities`,
+              {method: 'GET'}
+            );
+
+            const data = await resp.text();
+            console.log(data);
+        - lang: 'Go'
+          source: |
+            package main
+
+            import (
+                "fmt"
+                "io/ioutil"
+                "net/http"
+            )
+
+            func main() {
+                resp, _ := http.Get("https://api.lnnodeinsight.com/v1/stats/centralities")
+                defer resp.Body.Close()
+
+                data, _ := ioutil.ReadAll(resp.Body)
+
+                fmt.Println(string(data))
+            }
+tags:
+  - name: Summary Stats
+    description: Summary statistics for nodes and for the whole network
+  - name: Sats4stats
+    description: Sats4stats operations
+components:
+  schemas:
+    UnixTimestamp:
+      type: number
+      format: int32
+      example: 1592312018
+      description: A unix timestamp in seconds
+    AuthErrors:
+      type: object
+      description: Authorization error description
+      properties:
+        code:
+          type: integer
+          example: 401
+          description: Authentication error code
+        message:
+          type: string
+          example: Authentication failed
+          description: The message associated with the authentication error
+    ValidationErrors:
+      type: object
+      description: Data validation error description
+      properties:
+        code:
+          type: integer
+          example: 422
+          description: Validation error code
+        message:
+          type: string
+          example: Did not receive any data
+          description: The message associated with the validation error
+  securitySchemes:
+    api_key:
+      description: |
+        Manage your API keys on the Account page at https://lnnodeinsight.com
+      type: apiKey
+      name: api-key
+      in: header

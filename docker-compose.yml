@@ -40,7 +40,8 @@ services:
       - "443:443"
     volumes:
       - $PWD/Caddyfile:/etc/caddy/Caddyfile
-      - $PWD/docs/build:/var/www
+      - $PWD/docs/ui/build:/var/www/ui
+      - $PWD/docs/api:/var/www/api
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

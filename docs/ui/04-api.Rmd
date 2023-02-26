@@ -1,0 +1,7 @@
+# API {#api}
+
+Our API documentation is available at https://api.lnnodeinsight.com
+
+## Authentication {#apiauth}
+
+Access to the REST API is managed with an API key. To generate a new API key, navigate to the 'Account' page at https://lnnodeinsight.com, scroll down and click on 'Generate API key'.

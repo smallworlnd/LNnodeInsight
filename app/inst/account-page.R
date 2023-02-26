@@ -20,7 +20,7 @@ accountHeaderUI <- function(id) {
 #' @param tableId the ID string corresponding to the lower level module function
 #' @return returns simple table output of previous account activity
 #' @export
-tableUI <- function(id, tableId) {
+accountTableUI <- function(id, tableId) {
 	tableOutput(NS(id, tableId))
 }
 
@@ -47,14 +47,29 @@ accountUI <- function(id) {
 		column(8, offset=2,
 			conditionalPanel(
 				condition="output.account_is_auth == 'true'", ns=ns,
-				box(title=NULL, background='yellow', width=12,
-					accountHeaderUI(NS(id, "account_header")),
-					tableUI(NS(id, "account_status"), "account"),
-					conditionalPanel(
-						condition="output.account_is_premium == 'false'", ns=ns,
-						br(),
-						column(12, align="center",
-							startButtonUI(NS(id, "subscribe_button"), buttonId="action_button", lab="Upgrade account")
+				fluidRow(
+					column(12,
+						box(title=NULL, background='yellow', width=NULL,
+							accountHeaderUI(NS(id, "account_header")),
+							accountTableUI(NS(id, "account_status"), "account"),
+							conditionalPanel(
+								condition="output.account_is_premium == 'false'", ns=ns,
+								br(),
+								column(12, align="center",
+									startButtonUI(NS(id, "subscribe_button"), buttonId="action_button", lab="Upgrade account")
+								),
+							)
+						),
+					)
+				),
+				fluidRow(
+					column(12,
+						box(title=NULL, background='yellow', width=NULL,
+							h4(strong("API access")),
+							accountTableUI(NS(id, "account_keys"), "keys"),
+							column(12, align="center",
+								startButtonUI(NS(id, "generate_key_button"), buttonId="key_button", lab="Generate API key")
+							),
 						),
 					)
 				)
@@ -107,6 +122,30 @@ accountHeaderServer <- function(id, credentials, db=pool) {
 			node_alias <- tbl(db, "nodes_current") %>% filter(pubkey==!!pull(credentials$info[1])) %>% pull(alias)
 			p(style="text-align: left; font-size: 20px", strong(node_alias))
 		})
+	})
+}
+
+#' account api key information server
+#'
+#' summarises api key information related to the account
+#'
+#' @param id An ID string that corresponds with the ID used to call the module's UI function
+#' @param credentials login status from \link{loginServer}
+#' @param db sql db
+#' @return returns renderTable server for account information
+#' @export
+apiKeyTableServer <- function(id, credentials, db=pool) {
+	moduleServer(id, function(input, output, session) {
+		output$keys <- renderTable({
+			req(credentials$user_auth)
+			tbl(pool, "api_keys") %>%
+				filter(pubkey==!!pull(credentials$info[1])) %>%
+				dplyr::select(api_key, issue_date, expiry_date) %>%
+				collect %>%
+				mutate(api_key=paste0(substr(api_key, 1, 10), "......", substr(api_key, nchar(api_key)-10, nchar(api_key)))) %>%
+				mutate_at(vars(issue_date, expiry_date), ~format(as_datetime(., tz="UTC"), "%B %d, %Y")) %>%
+				dplyr::rename("API key"="api_key", "Date issued"="issue_date", "Expiration date"="expiry_date")
+		}, spacing="l", width="100%", align="c")
 	})
 }
 
@@ -167,6 +206,7 @@ accountServer <- function(id, credentials, db=pool) {
 	moduleServer(id, function(input, output, session) {
 		accountHeaderServer("account_header", credentials(), db=pool)
 		accountTableServer("account_status", credentials(), db=pool)
+		apiKeyTableServer("account_keys", credentials(), db=pool)
 		subInfoServer("show_sub_info")
 		output$account_is_premium <- eventReactive(credentials(), {
 			if (credentials()$premium) {
@@ -258,6 +298,31 @@ accountServer <- function(id, credentials, db=pool) {
 		# refresh page to reflect account changes
 		observeEvent(input$done, {
 			refresh()
+		})
+
+		observeEvent(startButtonServer("generate_key_button", buttonId="key_button"), {
+			ns <- session$ns
+			new_key <- tibble(
+				pubkey=credentials()$info[1]$pubkey,
+				api_key=stri_rand_strings(1, 64, pattern = "[A-Za-z0-9]"),
+				issue_date=as.numeric(now()),
+				expiry_date=as.numeric(now()+months(6))
+			)
+			dbWriteTable(db, "api_keys", new_key, overwrite=FALSE, append=TRUE)
+			showModal(
+				modalDialog(
+					rclipboardSetup(),
+					title="New API key generated!",
+					column(12, align="center", code(new_key$api_key)),
+					br(), br(),
+					column(12, align="right", em("Visible only once")),
+					footer=tagList(
+						rclipButton(ns("new_key_clipbtn"), "Copy", new_key$api_key, icon("clipboard"), modal=TRUE),
+						modalActionButton(ns("new_key_done"), "Done")
+					)
+				)
+			)
+			apiKeyTableServer("account_keys", credentials(), db=pool)
 		})
 	})
 }
