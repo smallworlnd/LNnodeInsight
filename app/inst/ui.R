@@ -40,7 +40,7 @@ sidebar <- dashboardSidebar(
 		menuItem("Resources", tabName="resources", icon=icon('question'),
 			menuItem("FAQ", href="https://docs.lnnodeinsight.com/howto.html", icon=NULL),
 			menuItem("Documentation", href="https://docs.lnnodeinsight.com", icon=NULL),
-			menuItem("API", href="https://docs.lnnodeinsight.com/api.html", icon=NULL)
+			menuItem("API", href="https://api.lnnodeinsight.com", icon=NULL)
 		),
 		menuItem("Contact", tabName="contact", icon=icon('comment'),
 			menuItem("Telegram", href="https://t.me/LNnodeInsight", icon=icon('telegram')),

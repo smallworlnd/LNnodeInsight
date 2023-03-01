@@ -457,6 +457,76 @@ paths:
 
                 fmt.Println(string(data))
             }
+  /sats4stats/bidinfo:
+    get:
+      summary: Bid info
+      description: Get the latest bid numbers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routermc:
+                    type: object
+                    properties:
+                      premium_accounts:
+                        type: integer
+                        example: 1200
+                        description: Earn up to this amount with a premium account
+                      free_accounts:
+                        type: integer
+                        example: 700
+                        description: Earn up to this amount with a free account
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: string
+      parameters: []
+      tags:
+        - Sats4stats
+      x-codeSamples:
+        - lang: 'cURL'
+          source: |
+            curl "https://api.lnnodeinsight.com/v1/sats4stats/bidinfo" -i -X GET
+        - lang: 'Python'
+          source: |
+            import requests
+
+            url = "https://api.lnnodeinsight.com/v1/sats4stats/bidinfo"
+            response = requests.get(url)
+            print(response.text)
+        - lang: 'Javascript'
+          source: |
+            const resp = await fetch(
+              `https://api.lnnodeinsight.com/v1/sats4stats/bidinfo`,
+              {method: 'GET'}
+            );
+
+            const data = await resp.text();
+            console.log(data);
+        - lang: 'Go'
+          source: |
+            package main
+
+            import (
+                "fmt"
+                "io/ioutil"
+                "net/http"
+            )
+
+            func main() {
+                resp, _ := http.Get("https://api.lnnodeinsight.com/v1/sats4stats/bidinfo")
+                defer resp.Body.Close()
+
+                data, _ := ioutil.ReadAll(resp.Body)
+
+                fmt.Println(string(data))
+            }
 tags:
   - name: Summary Stats
     description: Summary statistics for nodes and for the whole network

@@ -164,3 +164,17 @@ function(req, res) {
 		nest_by(date_submitted, .key='details')
 	return(list(payouts=payouts))
 }
+
+#* Current bid values
+#* @preempt checkAuth
+#* @get /bidinfo
+function(req, res) {
+	return(
+    list(
+      routermc=list(
+        premium_accounts=as.numeric(Sys.getenv("ROUTERMC_PREM_BID")),
+        free_accounts=as.numeric(Sys.getenv("ROUTERMC_BID"))
+      )
+    )
+  )
+}

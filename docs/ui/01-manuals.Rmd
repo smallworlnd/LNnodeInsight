@@ -277,7 +277,12 @@ The current market bid^[Amounts subject to change] can be found on the front pag
 
 ![](images/sats4stats-current-bid.png)
 
-So how does it work? First, you'll need to login. Then, head to the Sats4stats tab, and initiate the sale. Simple! Here's a video demonstration:
+So how does it work? There are two ways to get sats4stats:
+
+- Using the [API](https://api.lnnodeinsight.com).
+- Use a WebLN provider like [Alby](https://getalby.com)
+
+Either way, you'll first need to login. If you're using the API, you can generate a key on the 'Account' page. If you're using a WebLN provider like Alby, head to the Sats4stats tab, and initiate the sale. Simple! Here's a video demonstration:
 
 <iframe width="720" height="480" src="images/lnni-earn-demo.mp4" align="middle" frameborder="0" allowfullscreen></iframe>
 

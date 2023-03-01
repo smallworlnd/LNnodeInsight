@@ -55,7 +55,7 @@ earnUI <- function(id) {
 					br(),
 					fluidRow(
 						column(6, align="left",
-							h5(HTML(paste("Requires a WebLN provider like", a("Alby", href="https://getalby.com/", target="_blank"))))
+							h5(HTML(paste("Requires a WebLN provider like", a("Alby", href="https://getalby.com/", target="_blank"), "or use the", a("API", href="https://api.lnnodeinsight.com", target="_blank"))))
 						),
 						column(6, align="right",
 							h5(HTML(paste("Data", a("disclosure", href="https://docs.lnnodeinsight.com/manuals.html#sats4statsdata", target="_blank"))))
@@ -74,6 +74,7 @@ earnUI <- function(id) {
 					column(12, align='center',
 						startButtonUI(id=NS(id, 'data_upload_request'), buttonId="data_upload_start_button", lab="Initiate sale")
 					),
+          column(12, align="right", HTML(paste("* Or use the", a("API", href="https://api.lnnodeinsight.com", target="_blank"))))
 				),
 			),
 			column(12,
@@ -274,10 +275,10 @@ earnApp <- function() {
 		skin='yellow',
 	)
 	credentials <- reactiveValues(
-		#info=data.frame(pubkey=test_pubkey, foo="bar"),
-		#premium=TRUE, user_auth=TRUE)
-		info=data.frame(pubkey="", foo="bar"),
-		user_auth=FALSE, premium=FALSE)
+		info=data.frame(pubkey=test_pubkey, foo="bar"),
+		premium=TRUE, user_auth=TRUE)
+		#info=data.frame(pubkey="", foo="bar"),
+		#user_auth=FALSE, premium=FALSE)
 	server <- function(input, output, session) {
 		earnServer('x', reactive(credentials))
 	}
