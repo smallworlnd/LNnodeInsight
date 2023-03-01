@@ -44,9 +44,12 @@ function() {
 #* @get /centralities
 #* @response 200 Current centrality information for publicly visible nodes
 function() {
+  graph_timestamp <- tbl(pool, "nodes_current") %>%
+    head(1) %>% collect %>%
+    mutate(unixtime=as.numeric(as.POSIXct(time))) %>%
+    pull(unixtime)
 	cents <- tbl(pool, "nodes_current") %>%
 		dplyr::select(
-			time,
 			pubkey,
 			cent.between.rank,
 			cent.between.weight.rank,
@@ -55,10 +58,7 @@ function() {
 			cent.eigen.rank,
 			cent.eigen.weight.rank) %>%
 		as_tibble %>%
-		mutate(unixtime=as.numeric(as.POSIXct(time))) %>%
-		dplyr::select(-time) %>%
 		rename(c(
-			'graph_timestamp'='unixtime',
 			'cent_between_rank'='cent.between.rank',
 			'cent_close_rank'='cent.close.rank',
 			'cent_eigen_rank'='cent.eigen.rank',
@@ -66,5 +66,5 @@ function() {
 			'cent_close_weight_rank'='cent.close.weight.rank',
 			'cent_eigen_weight_rank'='cent.eigen.weight.rank')) %>%
 		nest_by(pubkey, .key="ranks")
-	return(list(centralities=cents))
+	return(list(graph_timestamp=graph_timestamp, centralities=cents))
 }
