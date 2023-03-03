@@ -57,7 +57,7 @@ function(req, res) {
 		}
 	)
 	expected_cols <- c("node_from", "node_to", "history.fail_time", "history.fail_amt_sat", "history.fail_amt_msat", "history.success_time", "history.success_amt_sat", "history.success_amt_msat")
-	if (identical(names(dat), expected_cols) && nrow(dat) > 0) {
+	if (sum(names(dat) %in% expected_cols) == 8 && nrow(dat) > 0) {
 		req$data <- dat
 	} else {
 		res$status <- 422
@@ -110,16 +110,22 @@ function(req, res) {
 					dest_custom_records=list("5482373484"=base64enc::base64encode(pre_image))
 				), auto_unbox=TRUE)
 			resp <- POST(url=Sys.getenv("PAY_URL"), body=payment_content, config=pay_req_headers)
-			if (status_code(resp) == 200) {
+      resp_content <- content(resp)
+			if (status_code(resp) == 200 && resp_content$payment_error == "" && !is.null(resp_content$payment_route)) {
 				req$payment_date <- as_datetime(resp$date, tz="UTC")
-			} else {
+      }
+      else if (is.null(resp_content$payment_route)) {
 				res$status <- 422
-				return(list(status=res$status, error="Failed to send payment"))
+				return(list(status=res$status, error="Failed to find route to send payment"))
+      }
+			else {
+				res$status <- 422
+				return(list(status=res$status, error="Failed to send payment for unexepcted reason"))
 			}
 		},
 		error = function(e) {
 			res$status <- 422
-			return(list(status=res$status, error="Failed to send payment"))
+			return(list(status=res$status, error="Failed to send payment, maybe store node not responding"))
 		}
 	)
 
@@ -177,4 +183,71 @@ function(req, res) {
       )
     )
   )
+}
+
+### probes api for testing purposes (no payment mechanism)
+#* Sats4probes testing
+#* @tag Sats4stats
+#* @post /test/probes
+function(req, res) {
+	# check data is in post body
+	if (is.null(req$postBody) || req$postBody == ""){
+		res$status <- 422
+		return(list(status=res$status, error="Did not receive any data; check for command typos, or check the path to lncli is correct, or test if there is non-empty output from the command lncli querymc"))
+	}
+
+	# validate data in body
+	tryCatch({
+			dat <- jsonlite::flatten(jsonlite::parse_json(req$postBody, simplifyVector=TRUE)$pairs)
+		},
+		error = function(e) {
+			res$status <- 422
+			return(list(status=res$status, error="Failed to parse data"))
+		}
+	)
+	expected_cols <- c("node_from", "node_to", "history.fail_time", "history.fail_amt_sat", "history.fail_amt_msat", "history.success_time", "history.success_amt_sat", "history.success_amt_msat")
+	if (sum(names(dat) %in% expected_cols) == 8 && nrow(dat) > 0) {
+		req$data <- dat
+	} else {
+		res$status <- 422
+		return(list(status=res$status, error="Data does not match expected format"))
+	}
+
+	# transform validated data
+	tryCatch({
+			req$data_transform <- req$data %>%
+				mutate_at(vars(history.fail_time:history.success_amt_msat), as.numeric) %>%
+				mutate(
+					date_submitted=now(tzone="UTC"),
+					submitter=req$pubkey,
+					time=ifelse(history.success_time>0, history.success_time, history.fail_time),
+					amt=ifelse(history.success_time>0,history.success_amt_sat, history.fail_amt_sat),
+					htlc=ifelse(history.success_time>0, "success", "fail")) %>%
+				dplyr::rename('from'='node_from', 'to'='node_to') %>%
+				dplyr::select(submitter, date_submitted, time, from, to, amt, htlc)
+		},
+		error = function(e) {
+			res$status <- 422
+			return(list(status=res$status, error="Unexepcted values observed"))
+		}
+	)
+
+	# commit keysend info to db on successful payment
+	tryCatch({
+			dbWriteTable(pool, "mc_test", req$data_transform, append=TRUE, overwrite=FALSE)
+		},
+		error = function(e) {
+			res$status <- 422
+			return(list(status=res$status, error="Something went wrong"))
+		}
+	)
+
+	# build the response
+	return(
+		list(
+			receipt=list(
+				settlement_time=as.numeric(now())
+			)
+		)
+	)
 }

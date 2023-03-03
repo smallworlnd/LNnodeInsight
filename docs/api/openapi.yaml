@@ -21,7 +21,8 @@ paths:
   /sats4stats/probes:
     post:
       summary: Sats4probes
-      description: Get sats for your probes collected by the Mission Control daemon
+      description: |
+        Get sats for your probes collected by LND's Mission Control daemon, or from data collected on your node running a different implementation (CLN/Eclair/etc.) using custom tools so you can generate a payload according to the request body schema
       requestBody:
         content:
           application/json:
@@ -122,7 +123,7 @@ paths:
             # Make sure `lncli` is in your path,
             # or specify the path to `lncli`
             lncli querymc | \
-              curl "http://api.lnnodeinsight.com/v1/sats4stats/probes" \ 
+              curl "https://api.lnnodeinsight.com/v1/sats4stats/probes" \ 
               -H "Content-Type: application/json" \
               -H 'api-key: your-api-key' \
               -i -X POST -d @-
@@ -139,7 +140,7 @@ paths:
             headers = {'Grpc-Metadata-macaroon': macaroon}
             mc = requests.get(url, headers=headers, verify=TLS_PATH)
 
-            endpoint = "http://api.lnnodeinsight.com/v1/sats4stats/probes"
+            endpoint = "https://api.lnnodeinsight.com/v1/sats4stats/probes"
             headers = {
                 "Content-Type": "application/json",
                 "api-key": "your-api-key"
@@ -165,7 +166,7 @@ paths:
             fetch(url, options)
               .then((res) => res.json())
               .then((mc) => {
-                const endpoint = 'http://api.lnnodeinsight.com/v1/sats4stats/probes';
+                const endpoint = 'https://api.lnnodeinsight.com/v1/sats4stats/probes';
                 const headers = {
                   'Content-Type': 'application/json',
                   'api-key': 'your-api-key',
@@ -202,7 +203,7 @@ paths:
                 resp, err := client.Do(req)
                 defer resp.Body.Close()
 
-                endpoint := "http://api.example.com/endpoint"
+                endpoint := "https://api.example.com/endpoint"
                 data := map[string]interface{}{
                     "key": "value",
                 }
@@ -273,7 +274,7 @@ paths:
       x-codeSamples:
         - lang: 'cURL'
           source: |
-            curl "http://api.lnnodeinsight.com/v1/sats4stats/payouts" \ 
+            curl "https://api.lnnodeinsight.com/v1/sats4stats/payouts" \ 
               -H 'api-key: your-api-key-here' \
               -i -X GET
         - lang: 'Python'
