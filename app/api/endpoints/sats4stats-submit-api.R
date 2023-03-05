@@ -114,6 +114,10 @@ function(req, res) {
 			if (status_code(resp) == 200 && resp_content$payment_error == "" && !is.null(resp_content$payment_route)) {
 				req$payment_date <- as_datetime(resp$date, tz="UTC")
       }
+      else if (resp_content$payment_error == "incorrect_payment_details") {
+				res$status <- 422
+				return(list(status=res$status, error="Keysend needs to be enabled on your node in order to receive payments"))
+      }
       else if (is.null(resp_content$payment_route)) {
 				res$status <- 422
 				return(list(status=res$status, error="Failed to find route to send payment"))
