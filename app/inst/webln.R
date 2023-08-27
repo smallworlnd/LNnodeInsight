@@ -25,8 +25,8 @@ requestLoginEnable <- function(id) {
 	glue::glue(.open = "{{{", .close = "}}}", '
 	shinyjs.webln_login_enable = async function() {
 	  try {
-		const status = await window.webln.enable();
-		Shiny.setInputValue("{{{id}}}", status.enabled);
+		await window.webln.enable();
+		Shiny.setInputValue("{{{id}}}", true);
 	  }
 	  catch(error) {
 		Shiny.setInputValue("{{{id}}}", {catch: error.name, reason: error.message});
@@ -37,8 +37,8 @@ requestEarnEnable <- function(id) {
 	glue::glue(.open = "{{{", .close = "}}}", '
 	shinyjs.webln_earn_enable = async function() {
 	  try {
-		const status = await window.webln.enable();
-		Shiny.setInputValue("{{{id}}}", status.enabled);
+		await window.webln.enable();
+		Shiny.setInputValue("{{{id}}}", true);
 	  }
 	  catch(error) {
 		Shiny.setInputValue("{{{id}}}", {catch: error.name, reason: error.message});
